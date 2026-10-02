@@ -103,6 +103,9 @@ export const inventoryCountItems = pgTable(
       .references(() => inventoryCounts.id, { onDelete: "cascade" }),
     ingredientId: uuid().references(() => ingredients.id),
     productId: uuid().references(() => products.id),
+    /** Lote de la posición contada (insumo → lote de MP; producto → lote terminado). Null = sin lote. */
+    rawLotId: uuid().references(() => rawLots.id),
+    finishedLotId: uuid().references(() => finishedLots.id),
     locationId: uuid()
       .notNull()
       .references(() => locations.id),
