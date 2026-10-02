@@ -126,7 +126,12 @@ export function estimateBigOrderDate(input: {
 }
 
 /** Estados en los que el pedido todavía necesita producto terminado (no salió del depósito). */
-export const OPEN_ORDER_STATUSES: readonly OrderStatus[] = ["received", "confirmed", "in_production", "ready"];
+export const OPEN_ORDER_STATUSES: readonly OrderStatus[] = [
+  "received",
+  "confirmed",
+  "in_production",
+  "ready",
+];
 
 /** Estados en los que se pueden editar los ítems del pedido (RF-03). */
 export const EDITABLE_ORDER_STATUSES: readonly OrderStatus[] = ["received", "confirmed"];
@@ -140,7 +145,11 @@ export function isOrderEditable(status: OrderStatus): boolean {
 }
 
 /** RF-03: pedido atrasado = fecha comprometida anterior a hoy y todavía no entregado (ni cancelado). */
-export function isOrderOverdue(input: { promisedDate: IsoDate; status: OrderStatus; today: IsoDate }): boolean {
+export function isOrderOverdue(input: {
+  promisedDate: IsoDate;
+  status: OrderStatus;
+  today: IsoDate;
+}): boolean {
   return !DELIVERY_DONE.includes(input.status) && input.promisedDate < input.today;
 }
 
@@ -152,11 +161,9 @@ export function nextDeliveryDate(input: { today: IsoDate; weekdays: number[] }):
   const tomorrow = addDays(input.today, 1);
   const valid = input.weekdays.filter((d) => d >= 1 && d <= 7);
   if (valid.length === 0) return tomorrow;
-  for (let offset = 0; offset < 7; offset++) {
-    const day = addDays(tomorrow, offset);
-    if (valid.includes(isoWeekday(day))) return day;
-  }
-  return tomorrow;
+  const weekdayOfTomorrow = isoWeekday(tomorrow);
+  const offset = Math.min(...valid.map((d) => (d - weekdayOfTomorrow + 7) % 7));
+  return addDays(tomorrow, offset);
 }
 
 /**

@@ -214,7 +214,15 @@ describe("edición y atraso del pedido (RF-03)", () => {
   it("solo se editan ítems en recibido o confirmado", () => {
     expect(isOrderEditable("received")).toBe(true);
     expect(isOrderEditable("confirmed")).toBe(true);
-    for (const s of ["in_production", "ready", "dispatched", "delivered", "invoiced", "paid", "cancelled"] as const) {
+    for (const s of [
+      "in_production",
+      "ready",
+      "dispatched",
+      "delivered",
+      "invoiced",
+      "paid",
+      "cancelled",
+    ] as const) {
       expect(isOrderEditable(s)).toBe(false);
     }
   });
@@ -226,7 +234,9 @@ describe("edición y atraso del pedido (RF-03)", () => {
     expect(isOrderOverdue({ ...base, status: "paid" })).toBe(false);
     expect(isOrderOverdue({ ...base, status: "cancelled" })).toBe(false);
     // la fecha de hoy todavía no está atrasada
-    expect(isOrderOverdue({ promisedDate: "2026-10-02", today: "2026-10-02", status: "received" })).toBe(false);
+    expect(isOrderOverdue({ promisedDate: "2026-10-02", today: "2026-10-02", status: "received" })).toBe(
+      false,
+    );
   });
 });
 

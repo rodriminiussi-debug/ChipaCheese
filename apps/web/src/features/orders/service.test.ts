@@ -30,8 +30,11 @@ async function product(tx: Tx, code: string) {
   if (!p) throw new Error(`producto ${code} no existe`);
   return p;
 }
-const input = (customerId: string, items: { productId: string; qtyUnits: number }[], promisedDate = "2026-10-06") =>
-  createOrderInput.parse({ customerId, promisedDate, items });
+const input = (
+  customerId: string,
+  items: { productId: string; qtyUnits: number }[],
+  promisedDate = "2026-10-06",
+) => createOrderInput.parse({ customerId, promisedDate, items });
 
 describe("alta de pedido (RF-02)", () => {
   it("congela los precios de la lista del cliente y calcula total y kg", async () => {
@@ -181,7 +184,9 @@ describe("estados del pedido (RF-03)", () => {
       await expect(changeOrderStatus(tx, userId, { id: o.id, to: "confirmed" })).rejects.toThrow(
         /No se puede pasar/,
       );
-      await expect(changeOrderStatus(tx, userId, { id: o.id, to: "ready" })).rejects.toThrow(/No se puede pasar/);
+      await expect(changeOrderStatus(tx, userId, { id: o.id, to: "ready" })).rejects.toThrow(
+        /No se puede pasar/,
+      );
       await changeOrderStatus(tx, userId, { id: o.id, to: "delivered" });
       await expect(changeOrderStatus(tx, userId, { id: o.id, to: "cancelled" })).rejects.toThrow(
         /No se puede pasar/,
@@ -210,9 +215,12 @@ describe("estados del pedido (RF-03)", () => {
         today: TODAY,
       });
       // sube el precio de lista después de la carga: la línea existente conserva 4200
-      await tx
-        .insert(schema.priceListItems)
-        .values({ priceListId: via.priceListId!, productId: tap.id, unitPrice: 5000, validFrom: "2026-10-02" });
+      await tx.insert(schema.priceListItems).values({
+        priceListId: via.priceListId!,
+        productId: tap.id,
+        unitPrice: 5000,
+        validFrom: "2026-10-02",
+      });
       await updateOrder(
         tx,
         userId,
@@ -429,7 +437,9 @@ describe("fecha posible de un pedido grande (RF-05)", () => {
       // el pedido grande de La Reina (abierto) ya reserva 278 kg de producción: lunes 150 + martes 128
       expect(est.backlogKg).toBe(278);
       expect(est.schedule[0]).toEqual({ date: "2026-10-06", kg: 22 });
-      expect(est.schedule.every((s) => ![6, 7].includes(new Date(`${s.date}T12:00:00Z`).getUTCDay() || 7))).toBe(true);
+      expect(
+        est.schedule.every((s) => ![6, 7].includes(new Date(`${s.date}T12:00:00Z`).getUTCDay() || 7)),
+      ).toBe(true);
     });
   });
 });

@@ -91,7 +91,9 @@ async function resolvePriceList(db: Executor, customer: { priceListId: string | 
   const [byChannel] = await db
     .select({ id: pl.id })
     .from(pl)
-    .where(and(eq(pl.active, true), eq(pl.channel, customer.channel as (typeof pl.channel.enumValues)[number])))
+    .where(
+      and(eq(pl.active, true), eq(pl.channel, customer.channel as (typeof pl.channel.enumValues)[number])),
+    )
     .orderBy(asc(pl.name))
     .limit(1);
   return byChannel?.id ?? null;
@@ -128,7 +130,10 @@ async function openOrderDemandUnits(db: Executor, excludeOrderId?: string | null
 
 /** Stock libre por producto = stock terminado − lo reservado por otros pedidos abiertos (≥ 0). */
 export async function availableFinishedUnits(db: Executor, excludeOrderId?: string | null) {
-  const [stock, reserved] = await Promise.all([finishedStockUnits(db), openOrderDemandUnits(db, excludeOrderId)]);
+  const [stock, reserved] = await Promise.all([
+    finishedStockUnits(db),
+    openOrderDemandUnits(db, excludeOrderId),
+  ]);
   const free: Record<string, number> = {};
   for (const id of new Set([...Object.keys(stock), ...Object.keys(reserved)])) {
     free[id] = Math.max(0, (stock[id] ?? 0) - (reserved[id] ?? 0));
@@ -179,7 +184,8 @@ export async function orderFormData(db: Executor, today: IsoDate = todayAR()) {
         )
     : [];
   const itemsByOrder = new Map<string, Item[]>();
-  for (const li of lastItems) (itemsByOrder.get(li.orderId) ?? itemsByOrder.set(li.orderId, []).get(li.orderId)!).push(li);
+  for (const li of lastItems)
+    (itemsByOrder.get(li.orderId) ?? itemsByOrder.set(li.orderId, []).get(li.orderId)!).push(li);
   const lastByCustomer = new Map(lastOrders.map((l) => [l.customerId, itemsByOrder.get(l.id) ?? []]));
 
   const priceListIds = await Promise.all(
@@ -227,7 +233,8 @@ export async function createOrder(
   const today = opts.today ?? todayAR();
   const customer = await db.query.customers.findFirst({ where: eq(schema.customers.id, input.customerId) });
   if (!customer) throw new UserError("El cliente no existe.", { customerId: ["Elegí un cliente"] });
-  if (!customer.active) throw new UserError("El cliente está inactivo.", { customerId: ["Cliente inactivo"] });
+  if (!customer.active)
+    throw new UserError("El cliente está inactivo.", { customerId: ["Cliente inactivo"] });
   if (input.promisedDate < today)
     throw new UserError("La fecha comprometida no puede ser anterior a hoy.", {
       promisedDate: ["Fecha anterior a hoy"],
@@ -422,13 +429,21 @@ export async function updateOrder(
     const prev = existingByProduct.get(i.productId);
     if (prev) {
       if (prev.qtyUnits !== i.qtyUnits)
-        await db.update(schema.orderItems).set({ qtyUnits: i.qtyUnits }).where(eq(schema.orderItems.id, prev.id));
+        await db
+          .update(schema.orderItems)
+          .set({ qtyUnits: i.qtyUnits })
+          .where(eq(schema.orderItems.id, prev.id));
     }
   }
   if (priced.length)
-    await db
-      .insert(schema.orderItems)
-      .values(priced.map((l) => ({ orderId: order.id, productId: l.productId, qtyUnits: l.qtyUnits, unitPrice: l.unitPrice })));
+    await db.insert(schema.orderItems).values(
+      priced.map((l) => ({
+        orderId: order.id,
+        productId: l.productId,
+        qtyUnits: l.qtyUnits,
+        unitPrice: l.unitPrice,
+      })),
+    );
 
   const finalItems = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, order.id));
   const total = orderTotal(finalItems);
@@ -482,16 +497,14 @@ export async function packingSheet(db: Executor, date: IsoDate) {
     string,
     { productId: string; code: string; name: string; boardCode: string | null; units: number; kg: number }
   >();
-  const byCustomer = new Map<
-    string,
-    {
-      customerId: string;
-      name: string;
-      orders: { id: string; number: number; status: OrderStatus; notes: string | null }[];
-      lines: Map<string, { productId: string; name: string; units: number; kg: number }>;
-      kg: number;
-    }
-  >();
+  interface SheetCustomer {
+    customerId: string;
+    name: string;
+    orders: { id: string; number: number; status: OrderStatus; notes: string | null }[];
+    lines: Map<string, { productId: string; name: string; units: number; kg: number }>;
+    kg: number;
+  }
+  const byCustomer = new Map<string, SheetCustomer>();
   for (const r of rows) {
     const kg = roundQty(r.qtyUnits * r.netWeightKg);
     const p = byProduct.get(r.productId) ?? {
@@ -506,7 +519,7 @@ export async function packingSheet(db: Executor, date: IsoDate) {
     p.kg = roundQty(p.kg + kg);
     byProduct.set(r.productId, p);
 
-    const c = byCustomer.get(r.customerId) ?? {
+    const c: SheetCustomer = byCustomer.get(r.customerId) ?? {
       customerId: r.customerId,
       name: r.customerName,
       orders: [],
@@ -606,7 +619,10 @@ export interface OverdueCustomer {
  * pedido es más viejo que su intervalo promedio × `orders.overdue_factor` (1,5). Los más demorados primero.
  * Lo consume también el tablero (M8).
  */
-export async function getOverdueCustomers(db: Executor, today: IsoDate = todayAR()): Promise<OverdueCustomer[]> {
+export async function getOverdueCustomers(
+  db: Executor,
+  today: IsoDate = todayAR(),
+): Promise<OverdueCustomer[]> {
   const factor = await getSetting("orders.overdue_factor", 1.5);
   const [customers, datesByCustomer] = await Promise.all([
     db.query.customers.findMany({
@@ -614,7 +630,7 @@ export async function getOverdueCustomers(db: Executor, today: IsoDate = todayAR
     }),
     orderDatesByCustomer(db),
   ]);
-  const out: (OverdueCustomer & { ratio: number })[] = [];
+  const out: { customer: OverdueCustomer; ratio: number }[] = [];
   for (const c of customers) {
     const dates = datesByCustomer.get(c.id) ?? [];
     if (!isCustomerOverdue({ orderDates: dates, today, toleranceFactor: factor })) continue;
@@ -622,18 +638,20 @@ export async function getOverdueCustomers(db: Executor, today: IsoDate = todayAR
     const since = daysSinceLastOrder(dates, today)!;
     const last = [...dates].sort().at(-1)!;
     out.push({
-      customerId: c.id,
-      name: c.legalName,
-      whatsapp: c.whatsapp,
-      lastOrderDate: last,
-      daysSinceLastOrder: since,
-      averageIntervalDays: average,
-      expectedDate: addDays(last, Math.round(average)),
-      daysLate: Math.round(since - average),
+      customer: {
+        customerId: c.id,
+        name: c.legalName,
+        whatsapp: c.whatsapp,
+        lastOrderDate: last,
+        daysSinceLastOrder: since,
+        averageIntervalDays: average,
+        expectedDate: addDays(last, Math.round(average)),
+        daysLate: Math.round(since - average),
+      },
       ratio: average > 0 ? since / average : Infinity,
     });
   }
-  return out.sort((a, b) => b.ratio - a.ratio).map(({ ratio: _ratio, ...rest }) => rest);
+  return out.sort((a, b) => b.ratio - a.ratio).map((o) => o.customer);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -695,7 +713,9 @@ export async function estimateOrderDate(
   let orderKgTotal: number;
   let coveredKg: number;
   if (items.length) {
-    orderKgTotal = orderKg(items.map((i) => ({ qtyUnits: i.qtyUnits, netWeightKg: weight.get(i.productId) ?? 0 })));
+    orderKgTotal = orderKg(
+      items.map((i) => ({ qtyUnits: i.qtyUnits, netWeightKg: weight.get(i.productId) ?? 0 })),
+    );
     coveredKg = roundQty(
       items.reduce(
         (acc, i) => acc + Math.min(i.qtyUnits, free[i.productId] ?? 0) * (weight.get(i.productId) ?? 0),
