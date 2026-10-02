@@ -1,0 +1,4 @@
+ALTER TABLE "inventory_count_items" ADD COLUMN "raw_lot_id" uuid;--> statement-breakpoint
+ALTER TABLE "inventory_count_items" ADD COLUMN "finished_lot_id" uuid;--> statement-breakpoint
+ALTER TABLE "inventory_count_items" ADD CONSTRAINT "inventory_count_items_raw_lot_id_raw_lots_id_fk" FOREIGN KEY ("raw_lot_id") REFERENCES "public"."raw_lots"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory_count_items" ADD CONSTRAINT "inventory_count_items_finished_lot_id_finished_lots_id_fk" FOREIGN KEY ("finished_lot_id") REFERENCES "public"."finished_lots"("id") ON DELETE no action ON UPDATE no action;
