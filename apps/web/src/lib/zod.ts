@@ -44,7 +44,8 @@ export const decimal = (opts: { min?: number; max?: number; message?: string } =
 /** Decimal opcional: vacío → null. */
 export const optDecimal = (opts: { min?: number; max?: number } = {}) =>
   z
-    .union([z.literal(""), z.null(), z.undefined(), decimal(opts)])
+    .union([z.literal(""), decimal(opts)])
+    .nullish()
     .transform((v) => (v === "" || v == null ? null : v));
 
 /** Entero desde input. */
