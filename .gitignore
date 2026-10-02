@@ -14,3 +14,4 @@ next-env.d.ts
 .data
 apps/web/e2e/.auth
 .next-docs
+.claude/
