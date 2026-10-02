@@ -1,0 +1,23 @@
+# Infra local de desarrollo. Producción: Supabase (Postgres + Storage S3) o el Dockerfile de apps/web.
+# Los archivos en dev se guardan en disco (STORAGE_DRIVER=local); en prod, S3 (STORAGE_DRIVER=s3).
+name: chipa
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chipa
+      POSTGRES_PASSWORD: chipa
+      POSTGRES_DB: chipa
+      TZ: America/Argentina/Buenos_Aires
+    ports: ["5433:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chipa -d chipa"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:

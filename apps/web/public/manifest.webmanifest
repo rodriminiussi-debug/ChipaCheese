@@ -1,0 +1,10 @@
+{
+  "name": "Chipa Cheese — Gestión",
+  "short_name": "Chipa Cheese",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#b45309",
+  "lang": "es-AR",
+  "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

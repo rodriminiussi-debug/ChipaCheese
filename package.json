@@ -1,0 +1,33 @@
+{
+  "name": "chipa-cheese",
+  "private": true,
+  "description": "Sistema de gestión Chipa Cheese (Pacon SRL)",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "pnpm --filter web test:e2e",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @chipa/db generate",
+    "db:migrate": "pnpm --filter @chipa/db migrate",
+    "db:seed": "pnpm --filter @chipa/db seed",
+    "db:reset": "pnpm --filter @chipa/db reset",
+    "db:studio": "pnpm --filter @chipa/db studio",
+    "setup": "pnpm install && pnpm db:up && pnpm db:reset",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3",
+    "prettier-plugin-tailwindcss": "^0.7",
+    "turbo": "^2.11.7",
+    "typescript": "^5"
+  }
+}

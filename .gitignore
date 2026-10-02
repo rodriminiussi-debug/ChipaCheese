@@ -1,0 +1,16 @@
+node_modules
+.next
+dist
+coverage
+.turbo
+.env
+.env.local
+*.log
+apps/web/test-results
+apps/web/playwright-report
+apps/web/blob-report
+.DS_Store
+next-env.d.ts
+.data
+apps/web/e2e/.auth
+.next-docs

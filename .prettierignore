@@ -1,0 +1,4 @@
+pnpm-lock.yaml
+**/.next
+**/drizzle/meta
+docs/relevamiento.md
