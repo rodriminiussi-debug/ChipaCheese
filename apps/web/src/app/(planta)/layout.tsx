@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { requirePermission } from "@/server/auth/session";
 import { logoutAction } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
+import { OfflineQueueIndicator } from "@/components/pwa/pwa";
 
 /** Layout de tablet de planta: pantalla completa, botones grandes, sin menú lateral. */
 export default async function PlantLayout({ children }: LayoutProps<"/">) {
@@ -14,6 +15,7 @@ export default async function PlantLayout({ children }: LayoutProps<"/">) {
           Planta
         </Link>
         <div className="flex items-center gap-3">
+          <OfflineQueueIndicator />
           <span className="text-lg font-semibold" data-testid="current-user">
             {user.initials}
           </span>

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ServiceWorkerRegister } from "@/components/pwa/pwa";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full">
         <TooltipProvider>{children}</TooltipProvider>
         <Toaster richColors position="top-center" />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
