@@ -286,24 +286,20 @@ export async function seedDemo(tx: Tx, r: SeedRefs) {
         createdById: r.users.af,
       })
       .returning();
-    await tx
-      .insert(s.orderItems)
-      .values(
-        input.items.map(([pk, units, price]) => ({
-          orderId: o!.id,
-          productId: P[pk]!,
-          qtyUnits: units,
-          unitPrice: price,
-        })),
-      );
-    await tx
-      .insert(s.orderEvents)
-      .values({
+    await tx.insert(s.orderItems).values(
+      input.items.map(([pk, units, price]) => ({
         orderId: o!.id,
-        status: input.status,
-        at: new Date(`${input.received}T09:30:00-03:00`),
-        byId: r.users.af,
-      });
+        productId: P[pk]!,
+        qtyUnits: units,
+        unitPrice: price,
+      })),
+    );
+    await tx.insert(s.orderEvents).values({
+      orderId: o!.id,
+      status: input.status,
+      at: new Date(`${input.received}T09:30:00-03:00`),
+      byId: r.users.af,
+    });
     return { id: o!.id, total };
   }
 
@@ -406,15 +402,13 @@ export async function seedDemo(tx: Tx, r: SeedRefs) {
     ["f1", -24],
     ["f2", -23],
   ] as const) {
-    await tx
-      .insert(s.temperatureLogs)
-      .values({
-        equipmentId: r.equipment[eq]!,
-        date: "2026-10-01",
-        measuredAt: new Date("2026-10-01T08:00:00-03:00"),
-        valueC: v,
-        userId: r.users.jt,
-      });
+    await tx.insert(s.temperatureLogs).values({
+      equipmentId: r.equipment[eq]!,
+      date: "2026-10-01",
+      measuredAt: new Date("2026-10-01T08:00:00-03:00"),
+      valueC: v,
+      userId: r.users.jt,
+    });
   }
 
   return { sep, oct };

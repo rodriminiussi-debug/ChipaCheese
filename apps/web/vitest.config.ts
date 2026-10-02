@@ -1,5 +1,9 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
+import { resolve as resolvePath } from "node:path";
+import { config as loadEnv } from "dotenv";
+
+loadEnv({ path: resolvePath(import.meta.dirname, "../../.env"), quiet: true });
 
 /**
  * Tests de integración de servicios (src/features/** /service.ts) contra chipa_test.

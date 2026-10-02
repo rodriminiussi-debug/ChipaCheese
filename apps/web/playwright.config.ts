@@ -1,4 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import { resolve as resolvePath } from "node:path";
+import { config as loadEnv } from "dotenv";
+
+loadEnv({ path: resolvePath(import.meta.dirname, "../../.env"), quiet: true });
 
 /**
  * E2E contra una base aislada (chipa_test) que global-setup reinicia con el seed + demo.
