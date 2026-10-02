@@ -49,5 +49,6 @@ export const transitionOrderAction = action(
 /** Lectura (RF-05): fecha posible para un pedido a medio cargar; se expone como acción para usarla desde el formulario. */
 export const estimateOrderDateAction = action(
   { permission: "orders:read", schema: estimateOrderInput },
-  async (input, { tx }) => estimateOrderDate(tx, { items: input.items, excludeOrderId: input.excludeOrderId }),
+  async (input, { tx }) =>
+    estimateOrderDate(tx, { items: input.items, excludeOrderId: input.excludeOrderId }),
 );
