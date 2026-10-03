@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCheck, Save } from "lucide-react";
+import { CheckCheck, CloudOff, Save } from "lucide-react";
 import { countDifference, formatDateAR, formatNumber } from "@chipa/domain";
 import {
   AlertDialog,
@@ -17,10 +17,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
 import { useAction } from "@/hooks/use-action";
+import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { UNIT } from "@/lib/labels";
 import { confirmInventoryCountAction, saveInventoryCountAction, voidInventoryCountAction } from "../actions";
 import type { CountItemRow } from "../inventory";
+import type { SaveCountPayload } from "../schemas";
 
 /**
  * RF-15: pantalla de carga del conteo, pensada para tablet: inputs grandes, agrupada por ubicación,
@@ -28,9 +31,21 @@ import type { CountItemRow } from "../inventory";
  */
 export function CountEntry({ countId, items }: { countId: string; items: CountItemRow[] }) {
   const router = useRouter();
-  const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(items.map((i) => [i.id, i.countedQty == null ? "" : String(i.countedQty)])),
+  // Avance guardado sin señal y todavía sin enviar: se retoma encima de lo que trajo el servidor.
+  const queued = useQueuedItems<SaveCountPayload>(OFFLINE_ACTION.inventoryCountSave).filter(
+    (q) => q.payload.countId === countId,
   );
+  const latestQueued = queued.at(-1)?.payload.items;
+  const base = useMemo(() => {
+    const m: Record<string, string> = Object.fromEntries(
+      items.map((i) => [i.id, i.countedQty == null ? "" : String(i.countedQty)]),
+    );
+    for (const q of latestQueued ?? [])
+      m[q.id] = q.countedQty == null || q.countedQty === "" ? "" : String(q.countedQty);
+    return m;
+  }, [items, latestQueued]);
+  const [edited, setEdited] = useState<Record<string, string>>({});
+  const values = useMemo(() => ({ ...base, ...edited }), [base, edited]);
   const payload = () => ({
     countId,
     items: items.map((i) => {
@@ -39,7 +54,10 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
     }),
   });
 
-  const save = useAction(saveInventoryCountAction, { success: "Avance guardado" });
+  // Sin señal el avance queda en la cola del equipo y se envía al volver la conexión (idempotente).
+  const save = useOfflineAction(OFFLINE_ACTION.inventoryCountSave, saveInventoryCountAction, {
+    success: "Avance guardado",
+  });
   const confirm = useAction(confirmInventoryCountAction, {
     success: (r) =>
       r.adjusted
@@ -64,6 +82,7 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
 
   const filled = items.filter((i) => (values[i.id]?.trim() ?? "") !== "").length;
   const pending = save.pending || confirm.pending || voidCount.pending;
+  const unsent = queued.length > 0;
 
   return (
     <div className="grid gap-6">
@@ -72,12 +91,19 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
           Contadas: <strong>{filled}</strong> de {items.length}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button size="lg" variant="outline" disabled={pending} onClick={() => save.run(payload())}>
+          <Button
+            size="lg"
+            variant="outline"
+            disabled={pending}
+            onClick={() =>
+              save.run({ ...payload(), clientId: crypto.randomUUID(), recordedAt: new Date().toISOString() })
+            }
+          >
             <Save /> Guardar avance
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button size="lg" disabled={pending || filled === 0}>
+              <Button size="lg" disabled={pending || unsent || filled === 0}>
                 <CheckCheck /> Confirmar inventario
               </Button>
             </AlertDialogTrigger>
@@ -98,11 +124,27 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <Button size="lg" variant="ghost" disabled={pending} onClick={() => voidCount.run({ countId })}>
+          <Button
+            size="lg"
+            variant="ghost"
+            disabled={pending || unsent}
+            onClick={() => voidCount.run({ countId })}
+          >
             Anular
           </Button>
         </div>
       </div>
+
+      {unsent ? (
+        <p
+          className="flex items-center gap-2 rounded-lg border border-amber-500 bg-amber-50 p-3 text-sm font-medium text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+          role="status"
+          data-testid="count-pending"
+        >
+          <CloudOff className="size-4" /> Avance guardado en este equipo, pendiente de enviar. Podés seguir
+          contando; para confirmar o anular esperá a que se envíe.
+        </p>
+      ) : null}
 
       {groups.map((g) => (
         <section key={g.name} className="grid gap-3">
@@ -146,7 +188,7 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
                     min={0}
                     placeholder="Contado"
                     value={values[i.id] ?? ""}
-                    onChange={(e) => setValues((v) => ({ ...v, [i.id]: e.target.value }))}
+                    onChange={(e) => setEdited((v) => ({ ...v, [i.id]: e.target.value }))}
                     className="h-14 text-right text-xl tabular-nums md:text-xl"
                   />
                 </li>

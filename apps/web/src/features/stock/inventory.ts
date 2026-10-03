@@ -206,14 +206,25 @@ async function assertDraft(db: Executor, countId: string) {
   return count;
 }
 
-/** Guarda lo contado hasta ahora (avance parcial). `null` = todavía sin contar. */
+/**
+ * Guarda lo contado hasta ahora (avance parcial). `null` = todavía sin contar.
+ *
+ * Con `opts` (envío desde la cola offline) es idempotente: el avance es el estado ABSOLUTO de lo contado, así
+ * que un reenvío (mismo `clientId`) o un envío más viejo que el último aplicado (`recordedAt` anterior, p. ej.
+ * una cola que se vacía después de haber guardado en línea) se descarta en vez de pisar lo más nuevo.
+ */
 export async function saveCountItems(
   db: Executor,
   userId: string | null,
   countId: string,
   items: { id: string; countedQty: number | null }[],
+  opts: { clientId?: string | null; recordedAt?: Date } = {},
 ) {
-  await assertDraft(db, countId);
+  const count = await assertDraft(db, countId);
+  if (opts.clientId && count.lastSaveClientId === opts.clientId)
+    return { saved: 0, duplicate: true as const, stale: false as const };
+  if (opts.recordedAt && count.lastSavedAt && opts.recordedAt.getTime() < count.lastSavedAt.getTime())
+    return { saved: 0, duplicate: false as const, stale: true as const };
   for (const it of items) {
     const res = await db
       .update(schema.inventoryCountItems)
@@ -224,9 +235,14 @@ export async function saveCountItems(
   }
   await db
     .update(schema.inventoryCounts)
-    .set({ countedById: userId })
+    .set({
+      countedById: userId,
+      ...(opts.clientId || opts.recordedAt
+        ? { lastSaveClientId: opts.clientId ?? null, lastSavedAt: opts.recordedAt ?? new Date() }
+        : {}),
+    })
     .where(eq(schema.inventoryCounts.id, countId));
-  return { saved: items.length };
+  return { saved: items.length, duplicate: false as const, stale: false as const };
 }
 
 /**

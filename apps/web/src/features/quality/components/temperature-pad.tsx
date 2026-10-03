@@ -7,6 +7,7 @@ import { parseDecimalAR, temperatureStatus } from "@chipa/domain";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
 import { useOfflineAction } from "@/hooks/use-offline-action";
 import { cn } from "@/lib/utils";
 import { recordTemperatureAction } from "../actions";
@@ -52,7 +53,7 @@ export function TemperaturePad({ equipment }: { equipment: EquipmentView[] }) {
   );
   const pendingInfo = useRef<{ code: string; value: number; out: boolean; id: string } | null>(null);
 
-  const { run, pending } = useOfflineAction("quality.temperature", recordTemperatureAction, {
+  const { run, pending } = useOfflineAction(OFFLINE_ACTION.temperature, recordTemperatureAction, {
     onSuccess: (_d, queued) => {
       const info = pendingInfo.current;
       if (info) {

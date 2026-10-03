@@ -4,19 +4,20 @@ import { revalidatePath } from "next/cache";
 import { action } from "@/server/action";
 import { UserError } from "@/server/errors";
 import { putFile } from "@/server/storage";
+import { clampRecordedAt } from "@/lib/idempotency";
 import {
   addOrdersInput,
   addSupplierStopInput,
   createRouteInput,
   deliverDispatchInput,
-  finishRouteInput,
+  finishRoutePayload,
   generateDispatchInput,
   generateRouteDispatchesInput,
   moveStopInput,
   rejectDispatchInput,
   removeStopInput,
   setStopDoneInput,
-  startRouteInput,
+  startRoutePayload,
   updateRouteInput,
 } from "./schemas";
 import {
@@ -115,19 +116,21 @@ export const setStopDoneAction = action(
   },
 );
 
+/** Salida desde el celular del chofer (encolable offline: "dispatch.routeStart"; idempotente por clientId). */
 export const startRouteAction = action(
-  { permission: "dispatch:write", schema: startRouteInput },
+  { permission: "dispatch:write", schema: startRoutePayload },
   async (input, { tx }) => {
-    const res = await startRoute(tx, input);
+    const res = await startRoute(tx, input, clampRecordedAt(new Date(input.recordedAt)));
     revalidateRoute(res.id);
     return res;
   },
 );
 
+/** Cierre de la salida (encolable offline: "dispatch.routeFinish"; idempotente por clientId). */
 export const finishRouteAction = action(
-  { permission: "dispatch:write", schema: finishRouteInput },
+  { permission: "dispatch:write", schema: finishRoutePayload },
   async (input, { tx, user }) => {
-    const res = await finishRoute(tx, user.id, input);
+    const res = await finishRoute(tx, user.id, input, clampRecordedAt(new Date(input.recordedAt)));
     revalidateRoute(res.id);
     revalidatePath("/calidad");
     return res;

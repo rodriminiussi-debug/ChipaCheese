@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Flag, Play, Plus, Save } from "lucide-react";
+import { CloudOff, FileText, Flag, Play, Plus, Save } from "lucide-react";
 import { toast } from "sonner";
 import { formatARS, formatNumber } from "@chipa/domain";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
 import { useAction } from "@/hooks/use-action";
+import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { formatDateTimeAR } from "@/lib/dates";
 import {
   addSupplierStopAction,
@@ -21,6 +23,7 @@ import {
   updateRouteAction,
 } from "../actions";
 import { timeHM } from "../labels";
+import type { FinishRoutePayload, StartRoutePayload } from "../schemas";
 import type { DispatchFormOptions } from "../service";
 
 const NONE = "__none__";
@@ -247,9 +250,27 @@ export function RouteRunPanel({ route, canWrite }: { route: RunPanelRoute; canWr
   });
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
-  const start = useAction(startRouteAction, { success: "Ruta iniciada", onSuccess: () => router.refresh() });
-  const finish = useAction(finishRouteAction, { success: "Ruta cerrada", onSuccess: () => router.refresh() });
+  // Sin señal en la calle: la salida y el cierre quedan en la cola del celular y se envían al volver la conexión.
+  const start = useOfflineAction(OFFLINE_ACTION.routeStart, startRouteAction, {
+    success: "Ruta iniciada",
+    onSuccess: (_d, queued) => {
+      if (!queued) router.refresh();
+    },
+  });
+  const finish = useOfflineAction(OFFLINE_ACTION.routeFinish, finishRouteAction, {
+    success: "Ruta cerrada",
+    onSuccess: (_d, queued) => {
+      if (!queued) router.refresh();
+    },
+  });
   const fe = finish.fieldErrors;
+  const queuedStart = useQueuedItems<StartRoutePayload>(OFFLINE_ACTION.routeStart).filter(
+    (q) => q.payload.id === route.id,
+  );
+  const queuedFinish = useQueuedItems<FinishRoutePayload>(OFFLINE_ACTION.routeFinish).filter(
+    (q) => q.payload.id === route.id,
+  );
+  const pendingStart = queuedStart.at(-1)?.payload;
 
   if (route.status === "done")
     return (
@@ -293,7 +314,23 @@ export function RouteRunPanel({ route, canWrite }: { route: RunPanelRoute; canWr
     ) : null;
   }
 
-  if (route.status === "planned")
+  // Cierre guardado sin señal: queda a la espera de la conexión.
+  if (queuedFinish.length > 0)
+    return (
+      <Card className="border-amber-500 bg-amber-50 dark:bg-amber-950/30" data-testid="route-finish-pending">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CloudOff className="size-4" /> Cierre de la ruta pendiente de enviar
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm">
+          Km final {String(queuedFinish.at(-1)!.payload.kmEnd)}. Quedó guardado en este celular y se envía
+          solo al volver la señal.
+        </CardContent>
+      </Card>
+    );
+
+  if (route.status === "planned" && !pendingStart)
     return (
       <Card>
         <CardHeader>
@@ -318,7 +355,14 @@ export function RouteRunPanel({ route, canWrite }: { route: RunPanelRoute; canWr
             size="lg"
             className="h-11 text-base"
             disabled={start.pending || kmStart.trim() === ""}
-            onClick={() => start.run({ id: route.id, kmStart })}
+            onClick={() =>
+              start.run({
+                id: route.id,
+                kmStart,
+                clientId: crypto.randomUUID(),
+                recordedAt: new Date().toISOString(),
+              })
+            }
           >
             <Play /> Iniciar ruta
           </Button>
@@ -331,7 +375,9 @@ export function RouteRunPanel({ route, canWrite }: { route: RunPanelRoute; canWr
       </Card>
     );
 
-  // in_progress
+  // in_progress (o planificada con la salida ya guardada sin señal)
+  const startedAt = route.startedAt ?? pendingStart?.recordedAt ?? null;
+  const startKm = route.kmStart ?? pendingStart?.kmStart ?? null;
   const field = (
     id: string,
     label: string,
@@ -356,7 +402,12 @@ export function RouteRunPanel({ route, canWrite }: { route: RunPanelRoute; canWr
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          En curso — salió {route.startedAt ? timeHM(route.startedAt) : ""} con {route.kmStart} km
+          En curso — salió {startedAt ? timeHM(startedAt) : ""} con {startKm} km
+          {pendingStart && route.status === "planned" ? (
+            <span className="ml-2 inline-flex items-center gap-1 text-sm font-normal text-amber-700 dark:text-amber-400">
+              <CloudOff className="size-4" /> salida pendiente de enviar
+            </span>
+          ) : null}
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3">
@@ -392,6 +443,8 @@ export function RouteRunPanel({ route, canWrite }: { route: RunPanelRoute; canWr
           onClick={() =>
             finish.run({
               id: route.id,
+              clientId: crypto.randomUUID(),
+              recordedAt: new Date().toISOString(),
               kmEnd: form.kmEnd,
               fuelLiters: form.fuelLiters,
               fuelCost: form.fuelCost,

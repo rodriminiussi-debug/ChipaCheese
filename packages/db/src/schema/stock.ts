@@ -91,6 +91,12 @@ export const inventoryCounts = pgTable("inventory_counts", {
   status: documentStatusEnum().notNull().default("draft"),
   countedById: uuid().references(() => users.id),
   notes: text(),
+  /**
+   * Guardado de avance sin señal (RF-15): el último envío aplicado. El avance es el estado absoluto de lo
+   * contado, así que alcanza con descartar reenvíos (mismo clientId) y envíos viejos (recordedAt anterior).
+   */
+  lastSaveClientId: uuid(),
+  lastSavedAt: tstz(),
   ...timestamps(),
 });
 

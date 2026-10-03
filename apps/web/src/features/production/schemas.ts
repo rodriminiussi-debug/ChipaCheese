@@ -1,5 +1,14 @@
 import { z } from "zod";
-import { decimal, int, isoDate, optDecimal, optText, optUuid } from "@/lib/zod";
+import {
+  clientIdField,
+  decimal,
+  int,
+  isoDate,
+  optDecimal,
+  optText,
+  optUuid,
+  recordedAtField,
+} from "@/lib/zod";
 import { PLAN_SHAPES } from "./calc";
 
 /** Esquemas compartidos cliente/servidor del módulo de producción (RF-18 a RF-22). */
@@ -129,3 +138,15 @@ export const recordPackingInput = z.object({
     .min(1),
 });
 export type RecordPackingInput = z.input<typeof recordPackingInput>;
+
+/**
+ * Carga sin señal (RF-20 en tablet/celular): los envíos encolables llevan `clientId` (uuid de la tablet,
+ * idempotencia al reenviar desde la cola) y `recordedAt` (momento real de la carga). Ver `src/lib/offline-queue.ts`.
+ */
+const offlineStamp = { clientId: clientIdField(), recordedAt: recordedAtField() };
+export const recordConsumptionsPayload = recordConsumptionsInput.extend(offlineStamp);
+export type RecordConsumptionsPayload = z.input<typeof recordConsumptionsPayload>;
+export const recordWeighingsPayload = recordWeighingsInput.extend(offlineStamp);
+export type RecordWeighingsPayload = z.input<typeof recordWeighingsPayload>;
+export const recordPackingPayload = recordPackingInput.extend(offlineStamp);
+export type RecordPackingPayload = z.input<typeof recordPackingPayload>;

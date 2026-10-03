@@ -141,6 +141,27 @@ export const productionConsumptions = pgTable(
   ],
 );
 
+/**
+ * Confirmaciones de consumos (RF-20, cola offline). La confirmación revierte y reemplaza los consumos
+ * de la producción, así que no es idempotente "por sí sola": cada confirmación registra el `client_id`
+ * (uuid generado en la tablet) y reenviarla no vuelve a revertir/reemplazar ni a mover stock.
+ */
+export const productionConsumptionConfirmations = pgTable(
+  "production_consumption_confirmations",
+  {
+    id: id(),
+    runId: uuid()
+      .notNull()
+      .references(() => productionRuns.id, { onDelete: "cascade" }),
+    clientId: uuid().notNull().unique(),
+    confirmedById: uuid().references(() => users.id),
+    /** Momento real de la confirmación en la tablet (acotado a "ahora" por el servidor). */
+    confirmedAt: tstz().notNull().defaultNow(),
+    ...timestamps(),
+  },
+  (t) => [index("production_consumption_confirmations_run_idx").on(t.runId)],
+);
+
 /** Pesadas por forma (RF-21). */
 export const productionWeighings = pgTable(
   "production_weighings",
@@ -153,6 +174,8 @@ export const productionWeighings = pgTable(
     kg: qty().notNull(),
     weighedById: uuid().references(() => users.id),
     weighedAt: tstz().notNull().defaultNow(),
+    /** Idempotencia offline: uuid de la tablet (por línea, derivado del clientId del envío). */
+    clientId: uuid().unique(),
     ...timestamps(),
   },
   (t) => [index("production_weighings_run_idx").on(t.runId)],
@@ -194,6 +217,8 @@ export const packings = pgTable(
       .references(() => locations.id),
     packedById: uuid().references(() => users.id),
     packedAt: tstz().notNull().defaultNow(),
+    /** Idempotencia offline: uuid de la tablet (por línea, derivado del clientId del envío). */
+    clientId: uuid().unique(),
     ...timestamps(),
   },
   (t) => [index("packings_lot_idx").on(t.finishedLotId)],

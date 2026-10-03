@@ -6,15 +6,16 @@ import { getSetting } from "@/server/settings";
 import { UserError } from "@/server/errors";
 import { can } from "@/lib/rbac";
 import { todayAR } from "@/lib/dates";
+import { clampRecordedAt } from "@/lib/idempotency";
 import {
   activateRecipeInput,
   confirmPlanInput,
   createRunInput,
   deleteWeighingInput,
   recipeVersionInput,
-  recordConsumptionsInput,
-  recordPackingInput,
-  recordWeighingsInput,
+  recordConsumptionsPayload,
+  recordPackingPayload,
+  recordWeighingsPayload,
   savePlanInput,
   setRunStatusInput,
 } from "./schemas";
@@ -33,6 +34,12 @@ import {
 
 /** Quien arma el plan y las producciones (jefa) o carga desde la tablet (operario). */
 const WRITE_OR_RECORD = ["production:write", "production:record"] as const;
+
+/** Idempotencia y hora real del envío desde la cola offline (la hora, acotada a "ahora"). */
+const stamp = (input: { clientId: string; recordedAt: string }) => ({
+  clientId: input.clientId,
+  recordedAt: clampRecordedAt(new Date(input.recordedAt)),
+});
 
 function revalidateProduction(runId?: string) {
   revalidatePath("/produccion");
@@ -96,12 +103,13 @@ export const createRunAction = action(
   },
 );
 
+/** Confirmación de consumos (encolable offline: "production.consumptions"; idempotente por clientId). */
 export const recordConsumptionsAction = action(
-  { permission: [...WRITE_OR_RECORD], schema: recordConsumptionsInput },
+  { permission: [...WRITE_OR_RECORD], schema: recordConsumptionsPayload },
   async (input, { tx, user }) => {
-    const res = await recordConsumptions(tx, user.id, input);
+    const res = await recordConsumptions(tx, user.id, input, stamp(input));
     revalidateProduction(input.runId);
-    return { outOfRange: res.outOfRange, lines: res.rows.length };
+    return { outOfRange: res.outOfRange, lines: res.rows.length, duplicate: res.duplicate };
   },
 );
 
@@ -120,10 +128,11 @@ export const setRunStatusAction = action(
 
 // --- RF-21 ------------------------------------------------------------------------------------
 
+/** Pesadas (encolable offline: "production.weighings"; idempotente por clientId). */
 export const recordWeighingsAction = action(
-  { permission: [...WRITE_OR_RECORD], schema: recordWeighingsInput },
+  { permission: [...WRITE_OR_RECORD], schema: recordWeighingsPayload },
   async (input, { tx, user }) => {
-    const rows = await recordWeighings(tx, user.id, input);
+    const rows = await recordWeighings(tx, user.id, input, stamp(input));
     revalidateProduction(input.runId);
     return { count: rows.length };
   },
@@ -140,10 +149,11 @@ export const deleteWeighingAction = action(
 
 // --- RF-22 ------------------------------------------------------------------------------------
 
+/** Envasado (encolable offline: "production.packing"; idempotente por clientId). */
 export const recordPackingAction = action(
-  { permission: [...WRITE_OR_RECORD], schema: recordPackingInput },
+  { permission: [...WRITE_OR_RECORD], schema: recordPackingPayload },
   async (input, { tx, user }) => {
-    const { lot, packings } = await recordPacking(tx, user.id, input);
+    const { lot, packings } = await recordPacking(tx, user.id, input, stamp(input));
     revalidateProduction(input.runId);
     revalidatePath(`/produccion/lotes/${lot.code}`);
     return { lotCode: lot.code, units: packings.reduce((a, p) => a + p.units, 0) };

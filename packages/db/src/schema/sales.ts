@@ -34,6 +34,8 @@ export const orders = pgTable(
     total: money().notNull().default(0),
     notes: text(),
     createdById: uuid().references(() => users.id),
+    /** uuid generado en el celular: idempotencia al reenviar el pedido desde la cola offline. */
+    clientId: uuid().unique(),
     ...timestamps(),
   },
   (t) => [

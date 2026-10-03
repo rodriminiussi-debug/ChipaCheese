@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { action } from "@/server/action";
 import { UserError } from "@/server/errors";
 import { can } from "@/lib/rbac";
-import { createOrderInput, estimateOrderInput, transitionOrderInput, updateOrderInput } from "./schemas";
+import { clampRecordedAt } from "@/lib/idempotency";
+import { createOrderPayload, estimateOrderInput, transitionOrderInput, updateOrderInput } from "./schemas";
 import { changeOrderStatus, createOrder, estimateOrderDate, updateOrder } from "./service";
 
 function revalidateOrder(id?: string, customerId?: string) {
@@ -14,10 +15,14 @@ function revalidateOrder(id?: string, customerId?: string) {
   if (customerId) revalidatePath(`/clientes/${customerId}`);
 }
 
+/** Pedido desde el celular (encolable offline: "orders.create"; idempotente por clientId). */
 export const createOrderAction = action(
-  { permission: "orders:write", schema: createOrderInput },
+  { permission: "orders:write", schema: createOrderPayload },
   async (input, { tx, user }) => {
-    const order = await createOrder(tx, user.id, input);
+    const order = await createOrder(tx, user.id, input, {
+      clientId: input.clientId,
+      recordedAt: clampRecordedAt(new Date(input.recordedAt)),
+    });
     revalidateOrder(order.id, input.customerId);
     return order;
   },

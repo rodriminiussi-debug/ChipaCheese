@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { action } from "@/server/action";
+import { clampRecordedAt } from "@/lib/idempotency";
 import {
   confirmCountInput,
   countIdInput,
@@ -9,7 +10,7 @@ import {
   ingredientAdjustmentInput,
   ingredientLevelsInput,
   productTransferInput,
-  saveCountInput,
+  saveCountPayload,
 } from "./schemas";
 import { adjustIngredientStock, transferProduct, updateIngredientLevels } from "./service";
 import { confirmInventoryCount, createInventoryCount, saveCountItems, voidInventoryCount } from "./inventory";
@@ -54,10 +55,14 @@ export const createInventoryCountAction = action(
   },
 );
 
+/** Guardar avance del conteo (encolable offline: "stock.inventoryCountSave"; idempotente por clientId). */
 export const saveInventoryCountAction = action(
-  { permission: "stock:write", schema: saveCountInput },
-  async ({ countId, items }, { tx, user }) => {
-    const res = await saveCountItems(tx, user.id, countId, items);
+  { permission: "stock:write", schema: saveCountPayload },
+  async ({ countId, items, clientId, recordedAt }, { tx, user }) => {
+    const res = await saveCountItems(tx, user.id, countId, items, {
+      clientId,
+      recordedAt: clampRecordedAt(new Date(recordedAt)),
+    });
     revalidatePath(`/stock/inventario/${countId}`);
     return res;
   },

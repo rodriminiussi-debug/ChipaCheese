@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { optText, optUuid } from "@/lib/zod";
+import { clientIdField, optText, optUuid, recordedAtField } from "@/lib/zod";
 
 /** Cantidad positiva desde un input numérico (acepta number o string "12.5"). */
 const positiveQty = (message = "Ingresá una cantidad mayor a 0") =>
@@ -85,6 +85,16 @@ export const saveCountInput = z.object({
 export type SaveCountInput = z.input<typeof saveCountInput>;
 
 export const confirmCountInput = saveCountInput;
+
+/**
+ * Guardar avance sin señal (RF-15): se encola con `clientId` y `recordedAt`. El avance es el estado absoluto
+ * de lo contado, así que el servidor descarta reenvíos (mismo clientId) y envíos más viejos que el último aplicado.
+ */
+export const saveCountPayload = saveCountInput.extend({
+  clientId: clientIdField(),
+  recordedAt: recordedAtField(),
+});
+export type SaveCountPayload = z.input<typeof saveCountPayload>;
 export const countIdInput = z.object({ countId: z.string().uuid() });
 
 // --- Filtros del libro mayor (se leen de la URL) ---------------------------------------------
