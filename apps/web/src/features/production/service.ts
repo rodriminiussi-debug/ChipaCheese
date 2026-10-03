@@ -1,6 +1,7 @@
 import {
   addDays,
   allocateFefo,
+  isoWeekday,
   finishedLotCode,
   finishedLotExpiry,
   recipeIngredientsKg,
@@ -310,8 +311,8 @@ export async function confirmPlan(db: Executor, date: IsoDate, settings: PlanSet
 
 /** Vista semanal: kg planificados por día (y lo pesado) para comparar con la capacidad. */
 export async function weekPlan(db: Executor, date: IsoDate, workdays: number[]) {
-  const days = weekDays(date, workdays);
-  if (!days.length) return [];
+  // Se consultan los 7 días: los no hábiles solo se muestran si tienen plan o producciones.
+  const days = weekDays(date, [1, 2, 3, 4, 5, 6, 7]);
   const [plans, weighed] = await Promise.all([
     db.query.productionPlans.findMany({ where: inArray(schema.productionPlans.date, days) }),
     db
@@ -325,17 +326,19 @@ export async function weekPlan(db: Executor, date: IsoDate, workdays: number[]) 
       .where(and(inArray(schema.productionRuns.date, days), ne(schema.productionRuns.status, "cancelled")))
       .groupBy(schema.productionRuns.date),
   ]);
-  return days.map((d) => {
-    const plan = plans.find((p) => p.date === d);
-    const w = weighed.find((x) => x.date === d);
-    return {
-      date: d,
-      plannedKg: plan?.totalKg ?? 0,
-      planStatus: plan?.status ?? null,
-      runs: w?.runs ?? 0,
-      weighedKg: roundQty(w?.kg ?? 0),
-    };
-  });
+  return days
+    .map((d) => {
+      const plan = plans.find((p) => p.date === d);
+      const w = weighed.find((x) => x.date === d);
+      return {
+        date: d,
+        plannedKg: plan?.totalKg ?? 0,
+        planStatus: plan?.status ?? null,
+        runs: w?.runs ?? 0,
+        weighedKg: roundQty(w?.kg ?? 0),
+      };
+    })
+    .filter((d) => workdays.includes(isoWeekday(d.date)) || d.plannedKg > 0 || d.runs > 0);
 }
 
 // ===========================================================================================

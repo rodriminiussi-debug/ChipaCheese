@@ -1,0 +1,110 @@
+import { test, expect, asRole, expectToast } from "./fixtures";
+
+const AR = "America/Argentina/Buenos_Aires";
+const todayAR = () => new Intl.DateTimeFormat("en-CA", { timeZone: AR }).format(new Date());
+
+test.describe("Modo planta en tablet (M4)", () => {
+  test.use({ storageState: asRole("operator") });
+
+  /** Producción de hoy en elaboración, creada por la jefa (fixture SQL: este spec prueba la carga del operario). */
+  async function createRun(sql: import("postgres").Sql) {
+    const date = todayAR();
+    const [{ id: recipeId }] = await sql`select id from recipes where status = 'active'`;
+    const [{ id: userId }] = await sql`select id from users where username = 'af'`;
+    const [{ n }] =
+      await sql`select coalesce(max(run_number), 0) + 1 as n from production_runs where date = ${date}`;
+    const [run] =
+      await sql`insert into production_runs (date, run_number, recipe_id, starch_kg, batches, status, responsible_id)
+      values (${date}, ${n}, ${recipeId}, 75, 2, 'in_progress', ${userId}) returning id`;
+    return { id: run!.id as string, number: Number(n) };
+  }
+
+  async function openRun(page: import("@playwright/test").Page, number: number) {
+    // Con varias producciones abiertas hay que elegir; con una sola se abre directo.
+    await page.getByRole("heading", { level: 1 }).first().waitFor();
+    const pick = page.getByRole("link", { name: new RegExp(`Producción N° ${number}\\b`) });
+    if (await pick.isVisible()) await pick.click();
+  }
+
+  test("el operario carga consumo real y pesadas con botones grandes", async ({ page, sql }) => {
+    const run = await createRun(sql);
+    await page.goto("/planta");
+    await page.getByTestId("tile-produccion").click();
+    await expect(page.getByRole("heading", { name: "Producción y pesadas" })).toBeVisible();
+    await openRun(page, run.number);
+    await expect(page.getByRole("heading", { name: `Producción N° ${run.number}` })).toBeVisible();
+
+    // Consumo real: viene precargado, un toque lo confirma. Los controles son grandes (≥ 64 px).
+    const confirm = page.getByRole("button", { name: "Confirmar consumos" });
+    expect((await confirm.boundingBox())!.height).toBeGreaterThanOrEqual(64);
+    expect(
+      (await page.getByLabel("Real de Leche", { exact: true }).boundingBox())!.height,
+    ).toBeGreaterThanOrEqual(64);
+    await confirm.click();
+    await expectToast(page, "Consumos registrados");
+    await expect(page.getByText(/Consumos cargados \(\d+ líneas\)/)).toBeVisible();
+
+    // Pesadas por forma.
+    const save = page.getByRole("button", { name: "Guardar pesadas" });
+    expect((await save.boundingBox())!.height).toBeGreaterThanOrEqual(64);
+    await expect(page.getByLabel("Pesada de tapitas en kg")).toHaveAttribute("inputmode", "decimal");
+    await page.getByLabel("Pesada de tapitas en kg").fill("40");
+    await page.getByLabel("Pesada de aritos en kg").fill("5");
+    await page.getByLabel("Pesada de lengüitas en kg").fill("30");
+    await save.click();
+    await expectToast(page, "Pesadas registradas");
+    await expect(page.getByText(/Pesado: 75 kg/)).toBeVisible();
+    await expect(page.getByRole("list", { name: "Pesadas cargadas" })).toContainText("Tapitas · 40 kg");
+
+    // Los consumos quedaron en el libro mayor (con los lotes repartidos por FEFO según el stock).
+    const [moves] = await sql`select count(*)::int as n, sum(qty)::float as qty from stock_movements
+      where ref_table = 'production_runs' and ref_id = ${run.id} and type = 'production_consumption'`;
+    expect(moves!.n).toBeGreaterThanOrEqual(7);
+    expect(moves!.qty).toBeLessThan(0);
+  });
+
+  test("el operario envasa con +/− y queda el lote con su stock y la etiqueta", async ({ page, sql }) => {
+    const run = await createRun(sql);
+    await page.goto("/planta");
+    await page.getByTestId("tile-envasado").click();
+    await openRun(page, run.number);
+    await expect(
+      page.getByRole("heading", { name: new RegExp(`Envasado · Producción N° ${run.number}`) }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Chipá tapitas 0,5 kg" }).click();
+    for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Sumar 10", exact: true }).click();
+    await page.getByRole("button", { name: "Sumar 1", exact: true }).click();
+    await page.getByRole("button", { name: "Restar 1", exact: true }).click();
+    await expect(page.getByRole("status", { name: "Bolsas a registrar" })).toHaveText("30");
+    await page.getByRole("button", { name: "F4" }).click();
+    const confirm = page.getByRole("button", { name: "Confirmar envasado (30)" });
+    expect((await confirm.boundingBox())!.height).toBeGreaterThanOrEqual(64);
+    await confirm.click();
+    await expectToast(page, /Envasado registrado: 30 u\. en el lote \d{6}-\d+/);
+    await expect(page.getByRole("link", { name: "Imprimir etiquetas" })).toBeVisible();
+    const packed = page.getByRole("region", { name: "Envasado de este lote" });
+    await expect(packed).toContainText("Chipá tapitas 0,5 kg");
+    await expect(packed).toContainText("30 u.");
+
+    const [lot] = await sql`select l.code, coalesce(sum(s.qty), 0)::float as qty, min(loc.code) as loc
+      from finished_lots l left join v_product_stock s on s.finished_lot_id = l.id
+      left join locations loc on loc.id = s.location_id
+      where l.run_id = ${run.id} group by l.code`;
+    expect(lot).toMatchObject({ qty: 30, loc: "F4" });
+    await page.getByRole("link", { name: "Imprimir etiquetas" }).click();
+    await expect(page.getByRole("img", { name: new RegExp(`lote ${lot!.code}`) }).first()).toBeVisible();
+    await expect(page.getByTestId("product-label")).toHaveCount(30);
+  });
+
+  test("mis tareas de hoy muestra lo asignado en el pizarrón", async ({ page, sql }) => {
+    await sql`insert into task_assignments (date, task_id, user_id)
+      select ${todayAR()}, t.id, u.id from plant_tasks t, users u
+      where t.name = 'Huevos' and u.username = 'jt' on conflict do nothing`;
+    await page.goto("/planta");
+    await page.getByTestId("tile-tareas").click();
+    await expect(page.getByRole("heading", { name: "Mis tareas de hoy" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Preproducción" })).toBeVisible();
+    await expect(page.getByText("Huevos")).toBeVisible();
+  });
+});
