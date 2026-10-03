@@ -45,6 +45,9 @@ export const transitionOrderInput = z
   });
 export type TransitionOrderData = z.output<typeof transitionOrderInput>;
 
+/** RF-05: usar la fecha posible como fecha comprometida. */
+export const setPromisedDateInput = z.object({ id: z.string().uuid(), date: isoDate() });
+
 /** RF-05: consulta de fecha posible para un pedido a medio cargar. */
 export const estimateOrderInput = z.object({
   items: z.array(orderItemInput).default([]),

@@ -10,6 +10,7 @@ import {
   isOrderEditable,
   isOrderOverdue,
   nextDeliveryDate,
+  weeklyCapacityShare,
   nextStatuses,
   ORDER_STATUSES,
   orderKg,
@@ -309,5 +310,26 @@ describe("allocateBacklogKg (RF-05)", () => {
       maxDays: 10,
     });
     expect(r).toEqual({ "2026-10-02": 100, "2026-10-09": 100 });
+  });
+});
+
+describe("pedido que ocupa demasiada capacidad semanal (RF-05)", () => {
+  const base = { dailyCapacityKg: 150, workdaysPerWeek: 5, maxPct: 50 };
+  it("calcula el porcentaje sobre la capacidad semanal y avisa solo si supera el máximo", () => {
+    expect(weeklyCapacityShare({ ...base, orderKg: 425 })).toEqual({
+      weeklyCapacityKg: 750,
+      pct: 56.7,
+      maxPct: 50,
+      exceeds: true,
+    });
+    expect(weeklyCapacityShare({ ...base, orderKg: 375 })).toMatchObject({ pct: 50, exceeds: false });
+    expect(weeklyCapacityShare({ ...base, orderKg: 100 })).toMatchObject({ pct: 13.3, exceeds: false });
+    expect(weeklyCapacityShare({ ...base, orderKg: 525 })).toMatchObject({ pct: 70, exceeds: true });
+  });
+  it("sin capacidad configurada no avisa", () => {
+    expect(weeklyCapacityShare({ ...base, dailyCapacityKg: 0, orderKg: 10 })).toMatchObject({
+      pct: 0,
+      exceeds: false,
+    });
   });
 });

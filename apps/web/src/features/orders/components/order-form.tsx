@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronsUpDown, Minus, Plus, Repeat } from "lucide-react";
+import { CalendarCheck, ChevronsUpDown, Minus, Plus, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -311,7 +311,24 @@ export function OrderForm({
       </div>
 
       {estimated && estimated.key === itemsKey && exceedsStock ? (
-        <EstimateCard estimate={estimated.value} promisedDate={promisedDate} />
+        <EstimateCard
+          estimate={estimated.value}
+          promisedDate={promisedDate}
+          useDateAction={
+            <Button
+              type="button"
+              size="sm"
+              onClick={() =>
+                form.setValue("promisedDate", estimated.value.date!, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            >
+              <CalendarCheck /> Usar esta fecha
+            </Button>
+          }
+        />
       ) : null}
 
       {/* Barra inferior: total y guardar */}

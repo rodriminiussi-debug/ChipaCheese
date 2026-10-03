@@ -6,6 +6,7 @@ import {
   currentUnitPrice,
   daysSinceLastOrder,
   estimateBigOrderDate,
+  formatDateAR,
   isCustomerOverdue,
   isOrderEditable,
   isOrderOverdue,
@@ -15,6 +16,7 @@ import {
   orderTotal,
   roundMoney,
   roundQty,
+  weeklyCapacityShare,
   type IsoDate,
   type OrderStatus,
 } from "@chipa/domain";
@@ -679,6 +681,8 @@ export interface OrderDateEstimate {
   plannedKg: number;
   /** Kg que otros pedidos abiertos todavía necesitan producir y se asumen antes que este. */
   backlogKg: number;
+  /** RF-05: parte de la capacidad semanal que ocupa el pedido y si supera el máximo configurado. */
+  capacityShare: { weeklyCapacityKg: number; pct: number; maxPct: number; exceeds: boolean };
   today: IsoDate;
 }
 
@@ -699,9 +703,10 @@ export async function estimateOrderDate(
   input: { items?: Item[]; kg?: number; today?: IsoDate; excludeOrderId?: string | null },
 ): Promise<OrderDateEstimate> {
   const today = input.today ?? todayAR();
-  const [capacityKg, workdays] = await Promise.all([
+  const [capacityKg, workdays, maxWeeklyPct] = await Promise.all([
     getSetting<number>("production.daily_capacity_kg", 150),
     getSetting<number[]>("production.workdays", [1, 2, 3, 4, 5]),
+    getSetting<number>("orders.max_weekly_capacity_pct", 50),
   ]);
   const [{ stock, reserved, free }, products, plans] = await Promise.all([
     availableFinishedUnits(db, input.excludeOrderId),
@@ -773,8 +778,45 @@ export async function estimateOrderDate(
     workdays,
     plannedKg,
     backlogKg,
+    capacityShare: weeklyCapacityShare({
+      orderKg: orderKgTotal,
+      dailyCapacityKg: capacityKg,
+      workdaysPerWeek: workdays.length,
+      maxPct: maxWeeklyPct,
+    }),
     today,
   };
+}
+
+/**
+ * RF-05: usa la fecha posible como fecha comprometida del pedido (queda en el historial). Solo mientras el
+ * pedido no salió de producción; la fecha no puede ser anterior a hoy.
+ */
+export async function setPromisedDate(
+  db: Executor,
+  userId: string | null,
+  input: { id: string; date: IsoDate },
+  opts: { today?: IsoDate } = {},
+) {
+  const today = opts.today ?? todayAR();
+  const order = await lockOrder(db, input.id);
+  if (!["received", "confirmed", "in_production"].includes(order.status))
+    throw new UserError(
+      `El pedido está "${ORDER_STATUS[order.status]?.label}": ya no se puede cambiar la fecha comprometida.`,
+    );
+  if (input.date < today)
+    throw new UserError("La fecha comprometida no puede ser anterior a hoy.", {
+      date: ["Fecha anterior a hoy"],
+    });
+  if (input.date === order.promisedDate) return { id: order.id, promisedDate: order.promisedDate };
+  await db.update(schema.orders).set({ promisedDate: input.date }).where(eq(schema.orders.id, order.id));
+  await db.insert(schema.orderEvents).values({
+    orderId: order.id,
+    status: order.status,
+    byId: userId,
+    note: `Fecha comprometida: ${formatDateAR(order.promisedDate)} → ${formatDateAR(input.date)} (fecha posible)`,
+  });
+  return { id: order.id, promisedDate: input.date };
 }
 
 /** RF-05: estimación para un pedido ya cargado (se excluye a sí mismo de la demanda). */

@@ -1,4 +1,5 @@
-import { CalendarClock, PackageCheck, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
+import { CalendarClock, Gauge, PackageCheck, TriangleAlert } from "lucide-react";
 import { formatDateAR, isoWeekday } from "@chipa/domain";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Kg } from "@/components/app/format";
@@ -8,6 +9,8 @@ import type { OrderDateEstimate } from "../service";
 /** "Lun 05/10/2026" */
 export const weekdayDate = (d: string) => `${WEEKDAY_LABELS[isoWeekday(d)]} ${formatDateAR(d)}`;
 
+const formatPct = (n: number) => n.toLocaleString("es-AR", { maximumFractionDigits: 1 });
+
 /**
  * RF-05: fecha posible de un pedido (o de X kg), con el cronograma de producción sugerido y la
  * advertencia si la fecha comprometida es anterior. Presentacional: sirve en server y en client.
@@ -15,22 +18,42 @@ export const weekdayDate = (d: string) => `${WEEKDAY_LABELS[isoWeekday(d)]} ${fo
 export function EstimateCard({
   estimate,
   promisedDate,
+  useDateAction,
 }: {
   estimate: OrderDateEstimate;
   promisedDate?: string | null;
+  /** Botón "Usar esta fecha" (cada pantalla sabe cómo aplicarla: formulario o pedido ya guardado). */
+  useDateAction?: ReactNode;
 }) {
   const late = !!(promisedDate && estimate.date && promisedDate < estimate.date);
   const unreachable = estimate.needsProduction && estimate.date === null;
 
+  const share = estimate.capacityShare;
+  const capacityAlert = share.exceeds ? (
+    <Alert variant="destructive" data-testid="capacity-warning">
+      <Gauge />
+      <AlertTitle>El pedido ocupa el {formatPct(share.pct)} % de la capacidad semanal</AlertTitle>
+      <AlertDescription>
+        Supera el máximo de {formatPct(share.maxPct)} %: son <Kg value={estimate.orderKg} /> contra{" "}
+        <Kg value={share.weeklyCapacityKg} /> por semana. Revisá el precio y si conviene tomarlo o repartir la
+        entrega en varias semanas.
+      </AlertDescription>
+    </Alert>
+  ) : null;
+
   if (!estimate.needsProduction) {
     return (
-      <Alert data-testid="estimate-card">
-        <PackageCheck />
-        <AlertTitle>Alcanza con el stock terminado</AlertTitle>
-        <AlertDescription>
-          Los <Kg value={estimate.orderKg} /> están en stock libre: se puede entregar desde hoy sin producir.
-        </AlertDescription>
-      </Alert>
+      <div className="grid gap-2" data-testid="estimate-card">
+        <Alert>
+          <PackageCheck />
+          <AlertTitle>Alcanza con el stock terminado</AlertTitle>
+          <AlertDescription>
+            Los <Kg value={estimate.orderKg} /> están en stock libre: se puede entregar desde hoy sin
+            producir.
+          </AlertDescription>
+        </Alert>
+        {capacityAlert}
+      </div>
     );
   }
 
@@ -61,6 +84,10 @@ export function EstimateCard({
           ) : null}
         </AlertDescription>
       </Alert>
+      {capacityAlert}
+      {useDateAction && estimate.date && estimate.date !== promisedDate ? (
+        <div className="flex flex-wrap items-center gap-2">{useDateAction}</div>
+      ) : null}
       {late ? (
         <Alert variant="destructive">
           <TriangleAlert />

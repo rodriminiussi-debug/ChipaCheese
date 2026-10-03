@@ -22,3 +22,7 @@ ALTER TABLE "export_log" ADD CONSTRAINT "export_log_user_id_users_id_fk" FOREIGN
 ALTER TABLE "trace_log" ADD CONSTRAINT "trace_log_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "export_log_created_idx" ON "export_log" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "trace_log_created_idx" ON "trace_log" USING btree ("created_at");
+--> statement-breakpoint
+INSERT INTO "app_settings" ("key", "value", "description") VALUES
+	('orders.max_weekly_capacity_pct', '50'::jsonb, 'Aviso si un pedido ocupa más de este % de la capacidad semanal de producción (RF-05)')
+ON CONFLICT ("key") DO NOTHING;

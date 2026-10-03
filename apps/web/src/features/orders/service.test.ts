@@ -14,6 +14,7 @@ import {
   listOrders,
   orderFormData,
   packingSheet,
+  setPromisedDate,
   customerOrderStats,
   updateOrder,
 } from "./service";
@@ -460,6 +461,38 @@ describe("fecha posible de un pedido grande (RF-05)", () => {
       expect(
         est.schedule.every((s) => ![6, 7].includes(new Date(`${s.date}T12:00:00Z`).getUTCDay() || 7)),
       ).toBe(true);
+    });
+  });
+});
+
+describe("pedido que ocupa demasiada capacidad semanal y fecha posible como comprometida (RF-05)", () => {
+  it("avisa cuando el pedido supera el % máximo de la capacidad semanal (425 kg de 750 = 56,7 % > 50 %)", async () => {
+    await inRollback("nahuel", async (tx) => {
+      const [big] = await listOrders(tx, { status: "received" }, TODAY);
+      const est = (await estimateForOrder(tx, big!.id, TODAY))!;
+      expect(est.capacityShare).toEqual({ weeklyCapacityKg: 750, pct: 56.7, maxPct: 50, exceeds: true });
+      const small = await estimateOrderDate(tx, { kg: 100, today: TODAY });
+      expect(small.capacityShare).toMatchObject({ pct: 13.3, exceeds: false });
+    });
+  });
+
+  it("usar la fecha posible cambia la fecha comprometida y deja el evento; no antes de hoy ni en pedidos cerrados", async () => {
+    await inRollback("nahuel", async (tx, userId) => {
+      const [big] = await listOrders(tx, { status: "received" }, TODAY);
+      const est = (await estimateForOrder(tx, big!.id, TODAY))!;
+      const res = await setPromisedDate(tx, userId, { id: big!.id, date: est.date! }, { today: TODAY });
+      expect(res.promisedDate).toBe(est.date);
+      const d = await getOrder(tx, big!.id);
+      expect(d?.promisedDate).toBe(est.date);
+      expect(d?.events.at(-1)?.note).toContain("(fecha posible)");
+      expect(d?.events.at(-1)?.byId).toBe(userId);
+      await expect(
+        setPromisedDate(tx, userId, { id: big!.id, date: "2026-10-01" }, { today: TODAY }),
+      ).rejects.toThrow(/anterior a hoy/);
+      await changeOrderStatus(tx, userId, { id: big!.id, to: "cancelled", note: "Prueba" });
+      await expect(
+        setPromisedDate(tx, userId, { id: big!.id, date: est.date! }, { today: TODAY }),
+      ).rejects.toThrow(/ya no se puede cambiar/);
     });
   });
 });

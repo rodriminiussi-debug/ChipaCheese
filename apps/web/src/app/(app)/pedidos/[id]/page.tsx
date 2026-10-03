@@ -22,6 +22,7 @@ import { estimateForOrder, getOrder, kgOf } from "@/features/orders/service";
 import { OrderStatusBadge } from "@/features/orders/components/orders-table";
 import { StatusActions } from "@/features/orders/components/status-actions";
 import { EstimateCard } from "@/features/orders/components/estimate-card";
+import { UseDateButton } from "@/features/orders/components/use-date-button";
 import { ORDER_SOURCE } from "@/features/orders/labels";
 import { formatDateTimeAR, todayAR } from "@/lib/dates";
 import { can } from "@/lib/rbac";
@@ -81,8 +82,14 @@ export default async function OrderPage(props: PageProps<"/pedidos/[id]">) {
         <div className="grid content-start gap-4">
           {canMove && next.length > 0 ? <StatusActions orderId={order.id} next={next} /> : null}
 
-          {estimate && estimate.needsProduction ? (
-            <EstimateCard estimate={estimate} promisedDate={order.promisedDate} />
+          {estimate && (estimate.needsProduction || estimate.capacityShare.exceeds) ? (
+            <EstimateCard
+              estimate={estimate}
+              promisedDate={order.promisedDate}
+              useDateAction={
+                canWrite && estimate.date ? <UseDateButton orderId={order.id} date={estimate.date} /> : null
+              }
+            />
           ) : null}
 
           <Card>

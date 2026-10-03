@@ -4,8 +4,14 @@ import { revalidatePath } from "next/cache";
 import { action } from "@/server/action";
 import { UserError } from "@/server/errors";
 import { can } from "@/lib/rbac";
-import { createOrderInput, estimateOrderInput, transitionOrderInput, updateOrderInput } from "./schemas";
-import { changeOrderStatus, createOrder, estimateOrderDate, updateOrder } from "./service";
+import {
+  createOrderInput,
+  estimateOrderInput,
+  setPromisedDateInput,
+  transitionOrderInput,
+  updateOrderInput,
+} from "./schemas";
+import { changeOrderStatus, createOrder, estimateOrderDate, setPromisedDate, updateOrder } from "./service";
 
 function revalidateOrder(id?: string, customerId?: string) {
   revalidatePath("/pedidos");
@@ -41,6 +47,16 @@ export const transitionOrderAction = action(
     if (!can(user.role, "orders:write") && !LOGISTICS_STATUSES.includes(input.to))
       throw new UserError("Solo podés registrar el despacho y la entrega de los pedidos.");
     const res = await changeOrderStatus(tx, user.id, input);
+    revalidateOrder(input.id);
+    return res;
+  },
+);
+
+/** RF-05: "Usar esta fecha": la fecha posible pasa a ser la comprometida. */
+export const setPromisedDateAction = action(
+  { permission: "orders:write", schema: setPromisedDateInput },
+  async (input, { tx, user }) => {
+    const res = await setPromisedDate(tx, user.id, input);
     revalidateOrder(input.id);
     return res;
   },
