@@ -251,12 +251,13 @@ test.describe("Despacho y reparto (logística)", () => {
     await expect(page.getByRole("status").filter({ hasText: "menos de 50 kg" })).toBeVisible();
 
     // --- RF-28: registro de despacho BPM ---------------------------------------------------------
-    // Los remitos llevan la hora real del servidor (el día congelado solo afecta a "hoy"): rango amplio.
-    const range = "desde=2000-01-01&hasta=2099-12-31";
+    // Los remitos se generan con la hora real del servidor: se llevan al día congelado de los tests.
+    await sql`update dispatches set dispatched_at = ${`${DAY}T12:00:00-03:00`} where order_id = ${a.id}`;
+    const range = `desde=${DAY}&hasta=${DAY}`;
     await page.goto(`/despacho/registro?${range}`);
     const table = page.getByTestId("registry-table");
     await expect(table.getByRole("row", { name: /260901-1/ })).toContainText("60");
-    await expect(table.getByRole("row", { name: /260901-1/ })).toContainText(/\d\d\/\d\d\/20\d\d/);
+    await expect(table.getByRole("row", { name: /260901-1/ })).toContainText("02/10/2026");
     await expect(table.getByRole("row", { name: /260901-1/ })).toContainText("Supermercado Arcoiris");
     await expect(table.getByRole("row", { name: /260901-1/ })).toContainText(
       "Utilitario con equipo de frío (AA000AA)",

@@ -47,6 +47,8 @@ export default async function RoutePage(props: PageProps<"/despacho/rutas/[id]">
     route.vehicleId && route.status === "planned" ? lastKmEnd(db, route.vehicleId) : null,
   ]);
   const st = ROUTE_STATUS[route.status];
+  // Chofer y vehículo van arriba solo si falta alguno; si no, después de las paradas.
+  const assignFirst = !route.vehicleId || !route.driverId;
   const deliveries = route.stops.filter((s) => s.kind === "delivery").length;
   const pickups = route.stops.length - deliveries;
   const withoutDispatch = route.stops.filter(
@@ -117,7 +119,7 @@ export default async function RoutePage(props: PageProps<"/despacho/rutas/[id]">
       {route.notes ? <p className="bg-muted mb-4 rounded-md p-3 text-sm">{route.notes}</p> : null}
 
       <div className="grid gap-4">
-        {options && route.status === "planned" ? (
+        {options && assignFirst ? (
           <RouteAssign
             routeId={route.id}
             driverId={route.driverId}
@@ -159,7 +161,7 @@ export default async function RoutePage(props: PageProps<"/despacho/rutas/[id]">
         {route.status === "in_progress" ? <RouteRunPanel route={runRoute} canWrite={canWrite} /> : null}
 
         {options && open ? <AddSupplierStop routeId={route.id} suppliers={options.suppliers} /> : null}
-        {options && route.status === "in_progress" ? (
+        {options && !assignFirst ? (
           <RouteAssign
             routeId={route.id}
             driverId={route.driverId}
