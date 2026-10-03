@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, Plus } from "lucide-react";
 import { formatDateAR } from "@chipa/domain";
@@ -58,7 +58,7 @@ export function ComplaintForm({
   const pending = create.pending || update.pending;
   const serverErrors = initial ? update.fieldErrors : create.fieldErrors;
   const err = (name: keyof ComplaintInput) => form.formState.errors[name]?.message ?? serverErrors[name]?.[0];
-  const lotId = form.watch("finishedLotId");
+  const lotId = useWatch({ control: form.control, name: "finishedLotId" });
   const lot = options.lots.find((l) => l.id === lotId);
 
   const onSubmit = form.handleSubmit((data) =>
