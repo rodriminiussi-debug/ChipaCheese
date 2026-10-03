@@ -64,7 +64,13 @@ export function SupplierForm({ initial }: { initial?: SupplierInput & { id: stri
         </Field>
         <Field data-invalid={!!err("leadTimeDays")}>
           <FieldLabel htmlFor="leadTimeDays">Plazo de entrega (días)</FieldLabel>
-          <Input id="leadTimeDays" type="number" inputMode="numeric" min={0} {...form.register("leadTimeDays")} />
+          <Input
+            id="leadTimeDays"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            {...form.register("leadTimeDays")}
+          />
           <FieldError>{err("leadTimeDays")}</FieldError>
         </Field>
         <Field data-invalid={!!err("paymentTermsDays")}>
@@ -80,7 +86,11 @@ export function SupplierForm({ initial }: { initial?: SupplierInput & { id: stri
         </Field>
         <Field className="sm:col-span-2">
           <FieldLabel htmlFor="paymentNotes">Condición de pago</FieldLabel>
-          <Input id="paymentNotes" placeholder="Ej.: transferencia a 15 días" {...form.register("paymentNotes")} />
+          <Input
+            id="paymentNotes"
+            placeholder="Ej.: transferencia a 15 días"
+            {...form.register("paymentNotes")}
+          />
         </Field>
         <Field className="sm:col-span-2">
           <FieldLabel htmlFor="notes">Notas</FieldLabel>

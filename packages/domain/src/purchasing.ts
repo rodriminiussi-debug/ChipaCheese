@@ -27,7 +27,26 @@ export function normalizeText(s: string): string {
     .trim();
 }
 
-const STOPWORDS = new Set(["x", "kg", "kgs", "kilo", "kilos", "lt", "lts", "l", "de", "del", "la", "el", "en", "por", "con", "sin", "u", "un"]);
+const STOPWORDS = new Set([
+  "x",
+  "kg",
+  "kgs",
+  "kilo",
+  "kilos",
+  "lt",
+  "lts",
+  "l",
+  "de",
+  "del",
+  "la",
+  "el",
+  "en",
+  "por",
+  "con",
+  "sin",
+  "u",
+  "un",
+]);
 
 function tokens(s: string): Set<string> {
   const out = new Set<string>();
@@ -152,7 +171,11 @@ export function monthlyPriceSeries(
   const rows: { month: string; price: number; variationPct: number | null }[] = [];
   let prev: number | null = null;
   for (const [month, p] of [...lastByMonth.entries()].sort(([a], [b]) => (a < b ? -1 : 1))) {
-    rows.push({ month, price: p.price, variationPct: prev == null ? null : priceVariationPct(prev, p.price) });
+    rows.push({
+      month,
+      price: p.price,
+      variationPct: prev == null ? null : priceVariationPct(prev, p.price),
+    });
     prev = p.price;
   }
   return rows;
@@ -192,7 +215,8 @@ export function poStatusAfterReception(
 ): PoStatus {
   if (current === "cancelled") return current;
   const orderedByIng: Record<string, number> = {};
-  for (const o of ordered) orderedByIng[o.ingredientId] = roundQty((orderedByIng[o.ingredientId] ?? 0) + o.qty);
+  for (const o of ordered)
+    orderedByIng[o.ingredientId] = roundQty((orderedByIng[o.ingredientId] ?? 0) + o.qty);
   const ids = Object.keys(orderedByIng);
   const anyReceived = Object.values(received).some((q) => q > 0);
   if (!anyReceived) return current;

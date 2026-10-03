@@ -31,7 +31,8 @@ export function SupplierIngredients({
   });
 
   const visible = editable ? rows : rows.filter((r) => r.sold);
-  if (!visible.length) return <p className="text-muted-foreground text-sm">Todavía no tiene insumos asignados.</p>;
+  if (!visible.length)
+    return <p className="text-muted-foreground text-sm">Todavía no tiene insumos asignados.</p>;
 
   return (
     <div className="grid gap-4">
@@ -61,7 +62,9 @@ export function SupplierIngredients({
                     placeholder="Código"
                     value={s.code}
                     disabled={!s.sold}
-                    onChange={(e) => setState((p) => ({ ...p, [r.ingredientId]: { ...s, code: e.target.value } }))}
+                    onChange={(e) =>
+                      setState((p) => ({ ...p, [r.ingredientId]: { ...s, code: e.target.value } }))
+                    }
                   />
                 ) : null}
                 <div className="text-right text-sm">

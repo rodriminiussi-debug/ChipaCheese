@@ -70,7 +70,10 @@ export default async function SupplierPage(props: PageProps<"/proveedores/[id]">
                   ["CUIT", supplier.cuit ? formatCuit(supplier.cuit) : null],
                   ["WhatsApp", supplier.whatsapp],
                   ["Plazo de entrega", `${supplier.leadTimeDays} días`],
-                  ["Plazo de pago", supplier.paymentTermsDays ? `${supplier.paymentTermsDays} días` : "Contado"],
+                  [
+                    "Plazo de pago",
+                    supplier.paymentTermsDays ? `${supplier.paymentTermsDays} días` : "Contado",
+                  ],
                   ["Condición de pago", supplier.paymentNotes],
                   ["Notas", supplier.notes],
                 ] as const

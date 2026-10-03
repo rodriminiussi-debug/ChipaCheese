@@ -40,7 +40,9 @@ describe("servicio de proveedores (RF-07)", () => {
       expect(u).toMatchObject({ paymentTermsDays: 15, active: false });
       expect((await listSuppliers(tx, { q: "litoral" })).length).toBe(0); // inactivos ocultos
       expect((await listSuppliers(tx, { q: "litoral", includeInactive: true })).length).toBe(1);
-      await expect(updateSupplier(tx, "00000000-0000-0000-0000-000000000000", { ...base, cuit: null })).rejects.toThrow(/no existe/);
+      await expect(
+        updateSupplier(tx, "00000000-0000-0000-0000-000000000000", { ...base, cuit: null }),
+      ).rejects.toThrow(/no existe/);
     });
   });
 
@@ -53,7 +55,12 @@ describe("servicio de proveedores (RF-07)", () => {
       const leo = (await listSuppliers(tx, { q: "Leo Pelle" }))[0]!;
       const rows = await supplierIngredientRows(tx, leo.id);
       const fecula = rows.find((r) => r.name === "Fécula de mandioca")!;
-      expect(fecula).toMatchObject({ sold: true, lastPrice: 1728, lastPriceDate: "2026-09-29", variationPct: null });
+      expect(fecula).toMatchObject({
+        sold: true,
+        lastPrice: 1728,
+        lastPriceDate: "2026-09-29",
+        variationPct: null,
+      });
       expect(rows.find((r) => r.name === "Leche")!.sold).toBe(false);
 
       const leche = rows.find((r) => r.name === "Leche")!;
@@ -66,9 +73,16 @@ describe("servicio de proveedores (RF-07)", () => {
       });
       expect(await setSupplierIngredients(tx, leo.id, input.items)).toBe(2);
       const after = await supplierIngredientRows(tx, leo.id);
-      expect(after.filter((r) => r.sold).map((r) => r.name).sort()).toEqual(["Fécula de mandioca", "Leche"]);
+      expect(
+        after
+          .filter((r) => r.sold)
+          .map((r) => r.name)
+          .sort(),
+      ).toEqual(["Fécula de mandioca", "Leche"]);
       expect(after.find((r) => r.name === "Fécula de mandioca")!.supplierCode).toBe("FEC-01");
-      await expect(setSupplierIngredients(tx, "00000000-0000-0000-0000-000000000000", [])).rejects.toThrow(/no existe/);
+      await expect(setSupplierIngredients(tx, "00000000-0000-0000-0000-000000000000", [])).rejects.toThrow(
+        /no existe/,
+      );
     });
   });
 });

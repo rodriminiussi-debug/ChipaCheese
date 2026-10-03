@@ -77,12 +77,14 @@ export default async function SuppliersPage(props: PageProps<"/proveedores">) {
                       <Link href={`/proveedores/${s.id}`} className="font-medium hover:underline">
                         {s.legalName}
                       </Link>
-                      {s.cuit ? <div className="text-muted-foreground text-xs">{formatCuit(s.cuit)}</div> : null}
+                      {s.cuit ? (
+                        <div className="text-muted-foreground text-xs">{formatCuit(s.cuit)}</div>
+                      ) : null}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell tabular-nums">
+                    <TableCell className="hidden tabular-nums md:table-cell">
                       {s.leadTimeDays} {s.leadTimeDays === 1 ? "día" : "días"}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell tabular-nums">
+                    <TableCell className="hidden tabular-nums md:table-cell">
                       {s.paymentTermsDays ? `${s.paymentTermsDays} días` : "Contado"}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">{s.whatsapp ?? "—"}</TableCell>

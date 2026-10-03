@@ -91,7 +91,9 @@ describe("número y vencimiento de factura", () => {
       "2026-10-20",
     );
     expect(invoiceDueDate({ issueDate: "2026-10-01", paymentTermsDays: 30 })).toBe("2026-10-31");
-    expect(invoiceDueDate({ issueDate: "2026-10-01", dueDate: null, paymentTermsDays: 0 })).toBe("2026-10-01");
+    expect(invoiceDueDate({ issueDate: "2026-10-01", dueDate: null, paymentTermsDays: 0 })).toBe(
+      "2026-10-01",
+    );
   });
 });
 
@@ -129,7 +131,9 @@ describe("órdenes de compra (RF-10)", () => {
     ];
     expect(poStatusAfterReception(ordered, {}, "sent")).toBe("sent");
     expect(poStatusAfterReception(ordered, { q: 40 }, "sent")).toBe("partially_received");
-    expect(poStatusAfterReception(ordered, { q: 40, f: 100 }, "partially_received")).toBe("partially_received");
+    expect(poStatusAfterReception(ordered, { q: 40, f: 100 }, "partially_received")).toBe(
+      "partially_received",
+    );
     expect(poStatusAfterReception(ordered, { q: 40, f: 150 }, "partially_received")).toBe("received");
     expect(poStatusAfterReception(ordered, { q: 45, f: 150 }, "sent")).toBe("received");
     expect(poStatusAfterReception(ordered, { q: 40, f: 150 }, "cancelled")).toBe("cancelled");
