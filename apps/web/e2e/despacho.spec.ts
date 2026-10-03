@@ -121,7 +121,8 @@ test.describe("Despacho y reparto (logística)", () => {
     await page.getByRole("button", { name: "Iniciar ruta" }).click();
     await expectToast(page, "Ruta iniciada");
     await expect(page.getByText(/En curso — salió \d\d:\d\d con 12000 km/)).toBeVisible();
-    await sql`update routes set started_at = now() - interval '3 hours 29 minutes 55 seconds' where id = ${routeId}`;
+    // La hora de salida/regreso es la del reloj del navegador (congelado en el día demo), no la del servidor.
+    await sql`update routes set started_at = ${`${DAY}T10:00:00-03:00`}::timestamptz - interval '3 hours 29 minutes 55 seconds' where id = ${routeId}`;
 
     // --- RF-25: remito con lotes FEFO -----------------------------------------------------------
     expect([await lotStock(sql, "260901-1", TAP), await lotStock(sql, "261001-1", TAP)]).toEqual([60, 100]);
