@@ -1,3 +1,4 @@
+import ExcelJS from "exceljs";
 import { test, expect, asRole, expectToast } from "./fixtures";
 
 /** M7: trazabilidad, reclamos con retención de lote, exportación de planillas, mantenimiento y permisos. */
@@ -53,6 +54,83 @@ test.describe("Trazabilidad (RF-35)", () => {
 
     await page.goto("/calidad/trazabilidad?lote=999999-9");
     await expect(page.getByText('No encontramos el lote "999999-9"')).toBeVisible();
+  });
+
+  test("RF-35: informe en Excel con las secciones de la trazabilidad", async ({ page }) => {
+    await page.goto("/calidad/trazabilidad?lote=260901-1");
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("link", { name: "Excel" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe("trazabilidad-260901-1.xlsx");
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile((await download.path())!);
+    const ws = wb.worksheets[0]!;
+    expect((ws.getRow(1).values as unknown[]).slice(1)).toEqual([
+      "Sección",
+      "Concepto",
+      "Detalle",
+      "Cantidad",
+      "Fecha",
+    ]);
+    const sections = new Set<string>();
+    ws.eachRow((r, n) => {
+      if (n > 1) sections.add(String(r.getCell(1).value));
+    });
+    expect([...sections]).toEqual(expect.arrayContaining(["Producción", "Materia prima", "Envasado"]));
+    // Lote inexistente: sin informe.
+    expect((await page.request.get("/api/calidad/trazabilidad/xlsx?lote=999999-9")).status()).toBe(404);
+    expect((await page.request.get("/api/calidad/trazabilidad/xlsx")).status()).toBe(400);
+  });
+});
+
+test.describe("Registro de consultas y exportaciones (RF-35, RF-36)", () => {
+  test.use({ storageState: asRole("admin") });
+
+  test("cada consulta de trazabilidad queda con su duración y cada exportación con quién la hizo", async ({
+    page,
+    sql,
+  }) => {
+    await page.goto("/calidad/trazabilidad?lote=260901-1");
+    await expect(page.getByTestId("lot-code")).toHaveText("260901-1");
+    await page.goto("/calidad/trazabilidad?lote=999999-9");
+    await expect(page.getByText('No encontramos el lote "999999-9"')).toBeVisible();
+    // (otros tests del archivo ya consultaron como responsable técnico: acá solo las del administrador)
+    const rows = await sql`select t.query, t.result, t.duration_ms
+      from trace_log t join users u on u.id = t.user_id where u.username = 'nahuel' order by t.created_at`;
+    expect(rows.map((r) => [r.query, r.result])).toEqual([
+      ["260901-1", "finished"],
+      ["999999-9", "none"],
+    ]);
+    expect(rows.every((r) => r.duration_ms >= 0 && r.duration_ms < 60_000)).toBe(true);
+
+    const pdf = await page.request.get("/api/calidad/trazabilidad/pdf?lote=260901-1");
+    expect(pdf.status()).toBe(200);
+    const xlsx = await page.request.get(
+      "/api/calidad/export/despacho?desde=2026-09-01&hasta=2026-10-31&formato=xlsx",
+    );
+    expect(xlsx.status()).toBe(200);
+
+    // Indicador trimestral en la auditoría.
+    await page.goto("/admin/auditoria?vista=trazabilidad");
+    const ind = page.getByTestId("trace-indicator");
+    await expect(ind).toContainText("Consultas");
+    const [{ n }] = await sql`select count(*)::int as n from trace_log`;
+    await expect(ind.locator("dd").first()).toHaveText(String(n));
+    expect(n).toBeGreaterThanOrEqual(2);
+    await expect(ind).toContainText("Dentro del minuto");
+    await expect(ind).toContainText("100 %");
+
+    // Quién exportó qué y cuándo.
+    await page.goto("/admin/auditoria?vista=exportaciones");
+    const table = page.getByRole("table", { name: "Exportaciones" });
+    await expect(table.getByRole("row", { name: /Registro de despacho \(Excel\)/ })).toContainText("Nahuel");
+    await expect(table.getByRole("row", { name: /Registro de despacho \(Excel\)/ })).toContainText(
+      "hasta: 2026-10-31",
+    );
+    await expect(table.getByRole("row", { name: /Nahuel Informe de trazabilidad \(PDF\)/ })).toContainText(
+      "lote: 260901-1",
+    );
   });
 });
 
@@ -163,6 +241,41 @@ test.describe("Exportación para ASSAL (RF-36)", () => {
     );
     expect(xlsx.headers()["content-type"]).toContain("spreadsheetml");
     expect((await xlsx.body()).subarray(0, 2).toString()).toBe("PK");
+  });
+
+  test("las cargas tardías salen resaltadas en el Excel y la exportación queda registrada en la pantalla", async ({
+    page,
+    sql,
+  }) => {
+    await sql`update temperature_logs set late_entry = true where date = '2026-10-01'`;
+    const res = await page.request.get(
+      "/api/calidad/export/temperaturas?desde=2026-10-01&hasta=2026-10-02&formato=xlsx",
+    );
+    expect(res.status()).toBe(200);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await res.body()) as unknown as ArrayBuffer);
+    const ws = wb.worksheets[0]!;
+    const header = (ws.getRow(1).values as unknown[]).slice(1);
+    const lateCol = header.indexOf("Carga tardía") + 1;
+    expect(lateCol).toBeGreaterThan(0);
+    let late = 0;
+    ws.eachRow((row, n) => {
+      if (n === 1) return;
+      const fill = (row.getCell(1).fill as ExcelJS.FillPattern | undefined)?.fgColor?.argb;
+      if (row.getCell(lateCol).value === "Sí") {
+        late++;
+        expect(fill).toBe("FFFFE08A");
+      } else expect(fill).toBeUndefined();
+    });
+    expect(late).toBeGreaterThan(0);
+
+    await page.goto("/calidad/exportar?desde=2026-10-01&hasta=2026-10-02");
+    const recent = page.getByRole("table", { name: "Últimas exportaciones" });
+    const row = recent.getByRole("row").nth(1);
+    await expect(row).toContainText("Responsable técnico");
+    await expect(row).toContainText("Registro de temperaturas");
+    await expect(row).toContainText("Excel");
+    await expect(row).toContainText("2026-10-01 a 2026-10-02");
   });
 
   test("período inválido y registro desconocido", async ({ page }) => {

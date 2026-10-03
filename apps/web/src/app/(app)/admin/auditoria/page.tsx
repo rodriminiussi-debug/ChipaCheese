@@ -7,8 +7,7 @@ import { db } from "@/server/db";
 import Link from "next/link";
 import { diffFields, listAudit } from "@/features/admin/service";
 import { listExportLog, traceTimeIndicator } from "@/features/admin/logs";
-import { formatDateTimeAR, todayAR } from "@/lib/dates";
-import { addMonths } from "@chipa/domain";
+import { formatDateTimeAR } from "@/lib/dates";
 
 export const metadata = { title: "Auditoría" };
 
@@ -52,11 +51,10 @@ export default async function AuditPage(props: PageProps<"/admin/auditoria">) {
   const { tabla, vista } = await props.searchParams;
   const view = vista === "exportaciones" || vista === "trazabilidad" ? vista : "cambios";
   const table = typeof tabla === "string" && tabla ? tabla : undefined;
-  const today = todayAR();
   const [rows, exports, trace] = await Promise.all([
     view === "cambios" ? listAudit(db, { table, limit: 200 }) : [],
     view === "exportaciones" ? listExportLog(db, { limit: 200 }) : [],
-    view === "trazabilidad" ? traceTimeIndicator(db, addMonths(today, -3), today) : null,
+    view === "trazabilidad" ? traceTimeIndicator(db) : null,
   ]);
   const tab = (active: boolean) =>
     `rounded-md px-3 py-1.5 text-sm font-medium ${active ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`;

@@ -6,6 +6,7 @@ import { purchasesForExport } from "@/features/purchases/service";
 import { INVOICE_TYPE } from "@/features/purchases/labels";
 import { can } from "@/lib/rbac";
 import { todayAR } from "@/lib/dates";
+import { logExport } from "@/server/export/log";
 
 const MONEY = '"$" #,##0.00';
 
@@ -95,6 +96,7 @@ export async function GET(req: Request) {
   detail.views = [{ state: "frozen", ySplit: 1 }];
 
   const buffer = await wb.xlsx.writeBuffer();
+  await logExport(user.id, "compras_xlsx", { mes: month });
   return new Response(new Uint8Array(buffer as ArrayBuffer), {
     headers: {
       "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

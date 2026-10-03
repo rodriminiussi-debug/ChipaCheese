@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { FileText, Search, Timer } from "lucide-react";
+import { FileSpreadsheet, FileText, Search, Timer } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { EmptyState } from "@/components/app/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requirePermission } from "@/server/auth/session";
+import { logTrace } from "@/server/export/log";
 import { db } from "@/server/db";
 import { can } from "@/lib/rbac";
 import { PrintButton } from "@/features/orders/components/print-button";
@@ -27,6 +28,19 @@ export default async function TraceabilityPage(props: PageProps<"/calidad/trazab
   const timed = term ? await timedSearchTrace(db, term) : null;
   const result = timed?.result ?? null;
   const elapsed = timed?.elapsedMs ?? 0;
+  // RF-35: cada consulta queda registrada con su duración (indicador trimestral "tiempo de trazabilidad").
+  if (timed && result)
+    await logTrace(user.id, {
+      query: term,
+      result: result.finished
+        ? result.raw.length
+          ? "both"
+          : "finished"
+        : result.raw.length
+          ? "raw"
+          : "none",
+      durationMs: elapsed,
+    });
   const recents = term ? [] : await recentFinishedLots(db);
   const found = result && (result.finished || result.raw.length > 0);
 
@@ -45,6 +59,11 @@ export default async function TraceabilityPage(props: PageProps<"/calidad/trazab
                 >
                   <FileText /> PDF
                 </Link>
+              </Button>
+              <Button asChild variant="outline" className="print:hidden">
+                <a href={`/api/calidad/trazabilidad/xlsx?lote=${encodeURIComponent(term)}`} download>
+                  <FileSpreadsheet /> Excel
+                </a>
               </Button>
               <PrintButton />
             </>

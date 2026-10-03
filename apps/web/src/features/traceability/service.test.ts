@@ -1,8 +1,10 @@
+import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import { eq, schema, type Tx } from "@chipa/db";
 import { inRollback } from "../../../tests/helpers";
 import { searchTrace, traceFinishedLot, traceRawLots } from "./service";
 import { traceSheet } from "./export";
+import { sheetToXlsx } from "@/features/quality/export";
 
 /** Crea un remito del lote al cliente (el demo no trae despachos). */
 async function dispatchLot(tx: Tx, lotCode: string, customerLegalName: string, units: number) {
@@ -149,6 +151,35 @@ describe("informe PDF de trazabilidad", () => {
       expect([...sections]).toEqual(
         expect.arrayContaining(["Producción", "Materia prima", "Envasado", "Stock", "Reclamos"]),
       );
+    });
+  });
+
+  it("el informe también sale en Excel, con las mismas secciones (RF-35)", async () => {
+    await inRollback("rtecnico", async (tx) => {
+      const result = await searchTrace(tx, "260901-1");
+      const sheet = traceSheet(result, "02/10/2026 10:00");
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load((await sheetToXlsx(sheet)) as unknown as ArrayBuffer);
+      const ws = wb.worksheets[0]!;
+      expect((ws.getRow(1).values as unknown[]).slice(1)).toEqual([
+        "Sección",
+        "Concepto",
+        "Detalle",
+        "Cantidad",
+        "Fecha",
+      ]);
+      expect(ws.rowCount).toBe(sheet.rows.length + 1);
+      const sections = new Set<string>();
+      ws.eachRow((r, n) => n > 1 && sections.add(String(r.getCell(1).value)));
+      expect([...sections]).toEqual(expect.arrayContaining(["Producción", "Materia prima", "Envasado"]));
+
+      // Desde un lote de materia prima (retiro) también.
+      const raw = traceSheet(await searchTrace(tx, "TYBO-0925"), "02/10/2026 10:00");
+      const rawWb = new ExcelJS.Workbook();
+      await rawWb.xlsx.load((await sheetToXlsx(raw)) as unknown as ArrayBuffer);
+      const rawSections = new Set<string>();
+      rawWb.worksheets[0]!.eachRow((r, n) => n > 1 && rawSections.add(String(r.getCell(1).value)));
+      expect([...rawSections]).toEqual(expect.arrayContaining(["Lote de materia prima", "Lotes terminados"]));
     });
   });
 });

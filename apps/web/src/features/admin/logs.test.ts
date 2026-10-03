@@ -10,9 +10,11 @@ describe("registro de exportaciones (RF-36)", () => {
       await recordExport(tx, userId, "limpieza_pdf", { desde: "2026-09-01", hasta: "2026-09-30" });
       const all = await listExportLog(tx);
       expect(all).toHaveLength(2);
-      expect(all[0]).toMatchObject({ kind: "limpieza_pdf", user: "Contadora" });
-      expect(all[0]!.params).toEqual({ desde: "2026-09-01", hasta: "2026-09-30" });
-      expect(all[0]!.createdAt).toBeInstanceOf(Date);
+      // (misma transacción = mismo instante: el orden entre ellas no está definido)
+      const limpieza = all.find((e) => e.kind === "limpieza_pdf")!;
+      expect(limpieza).toMatchObject({ user: "Contadora" });
+      expect(limpieza.params).toEqual({ desde: "2026-09-01", hasta: "2026-09-30" });
+      expect(limpieza.createdAt).toBeInstanceOf(Date);
       expect((await listExportLog(tx, { kind: "precios_xlsx" })).map((e) => e.params)).toEqual([
         { insumo: "Sal" },
       ]);
@@ -41,13 +43,17 @@ describe("consultas de trazabilidad con su duración (RF-35)", () => {
         expect.arrayContaining([["260901-1", "finished", 120, userId]]),
       );
 
-      const today = "2099-12-31";
-      const ind = await traceTimeIndicator(tx, "2020-01-01", today);
+      const ind = await traceTimeIndicator(tx, { since: new Date("2020-01-01") });
       expect(ind.all).toMatchObject({ count: 3, maxMs: 300, withinTargetPct: 100 });
       expect(ind.found.count).toBe(2);
       expect(ind.found.avgMs).toBe(210);
       // Fuera del período no cuenta.
-      expect((await traceTimeIndicator(tx, "2020-01-01", "2020-12-31")).all.count).toBe(0);
+      const old = await traceTimeIndicator(tx, {
+        since: new Date("2020-01-01"),
+        until: new Date("2020-12-31"),
+      });
+      expect(old.all.count).toBe(0);
+      expect((await traceTimeIndicator(tx)).all.count).toBe(3); // por defecto, el último trimestre
     });
   });
 });

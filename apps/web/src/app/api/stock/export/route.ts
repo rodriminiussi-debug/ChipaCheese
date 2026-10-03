@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { can } from "@/lib/rbac";
 import { todayAR } from "@/lib/dates";
+import { logExport } from "@/server/export/log";
 import { buildStockWorkbook } from "@/features/stock/export";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export async function GET() {
   if (!user) return new Response("Sesión requerida", { status: 401 });
   if (!can(user.role, ["export", "stock:read"])) return new Response("Sin permiso", { status: 403 });
   const buffer = await buildStockWorkbook(db);
+  await logExport(user.id, "stock_xlsx", { fecha: todayAR() });
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

@@ -1,6 +1,5 @@
-import { summarizeTraceTimes, type IsoDate } from "@chipa/domain";
-import { and, desc, eq, gte, lt, schema, sql, type Executor } from "@chipa/db";
-import { addDays } from "@chipa/domain";
+import { summarizeTraceTimes } from "@chipa/domain";
+import { and, desc, eq, gte, inArray, lte, schema, type Executor } from "@chipa/db";
 
 /**
  * Registro de exportaciones (RF-36) y de consultas de trazabilidad (RF-35). Se escriben dentro de
@@ -17,7 +16,10 @@ export async function recordExport(
   return row!;
 }
 
-export async function listExportLog(db: Executor, opts: { kind?: string; limit?: number } = {}) {
+export async function listExportLog(
+  db: Executor,
+  opts: { kind?: string; kinds?: string[]; limit?: number } = {},
+) {
   return db
     .select({
       id: schema.exportLog.id,
@@ -28,7 +30,13 @@ export async function listExportLog(db: Executor, opts: { kind?: string; limit?:
     })
     .from(schema.exportLog)
     .leftJoin(schema.users, eq(schema.users.id, schema.exportLog.userId))
-    .where(opts.kind ? eq(schema.exportLog.kind, opts.kind) : undefined)
+    .where(
+      opts.kind
+        ? eq(schema.exportLog.kind, opts.kind)
+        : opts.kinds
+          ? inArray(schema.exportLog.kind, opts.kinds)
+          : undefined,
+    )
     .orderBy(desc(schema.exportLog.createdAt), desc(schema.exportLog.id))
     .limit(opts.limit ?? 100);
 }
@@ -52,21 +60,22 @@ export async function recordTrace(
   return row!;
 }
 
-/** Indicador del período `[from, to]` (días de negocio): consultas encontradas y su duración. */
-export async function traceTimeIndicator(db: Executor, from: IsoDate, to: IsoDate) {
+/**
+ * Indicador "tiempo de trazabilidad" (RF-35) de las consultas hechas entre `since` y `until` (instantes; por
+ * defecto los últimos `days` = 92 días, es decir un trimestre): cantidad, promedio, máximo, percentil 90 y %
+ * dentro del minuto.
+ */
+export async function traceTimeIndicator(
+  db: Executor,
+  opts: { since?: Date; until?: Date; days?: number } = {},
+) {
+  const until = opts.until ?? new Date();
+  const since = opts.since ?? new Date(until.getTime() - (opts.days ?? 92) * 86_400_000);
   const t = schema.traceLog;
   const rows = await db
     .select({ durationMs: t.durationMs, result: t.result })
     .from(t)
-    .where(
-      and(
-        gte(sql`(${t.createdAt} at time zone 'America/Argentina/Buenos_Aires')::date`, sql`${from}::date`),
-        lt(
-          sql`(${t.createdAt} at time zone 'America/Argentina/Buenos_Aires')::date`,
-          sql`${addDays(to, 1)}::date`,
-        ),
-      ),
-    );
+    .where(and(gte(t.createdAt, since), lte(t.createdAt, until)));
   return {
     all: summarizeTraceTimes(rows.map((r) => r.durationMs)),
     found: summarizeTraceTimes(rows.filter((r) => r.result !== "none").map((r) => r.durationMs)),

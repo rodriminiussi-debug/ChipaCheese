@@ -71,7 +71,14 @@ async function cleaningSheet(db: Executor, p: ReportPeriod, today: IsoDate): Pro
   const month = p.month ?? p.from.slice(0, 7);
   const m = await cleaningMonth(db, month, today);
   const [y, mo] = month.split("-");
+  const lateCells: [number, number][] = [];
+  m.rows.forEach((r, ri) =>
+    m.days.forEach((d, di) => {
+      if (r.cells[d]?.lateEntry) lateCells.push([ri, 2 + di]);
+    }),
+  );
   return {
+    lateCells,
     title: "Control de limpieza",
     code: "BPM-LIMP",
     version: "2022",
@@ -118,6 +125,7 @@ async function temperatureSheet(db: Executor, p: ReportPeriod): Promise<BpmSheet
     .orderBy(asc(schema.temperatureLogs.date), asc(schema.temperatureLogs.measuredAt));
   const out = list.filter((r) => r.outOfRange).length;
   return {
+    lateRows: list.flatMap((r, i) => (r.lateEntry ? [i] : [])),
     title: "Registro de temperaturas",
     code: "BPM-TEMP",
     version: "2026",
@@ -244,6 +252,7 @@ async function productionSheet(db: Executor, p: ReportPeriod): Promise<BpmSheet>
       consumptions: { with: { ingredient: true, rawLot: true } },
     },
   });
+  const lateRows = runs.flatMap((r, i) => (r.lateEntry ? [i] : []));
   const rows: Row[] = runs.map((r) => {
     const kg = r.weighings.reduce((a, w) => a + w.kg, 0);
     const byShape = new Map<string, number>();
@@ -266,6 +275,7 @@ async function productionSheet(db: Executor, p: ReportPeriod): Promise<BpmSheet>
         })
         .join("\n"),
       [...byShape.entries()].map(([s, k]) => `${SHAPE[s] ?? s}: ${formatKg(k)}`).join("\n"),
+      r.lateEntry ? "Sí" : "",
     ];
   });
   return {
@@ -283,7 +293,9 @@ async function productionSheet(db: Executor, p: ReportPeriod): Promise<BpmSheet>
       { header: "Cantidad elaborada", width: 1.3, align: "right" },
       { header: "Materia prima (cantidad, lote, vencimiento)", width: 5 },
       { header: "Pesadas por forma", width: 2 },
+      { header: "Carga tardía", width: 0.9 },
     ],
+    lateRows,
     rows,
     signatures: ["Responsable", "Supervisor"],
   };
@@ -353,6 +365,8 @@ export async function sheetToXlsx(sheet: BpmSheet): Promise<Buffer> {
     {
       name: sheet.title,
       rows: sheet.rows,
+      highlightRows: sheet.lateRows,
+      highlightCells: sheet.lateCells,
       columns: cols<(typeof sheet.rows)[number]>(
         sheet.columns.map((c, i) => ({
           header: c.header,

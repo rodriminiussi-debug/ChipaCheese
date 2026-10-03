@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
 import { eq, schema } from "@chipa/db";
 import { renderBpmPdf } from "@/server/export/pdf";
+import { HIGHLIGHT_ARGB } from "@/server/export/xlsx";
 import { inRollback } from "../../../tests/helpers";
 import { REPORT_KINDS, buildReport, sheetToXlsx } from "./export";
 
@@ -109,6 +110,80 @@ describe("exportación de registros BPM (RF-36)", () => {
       const ws = wb.worksheets[0]!;
       expect(ws.getRow(1).getCell(3).value).toBe("Equipo");
       expect(ws.rowCount).toBe(6);
+    });
+  });
+
+  describe("cargas tardías visibles (RF-36)", () => {
+    const fillOf = (ws: ExcelJS.Worksheet, row: number, col: number) =>
+      (ws.getRow(row).getCell(col).fill as ExcelJS.FillPattern | undefined)?.fgColor?.argb;
+
+    it("elaboración: la producción cargada tarde sale resaltada con la columna Carga tardía", async () => {
+      await inRollback("rtecnico", async (tx) => {
+        const before = await buildReport(tx, "elaboracion", { from: "2026-09-01", to: "2026-10-31" }, TODAY);
+        expect(before.lateRows ?? []).toEqual([]);
+        await tx
+          .update(schema.productionRuns)
+          .set({ lateEntry: true })
+          .where(eq(schema.productionRuns.date, "2026-10-01"));
+        const sheet = await buildReport(tx, "elaboracion", { from: "2026-09-01", to: "2026-10-31" }, TODAY);
+        const lateIdx = sheet.rows.findIndex((r) => r[0] === "01/10/2026");
+        expect(sheet.lateRows).toEqual([lateIdx]);
+        const col = sheet.columns.findIndex((c) => c.header === "Carga tardía");
+        expect(sheet.rows[lateIdx]![col]).toBe("Sí");
+        expect(sheet.rows.filter((_, i) => i !== lateIdx).every((r) => !r[col])).toBe(true);
+
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load((await sheetToXlsx(sheet)) as unknown as ArrayBuffer);
+        const ws = wb.worksheets[0]!;
+        expect(fillOf(ws, lateIdx + 2, 1)).toBe(HIGHLIGHT_ARGB);
+        expect(fillOf(ws, lateIdx + 2, col + 1)).toBe(HIGHLIGHT_ARGB);
+        const otherRow = lateIdx === 0 ? 3 : 2;
+        expect(fillOf(ws, otherRow, 1)).toBeUndefined();
+        const pdf = await renderBpmPdf(sheet, "02/10/2026 10:00");
+        expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+      });
+    });
+
+    it("temperaturas: las lecturas cargadas tarde quedan marcadas en la planilla", async () => {
+      await inRollback("rtecnico", async (tx) => {
+        const log = (await tx.query.temperatureLogs.findFirst({
+          where: eq(schema.temperatureLogs.date, "2026-10-01"),
+        }))!;
+        await tx
+          .update(schema.temperatureLogs)
+          .set({ lateEntry: true })
+          .where(eq(schema.temperatureLogs.id, log.id));
+        const sheet = await buildReport(tx, "temperaturas", { from: "2026-10-01", to: "2026-10-02" }, TODAY);
+        const col = sheet.columns.findIndex((c) => c.header === "Carga tardía");
+        const late = sheet.rows.flatMap((r, i) => (r[col] === "Sí" ? [i] : []));
+        expect(late).toHaveLength(1);
+        expect(sheet.lateRows).toEqual(late);
+      });
+    });
+
+    it("limpieza: las casillas cargadas tarde llevan * y quedan resaltadas en Excel", async () => {
+      await inRollback("rtecnico", async (tx) => {
+        const rec = (await tx.query.cleaningRecords.findFirst({
+          where: eq(schema.cleaningRecords.date, "2026-08-03"),
+        }))!;
+        await tx
+          .update(schema.cleaningRecords)
+          .set({ lateEntry: true })
+          .where(eq(schema.cleaningRecords.id, rec.id));
+        const sheet = await buildReport(
+          tx,
+          "limpieza",
+          { from: "2026-08-01", to: "2026-08-31", month: "2026-08" },
+          TODAY,
+        );
+        expect(sheet.lateCells).toHaveLength(1);
+        const [r, c] = sheet.lateCells![0]!;
+        expect(sheet.rows[r]![c]).toMatch(/\*$/);
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load((await sheetToXlsx(sheet)) as unknown as ArrayBuffer);
+        expect(fillOf(wb.worksheets[0]!, r + 2, c + 1)).toBe(HIGHLIGHT_ARGB);
+        expect(fillOf(wb.worksheets[0]!, r + 2, 1)).toBeUndefined();
+      });
     });
   });
 });

@@ -1,10 +1,10 @@
-import { eq, schema, withUser } from "@chipa/db";
+import { eq, schema } from "@chipa/db";
 import { getCurrentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { xlsxResponse } from "@/server/export/xlsx";
+import { logExport } from "@/server/export/log";
 import { can } from "@/lib/rbac";
 import { todayAR } from "@/lib/dates";
-import { recordExport } from "@/features/admin/logs";
 import { buildPriceHistoryXlsx, priceHistoryFilename } from "@/features/purchases/export";
 
 export const dynamic = "force-dynamic";
@@ -27,8 +27,6 @@ export async function GET(req: Request) {
   if (insumo && !ingredient) return new Response("Insumo inexistente", { status: 404 });
 
   const buffer = await buildPriceHistoryXlsx(db, ingredient?.id);
-  await withUser(db, user.id, (tx) =>
-    recordExport(tx, user.id, "precios_xlsx", { insumo: ingredient?.name ?? "todos" }),
-  );
+  await logExport(user.id, "precios_xlsx", { insumo: ingredient?.name ?? "todos" });
   return xlsxResponse(buffer, priceHistoryFilename(ingredient?.name ?? null, todayAR()));
 }
