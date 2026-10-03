@@ -8,11 +8,12 @@ import { xlsxResponse } from "@/server/export/xlsx";
 
 export const dynamic = "force-dynamic";
 
-/** Excel de facturas emitidas y cobros del mes para la contadora (permiso `export` o `billing:read`). */
+/** Excel de facturas emitidas y cobros del mes para la contadora (permiso `billing:read`; la contadora lo tiene junto con `export`). */
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return new Response("Sesión requerida", { status: 401 });
-  if (!can(user.role, ["export", "billing:read"])) return new Response("Sin permiso", { status: 403 });
+  // Solo billing:read: `export` lo tiene también la jefa de producción, que no ve finanzas.
+  if (!can(user.role, "billing:read")) return new Response("Sin permiso", { status: 403 });
   const raw = new URL(request.url).searchParams.get("month") ?? todayAR().slice(0, 7);
   const parsed = monthInput.safeParse({ month: raw });
   if (!parsed.success) return new Response("Mes inválido (usá AAAA-MM)", { status: 400 });
