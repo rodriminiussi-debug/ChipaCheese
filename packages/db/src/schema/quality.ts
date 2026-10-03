@@ -41,6 +41,8 @@ export const cleaningRecords = pgTable(
     /** Carga tardía: se registró un día pasado (RF-34). */
     lateEntry: boolean().notNull().default(false),
     notes: text(),
+    /** uuid generado en la tablet: idempotencia al reenviar desde la cola offline. */
+    clientId: uuid().unique(),
     ...timestamps(),
   },
   (t) => [
@@ -66,6 +68,8 @@ export const temperatureLogs = pgTable(
     source: text().notNull().default("manual"),
     lateEntry: boolean().notNull().default(false),
     correctiveAction: text(),
+    /** uuid generado en la tablet: idempotencia al reenviar desde la cola offline. */
+    clientId: uuid().unique(),
     ...timestamps(),
   },
   (t) => [index("temperature_logs_equipment_idx").on(t.equipmentId, t.measuredAt)],
