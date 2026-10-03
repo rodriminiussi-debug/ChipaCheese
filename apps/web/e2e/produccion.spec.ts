@@ -195,17 +195,22 @@ test.describe("Producción y lotes (M4)", () => {
     await page.goto(`/personas?fecha=${dayAR(-1)}`);
     await page.getByLabel("Asignar S.G. a Batidora").check();
     await expect(page.getByLabel("Asignar S.G. a Batidora")).toBeChecked();
-    await page.reload();
-    await expect(page.getByLabel("Asignar S.G. a Batidora")).toBeChecked();
+    // El tilde es optimista: recargamos hasta ver lo persistido por la Server Action.
+    await expect(async () => {
+      await page.reload();
+      await expect(page.getByLabel("Asignar S.G. a Batidora")).toBeChecked({ timeout: 1000 });
+    }).toPass();
 
     await page.goto("/personas");
     await page.getByLabel("Asignar J.T. a Huevos").check();
     await page.getByRole("button", { name: "Copiar asignación del día anterior" }).click();
     await expectToast(page, /Se copiaron 1 asignaciones del/);
     await expect(page.getByLabel("Asignar S.G. a Batidora")).toBeChecked();
-    await page.reload();
-    await expect(page.getByLabel("Asignar J.T. a Huevos")).toBeChecked();
-    await expect(page.getByLabel("Asignar S.G. a Batidora")).toBeChecked();
+    await expect(async () => {
+      await page.reload();
+      await expect(page.getByLabel("Asignar J.T. a Huevos")).toBeChecked({ timeout: 1000 });
+      await expect(page.getByLabel("Asignar S.G. a Batidora")).toBeChecked({ timeout: 1000 });
+    }).toPass();
 
     // Matriz: E.A. pasa a "Puede" en Batidora y esa tarea sale de la alerta.
     await page.getByRole("link", { name: "Matriz de polivalencia" }).click();

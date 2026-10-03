@@ -74,14 +74,12 @@ describe("tablero operativo (RF-41)", () => {
         .values({ orderId: reina.id, customerId: reina.customerId, status: "delivered" })
         .returning();
       // Pidió 60 tapitas + 60 lengüitas y se despachó sólo una de las dos.
-      await tx
-        .insert(schema.dispatchItems)
-        .values({
-          dispatchId: dispatch!.id,
-          productId: reina.items[0]!.productId,
-          finishedLotId: lot.id,
-          qtyUnits: reina.items[0]!.qtyUnits,
-        });
+      await tx.insert(schema.dispatchItems).values({
+        dispatchId: dispatch!.id,
+        productId: reina.items[0]!.productId,
+        finishedLotId: lot.id,
+        qtyUnits: reina.items[0]!.qtyUnits,
+      });
       expect(await getOtif(tx, "2026-09")).toMatchObject({ pct: 85.7, ok: 6, delivered: 7 });
     });
   });
