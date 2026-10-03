@@ -18,6 +18,8 @@ import {
   startRoute,
 } from "./service";
 import { createRouteInput, finishRouteInput } from "./schemas";
+import { changeOrderStatus, createOrder } from "../purchases/service";
+import { purchaseOrderInput } from "../purchases/schemas";
 
 const DAY = "2026-10-02"; // viernes
 const NOW = new Date("2026-10-02T09:00:00-03:00");
@@ -150,6 +152,90 @@ describe("hoja de ruta (RF-24)", () => {
       await removeStop(tx, { stopId: after.stops[0]!.id });
       const left = (await getRoute(tx, route.id))!;
       expect(left.stops.map((s) => [s.title, s.seq])).toEqual([["Supermercado Arcoiris", 1]]);
+    });
+  });
+});
+
+describe("retiros en proveedor sugeridos desde órdenes de compra (RF-10)", () => {
+  async function purchase(
+    tx: Tx,
+    userId: string,
+    o: { pickup: boolean; expectedAt: string; send?: boolean; supplier?: string },
+  ) {
+    const supplier = (await tx.query.suppliers.findFirst({
+      where: eq(schema.suppliers.legalName, o.supplier ?? "Leo Pelle"),
+    }))!;
+    const ingredient = (await tx.query.ingredients.findFirst({
+      where: eq(schema.ingredients.name, "Fécula de mandioca"),
+    }))!;
+    const order = await createOrder(
+      tx,
+      userId,
+      purchaseOrderInput.parse({
+        supplierId: supplier.id,
+        orderedAt: "2026-09-30",
+        expectedAt: o.expectedAt,
+        pickup: o.pickup,
+        items: [{ ingredientId: ingredient.id, qty: 25 }],
+      }),
+    );
+    if (o.send !== false) await changeOrderStatus(tx, order.id, "sent");
+    return { order, supplier };
+  }
+
+  it("sugiere las OC enviadas con retiro y fecha esperada hasta la de la ruta, con su detalle", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const due = await purchase(tx, userId, { pickup: true, expectedAt: "2026-10-01" });
+      const today = await purchase(tx, userId, { pickup: true, expectedAt: DAY, supplier: "Cotar" });
+      const future = await purchase(tx, userId, { pickup: true, expectedAt: "2026-10-05" });
+      const delivery = await purchase(tx, userId, { pickup: false, expectedAt: "2026-10-01" });
+      const draft = await purchase(tx, userId, { pickup: true, expectedAt: "2026-10-01", send: false });
+
+      const { pickups } = await routeProposal(tx, DAY);
+      expect(pickups.map((p) => p.orderId)).toEqual([due.order.id, today.order.id]);
+      expect(pickups[0]).toMatchObject({
+        number: due.order.number,
+        supplierId: due.supplier.id,
+        supplierName: "Leo Pelle",
+        expectedAt: "2026-10-01",
+        summary: "25 kg Fécula de mandioca",
+      });
+      const ids = pickups.map((p) => p.orderId);
+      for (const o of [future, delivery, draft]) expect(ids).not.toContain(o.order.id);
+      // Más adelante, la OC futura pasa a sugerirse.
+      expect((await routeProposal(tx, "2026-10-05")).pickups.map((p) => p.orderId)).toContain(
+        future.order.id,
+      );
+    });
+  });
+
+  it("la parada creada desde la sugerencia deja de sugerirse; si la ruta se cancela, vuelve a aparecer", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const { order, supplier } = await purchase(tx, userId, { pickup: true, expectedAt: "2026-10-01" });
+      const [suggestion] = (await routeProposal(tx, DAY)).pickups;
+      expect(suggestion!.note).toContain(order.number);
+      const route = await createRoute(
+        tx,
+        routeInput([], [{ supplierId: supplier.id, notes: suggestion!.note }]),
+      );
+      const stop = (await getRoute(tx, route.id))!.stops[0]!;
+      expect(stop).toMatchObject({ kind: "supplier_pickup", title: "Leo Pelle" });
+      expect(stop.notes).toBe(suggestion!.note);
+      expect((await routeProposal(tx, DAY)).pickups.map((p) => p.orderId)).not.toContain(order.id);
+
+      await tx.update(schema.routes).set({ status: "cancelled" }).where(eq(schema.routes.id, route.id));
+      expect((await routeProposal(tx, DAY)).pickups.map((p) => p.orderId)).toContain(order.id);
+    });
+  });
+
+  it("la OC recibida completa deja de sugerirse", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const { order } = await purchase(tx, userId, { pickup: true, expectedAt: "2026-10-01" });
+      await tx
+        .update(schema.purchaseOrders)
+        .set({ status: "received" })
+        .where(eq(schema.purchaseOrders.id, order.id));
+      expect((await routeProposal(tx, DAY)).pickups).toEqual([]);
     });
   });
 });

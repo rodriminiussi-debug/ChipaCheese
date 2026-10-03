@@ -171,6 +171,18 @@ export interface ProposalOrder {
   units: number;
   notes: string | null;
 }
+/** RF-10: orden de compra con "retiro en proveedor" sugerida como parada de la ruta. */
+export interface ProposalPickup {
+  orderId: string;
+  number: string;
+  supplierId: string;
+  supplierName: string;
+  expectedAt: IsoDate;
+  /** Detalle de lo que hay que retirar: "25 kg Fécula de mandioca, 10 kg Manteca". */
+  summary: string;
+  /** Nota que queda en la parada (empieza con el número de la OC: así no se vuelve a sugerir). */
+  note: string;
+}
 export interface ProposalZone {
   zoneId: string | null;
   name: string;
@@ -178,6 +190,71 @@ export interface ProposalZone {
   /** ¿La zona reparte el día de la ruta? */
   deliversOnDate: boolean;
   orders: ProposalOrder[];
+}
+
+const UNIT_SHORT = { kg: "kg", l: "L", unit: "u." } as const;
+
+/**
+ * RF-10: OC con "retiro en proveedor" (enviadas o parcialmente recibidas) con fecha esperada ≤ `date`
+ * que todavía no están en una parada de una ruta abierta (la parada lleva el número de la OC en su nota).
+ */
+export async function pickupSuggestions(db: Executor, date: IsoDate): Promise<ProposalPickup[]> {
+  const o = schema.purchaseOrders;
+  const orders = await db
+    .select({
+      id: o.id,
+      number: o.number,
+      expectedAt: o.expectedAt,
+      supplierId: o.supplierId,
+      supplierName: schema.suppliers.legalName,
+    })
+    .from(o)
+    .innerJoin(schema.suppliers, eq(schema.suppliers.id, o.supplierId))
+    .where(
+      and(
+        eq(o.pickup, true),
+        inArray(o.status, ["sent", "partially_received"]),
+        lte(o.expectedAt, date),
+        sql`not exists (
+          select 1 from route_stops rs inner join routes r on r.id = rs.route_id
+          where rs.kind = 'supplier_pickup' and r.status in ('planned', 'in_progress')
+            and position(${o.number} in coalesce(rs.notes, '')) > 0
+        )`,
+      ),
+    )
+    .orderBy(asc(o.expectedAt), asc(o.number));
+  if (!orders.length) return [];
+  const items = await db
+    .select({
+      orderId: schema.purchaseOrderItems.purchaseOrderId,
+      name: schema.ingredients.name,
+      unit: schema.purchaseOrderItems.unit,
+      qty: schema.purchaseOrderItems.qty,
+    })
+    .from(schema.purchaseOrderItems)
+    .innerJoin(schema.ingredients, eq(schema.ingredients.id, schema.purchaseOrderItems.ingredientId))
+    .where(
+      inArray(
+        schema.purchaseOrderItems.purchaseOrderId,
+        orders.map((x) => x.id),
+      ),
+    )
+    .orderBy(asc(schema.purchaseOrderItems.createdAt));
+  return orders.map((x) => {
+    const summary = items
+      .filter((i) => i.orderId === x.id)
+      .map((i) => `${String(i.qty).replace(".", ",")} ${UNIT_SHORT[i.unit]} ${i.name}`)
+      .join(", ");
+    return {
+      orderId: x.id,
+      number: x.number,
+      supplierId: x.supplierId,
+      supplierName: x.supplierName,
+      expectedAt: x.expectedAt!,
+      summary,
+      note: `${x.number} · retirar ${summary}`,
+    };
+  });
 }
 
 /**
@@ -223,7 +300,7 @@ export async function routeProposal(db: Executor, date: IsoDate) {
     if (a.deliversOnDate !== b.deliversOnDate) return a.deliversOnDate ? -1 : 1;
     return a.name.localeCompare(b.name, "es");
   });
-  return { date, weekday: isoWeekday(date), zones: list };
+  return { date, weekday: isoWeekday(date), zones: list, pickups: await pickupSuggestions(db, date) };
 }
 export type RouteProposal = Awaited<ReturnType<typeof routeProposal>>;
 

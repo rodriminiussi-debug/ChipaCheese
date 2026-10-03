@@ -155,6 +155,39 @@ test.describe("Compras y proveedores (M2)", () => {
     expect(await stock()).toBe(before + 50);
   });
 
+  test("RF-10: orden de compra con retiro en proveedor y vista imprimible", async ({ page }) => {
+    await page.goto("/compras/ordenes/nueva");
+    await page.getByLabel("Proveedor *").click();
+    await page.getByRole("option", { name: "Leo Pelle" }).click();
+    await page.getByLabel("Insumo (línea 1)").click();
+    await page.getByRole("option", { name: "Manteca" }).click();
+    await page.getByLabel(/Cantidad.*línea 1/).fill("12");
+    await page.getByLabel("Retiro en proveedor").check();
+    await page.getByRole("button", { name: "Crear orden" }).click();
+    await expectToast(page, /Orden OC-\d+ creada/);
+    await expect(page.getByText("Retiro en proveedor", { exact: true })).toBeVisible();
+    const orderUrl = page.url();
+
+    await page.getByRole("link", { name: "Imprimir / PDF" }).click();
+    await expect(page).toHaveURL(/\/compras\/ordenes\/[0-9a-f-]{36}\/imprimir$/);
+    const sheet = page.getByTestId("orden-compra");
+    await expect(sheet.getByRole("heading", { name: /Orden de compra OC-\d+/ })).toBeVisible();
+    await expect(sheet).toContainText("Leo Pelle");
+    await expect(sheet.getByTestId("orden-retiro")).toContainText("Retiro en proveedor");
+    await expect(sheet.getByRole("row", { name: /Manteca/ })).toContainText("12 kg");
+    await expect(page.getByRole("button", { name: "Imprimir / guardar PDF" })).toBeVisible();
+
+    // Sin retiro, la hoja no lo marca.
+    await page.goBack();
+    await page.getByRole("link", { name: "Editar" }).click();
+    await page.getByLabel("Retiro en proveedor").uncheck();
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expectToast(page, "Orden guardada");
+    await page.goto(`${orderUrl}/imprimir`);
+    await expect(page.getByTestId("orden-compra")).toContainText("Entrega el proveedor");
+    await expect(page.getByTestId("orden-retiro")).toHaveCount(0);
+  });
+
   test("RF-11: recepción libre de un refrigerado exige temperatura y alerta por encima de 5 °C", async ({
     page,
   }) => {

@@ -172,6 +172,7 @@ export async function createOrder(db: Executor, userId: string | null, input: Pu
       // Fecha esperada por defecto: pedido + plazo de entrega del proveedor.
       expectedAt: input.expectedAt ?? addDays(input.orderedAt, supplier.leadTimeDays),
       responsibleId: input.responsibleId ?? userId,
+      pickup: input.pickup,
       notes: input.notes,
       status: "draft",
     })
@@ -192,6 +193,7 @@ export async function updateOrder(db: Executor, id: string, input: PurchaseOrder
       orderedAt: input.orderedAt,
       expectedAt: input.expectedAt,
       responsibleId: input.responsibleId,
+      pickup: input.pickup,
       notes: input.notes,
     })
     .where(eq(schema.purchaseOrders.id, id))

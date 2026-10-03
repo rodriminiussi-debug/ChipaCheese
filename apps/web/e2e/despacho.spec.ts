@@ -388,6 +388,42 @@ test.describe("Despacho y reparto (logística)", () => {
       page.locator("[data-sonner-toast]").filter({ hasText: /temperatura del equipo de frío/ }),
     ).toBeVisible();
   });
+
+  test("RF-10: la OC con retiro en proveedor aparece como parada sugerida y deja de sugerirse al armar la ruta", async ({
+    page,
+    sql,
+  }) => {
+    const [po] = await sql`
+      insert into purchase_orders (number, supplier_id, ordered_at, expected_at, status, pickup)
+      values ('OC-E2E-10', (select id from suppliers where legal_name = 'Leo Pelle'), '2026-09-30', '2026-10-01', 'sent', true)
+      returning id`;
+    await sql`
+      insert into purchase_order_items (purchase_order_id, ingredient_id, qty, unit)
+      values (${po!.id}, (select id from ingredients where name = 'Fécula de mandioca'), 25, 'kg')`;
+    // Una OC sin retiro no se sugiere.
+    await sql`
+      insert into purchase_orders (number, supplier_id, ordered_at, expected_at, status, pickup)
+      values ('OC-E2E-11', (select id from suppliers where legal_name = 'Cotar'), '2026-09-30', '2026-10-01', 'sent', false)`;
+
+    await page.goto(`/despacho/nueva?fecha=${DAY}`);
+    const pickups = page.getByRole("group", { name: "Retiros sugeridos por órdenes de compra" });
+    const suggestion = pickups.getByTestId("proposal-pickup");
+    await expect(suggestion).toHaveCount(1);
+    await expect(suggestion).toContainText("OC-E2E-10 · Leo Pelle");
+    await expect(suggestion).toContainText("Atrasada");
+    await expect(suggestion).toContainText("25 kg Fécula de mandioca");
+    await expect(pickups.getByRole("checkbox", { name: /Retirar OC-E2E-10/ })).toBeChecked();
+    await expect(page.getByTestId("route-totals")).toContainText("+ 1 retiro");
+
+    await page.getByRole("button", { name: "Crear ruta" }).click();
+    await expectToast(page, "Ruta creada");
+    const stop = page.getByTestId("stop-card").filter({ hasText: "Leo Pelle" });
+    await expect(stop).toContainText("OC-E2E-10 · retirar 25 kg Fécula de mandioca");
+
+    // Ya está en una ruta abierta: no se vuelve a sugerir.
+    await page.goto(`/despacho/nueva?fecha=${DAY}`);
+    await expect(page.getByTestId("proposal-pickup")).toHaveCount(0);
+  });
 });
 
 test.describe("Permisos del módulo", () => {

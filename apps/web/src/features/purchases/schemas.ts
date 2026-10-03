@@ -72,6 +72,8 @@ export const purchaseOrderInput = z.object({
   orderedAt: isoDate(),
   expectedAt: optIsoDate(),
   responsibleId: optUuid(),
+  /** Retiro en proveedor: se busca con el vehículo propio y aparece como parada sugerida de la ruta (RF-10). */
+  pickup: z.boolean().default(false),
   notes: optText(),
   items: z.array(orderItemInput).min(1, "Agregá al menos un insumo"),
 });

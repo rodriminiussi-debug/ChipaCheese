@@ -25,6 +25,7 @@ export default async function EditOrderPage(props: PageProps<"/compras/ordenes/[
           orderedAt: order.orderedAt,
           expectedAt: order.expectedAt ?? "",
           responsibleId: order.responsibleId,
+          pickup: order.pickup,
           notes: order.notes ?? "",
           items: order.items.map((i) => ({
             ingredientId: i.ingredientId,
