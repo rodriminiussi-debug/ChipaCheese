@@ -1,3 +1,4 @@
+import { isoWeekday, type IsoDate } from "./dates";
 import { roundMoney, roundQty } from "./units";
 
 /**
@@ -28,4 +29,26 @@ export function routeCost(input: {
 export function costPerKgDelivered(routeTotal: number, kgDelivered: number): number | null {
   if (!(kgDelivered > 0)) return null;
   return roundMoney(routeTotal / kgDelivered);
+}
+
+/** Umbral de "ruta chica": por debajo de estos kg entregados la ruta probablemente no se paga (la del 30/09 salió con 25 kg). */
+export const SMALL_ROUTE_KG = 50;
+
+/** RF-27: ¿es una ruta chica? Solo tiene sentido con kg conocidos (ruta entregada). */
+export function isSmallRoute(kgDelivered: number, threshold: number = SMALL_ROUTE_KG): boolean {
+  return kgDelivered < threshold;
+}
+
+/** RF-26: horas de una salida (fin − inicio), con 2 decimales; nunca negativas. */
+export function routeHours(startedAt: Date, endedAt: Date): number {
+  const hours = (endedAt.getTime() - startedAt.getTime()) / 3_600_000;
+  return Math.max(0, Math.round(hours * 100) / 100);
+}
+
+/**
+ * RF-24: ¿la zona reparte ese día? `weekdays` son días ISO 1..7. Una zona sin días definidos
+ * no restringe (todavía no se fijaron los días de reparto): devuelve true.
+ */
+export function zoneDeliversOn(weekdays: readonly number[], date: IsoDate): boolean {
+  return weekdays.length === 0 || weekdays.includes(isoWeekday(date));
 }
