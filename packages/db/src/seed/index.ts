@@ -20,7 +20,8 @@ export interface SeedRefs {
   recipeId: string;
 }
 
-async function seedMasters(tx: Tx): Promise<SeedRefs> {
+/** Maestros del relevamiento (usuarios, catálogo, receta, listas, equipos…). Lo reutiliza el seed de presentación. */
+export async function seedMasters(tx: Tx): Promise<SeedRefs> {
   const refs: SeedRefs = {
     users: {},
     zones: {},
