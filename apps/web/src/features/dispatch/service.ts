@@ -632,12 +632,18 @@ export async function lastKmEnd(db: Executor, vehicleId: string): Promise<number
 // RF-26: inicio y cierre de la salida
 // ------------------------------------------------------------------------------------------------
 
+/**
+ * Inicia la salida. `now` es el momento real (en la cola offline del chofer, el de la carga, no el de la
+ * sincronización). Con `input.clientId` es idempotente: reenviar el mismo inicio devuelve la ruta sin tocarla.
+ */
 export async function startRoute(
   db: Executor,
-  input: { id: string; kmStart: number },
+  input: { id: string; kmStart: number; clientId?: string | null },
   now: Date = new Date(),
 ) {
   const route = await lockRoute(db, input.id);
+  if (input.clientId && route.startClientId === input.clientId)
+    return { id: route.id, duplicate: true as const };
   if (route.status !== "planned")
     throw new UserError(
       `La ruta está ${ROUTE_STATUS_TEXT[route.status]}: solo se inicia una ruta planificada.`,
@@ -645,22 +651,31 @@ export async function startRoute(
   if (!route.vehicleId) throw new UserError("Asigná un vehículo antes de iniciar la ruta.");
   await db
     .update(schema.routes)
-    .set({ status: "in_progress", kmStart: input.kmStart, startedAt: now })
+    .set({
+      status: "in_progress",
+      kmStart: input.kmStart,
+      startedAt: now,
+      startClientId: input.clientId ?? null,
+    })
     .where(eq(schema.routes.id, route.id));
-  return { id: route.id };
+  return { id: route.id, duplicate: false as const };
 }
 
 /**
  * Cierra la salida: km final (≥ inicial), combustible, otros costos y temperatura del equipo de frío,
  * que además se registra en `temperature_logs` para el equipo del vehículo (VEH-FRIO).
+ * `now` es el momento real del cierre. Con `input.clientId` es idempotente: reenviar el mismo cierre
+ * devuelve la ruta sin volver a registrar la temperatura del trayecto.
  */
 export async function finishRoute(
   db: Executor,
   userId: string | null,
-  input: FinishRouteData,
+  input: FinishRouteData & { clientId?: string | null },
   now: Date = new Date(),
 ) {
   const route = await lockRoute(db, input.id);
+  if (input.clientId && route.finishClientId === input.clientId)
+    return { id: route.id, duplicate: true as const };
   if (route.status !== "in_progress")
     throw new UserError(`La ruta está ${ROUTE_STATUS_TEXT[route.status]}: solo se cierra una ruta en curso.`);
   if (route.kmStart != null && input.kmEnd < route.kmStart)
@@ -698,6 +713,7 @@ export async function finishRoute(
       otherCosts: input.otherCosts,
       coldUnitTempC: input.coldUnitTempC,
       notes: input.notes ?? route.notes,
+      finishClientId: input.clientId ?? null,
     })
     .where(eq(schema.routes.id, route.id));
 
@@ -720,7 +736,7 @@ export async function finishRoute(
       });
     }
   }
-  return { id: route.id };
+  return { id: route.id, duplicate: false as const };
 }
 
 // ------------------------------------------------------------------------------------------------

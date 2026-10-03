@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { flushQueue, onQueueChange, pendingItems } from "@/lib/offline-queue";
@@ -17,6 +18,7 @@ export function ServiceWorkerRegister() {
 
 /** Indicador de registros pendientes de sincronizar + reintento automático al volver la señal. */
 export function OfflineQueueIndicator() {
+  const router = useRouter();
   const [pending, setPending] = useState(0);
   const [online, setOnline] = useState(true);
 
@@ -25,7 +27,10 @@ export function OfflineQueueIndicator() {
     const sync = async () => {
       setOnline(navigator.onLine);
       const { sent, failed } = await flushQueue();
-      if (sent) toast.success(`${sent} registro(s) sincronizado(s)`);
+      if (sent) {
+        toast.success(`${sent} registro(s) sincronizado(s)`);
+        router.refresh(); // la pantalla abierta pasa a mostrar lo que acaba de llegar al servidor
+      }
       for (const f of failed) toast.error(`No se pudo sincronizar un registro: ${f.lastError}`);
     };
     const off = () => setOnline(false);
@@ -41,7 +46,7 @@ export function OfflineQueueIndicator() {
       window.removeEventListener("offline", off);
       clearInterval(timer);
     };
-  }, []);
+  }, [router]);
 
   if (online && !pending) return null;
   return (

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { todayAR } from "@/lib/dates";
-import { decimal, isoDate, optDecimal, optText, optUuid } from "@/lib/zod";
+import { clientIdField, decimal, isoDate, optDecimal, optText, optUuid, recordedAtField } from "@/lib/zod";
 
 /** Estados de pedido que se pueden poner en una ruta (los no listos se marcan en la propuesta). */
 export const ROUTE_ORDER_STATUSES = ["ready", "confirmed", "in_production"] as const;
@@ -63,6 +63,16 @@ export const finishRouteInput = z.object({
 });
 export type FinishRouteInput = z.input<typeof finishRouteInput>;
 export type FinishRouteData = z.output<typeof finishRouteInput>;
+
+/**
+ * RF-26 sin señal: el chofer inicia y cierra la salida desde el celular y el registro se encola. `clientId`
+ * (uuid del celular; idempotencia al reenviar) y `recordedAt` (la hora real de salida o regreso).
+ */
+const offlineStamp = { clientId: clientIdField(), recordedAt: recordedAtField() };
+export const startRoutePayload = startRouteInput.extend(offlineStamp);
+export type StartRoutePayload = z.input<typeof startRoutePayload>;
+export const finishRoutePayload = finishRouteInput.extend(offlineStamp);
+export type FinishRoutePayload = z.input<typeof finishRoutePayload>;
 
 /** RF-25: remito de un pedido de la ruta, o de todos los pedidos listos de la ruta. */
 export const generateDispatchInput = z.object({ routeId: uuid(), orderId: uuid() });
