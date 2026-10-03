@@ -11,7 +11,9 @@ export const PAYMENT_METHODS = ["cash", "transfer", "check", "card", "other"] as
 
 /** Subida de la foto/PDF: la Server Action recibe FormData con el campo `file`. */
 export const uploadInvoiceInput = z.object({
-  file: z.instanceof(File, { message: "Elegí una foto o un PDF" }).refine((f) => f.size > 0, "El archivo está vacío"),
+  file: z
+    .instanceof(File, { message: "Elegí una foto o un PDF" })
+    .refine((f) => f.size > 0, "El archivo está vacío"),
 });
 
 export const invoiceItemInput = z.object({

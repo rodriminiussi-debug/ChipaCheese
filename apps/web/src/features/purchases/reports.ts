@@ -33,7 +33,11 @@ function accumulate(acc: SpendTotals, r: Row) {
   acc.invoices += 1;
 }
 
-async function confirmedInvoicesBetween(db: Executor, from: IsoDate, toExclusive: IsoDate): Promise<(Row & { month: string })[]> {
+async function confirmedInvoicesBetween(
+  db: Executor,
+  from: IsoDate,
+  toExclusive: IsoDate,
+): Promise<(Row & { month: string })[]> {
   const i = schema.purchaseInvoices;
   const rows = await db
     .select({
@@ -48,7 +52,13 @@ async function confirmedInvoicesBetween(db: Executor, from: IsoDate, toExclusive
     })
     .from(i)
     .leftJoin(schema.suppliers, eq(schema.suppliers.id, i.supplierId))
-    .where(and(eq(i.status, "confirmed"), sql`${i.issueDate} >= ${from}::date`, sql`${i.issueDate} < ${toExclusive}::date`));
+    .where(
+      and(
+        eq(i.status, "confirmed"),
+        sql`${i.issueDate} >= ${from}::date`,
+        sql`${i.issueDate} < ${toExclusive}::date`,
+      ),
+    );
   return rows.map((r) => ({ ...r, month: r.issueDate!.slice(0, 7) }));
 }
 
@@ -61,7 +71,11 @@ export async function monthlySpend(db: Executor, month: string) {
   for (const r of rows) {
     accumulate(totals, r);
     const key = r.supplierId ?? "none";
-    const entry = bySupplier.get(key) ?? { ...zero(), supplierId: r.supplierId, name: r.supplierName ?? "Sin proveedor" };
+    const entry = bySupplier.get(key) ?? {
+      ...zero(),
+      supplierId: r.supplierId,
+      name: r.supplierName ?? "Sin proveedor",
+    };
     accumulate(entry, r);
     bySupplier.set(key, entry);
   }
@@ -85,7 +99,11 @@ export async function purchasesForExport(db: Executor, month: string) {
   const from = `${month}-01`;
   const i = schema.purchaseInvoices;
   const invoices = await db.query.purchaseInvoices.findMany({
-    where: and(eq(i.status, "confirmed"), sql`${i.issueDate} >= ${from}::date`, sql`${i.issueDate} < ${addMonths(from, 1)}::date`),
+    where: and(
+      eq(i.status, "confirmed"),
+      sql`${i.issueDate} >= ${from}::date`,
+      sql`${i.issueDate} < ${addMonths(from, 1)}::date`,
+    ),
     with: { supplier: true },
     orderBy: [asc(i.issueDate), asc(i.pointOfSale), asc(i.number)],
   });

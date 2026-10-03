@@ -31,7 +31,9 @@ export function SupplierAccountView({
         <StatCard title="Vencido" value={<Money value={overdue} />} tone={overdue > 0 ? "bad" : "default"} />
         <StatCard title="Por vencer" value={<Money value={aging.current} />} />
         <div className="flex items-center sm:justify-end">
-          {canPay ? <PaymentDialog supplierId={supplierId} today={today} suggestedAmount={account.balance} /> : null}
+          {canPay ? (
+            <PaymentDialog supplierId={supplierId} today={today} suggestedAmount={account.balance} />
+          ) : null}
         </div>
       </div>
 
@@ -109,8 +111,12 @@ export function SupplierAccountView({
                       <DateText value={r.date} />
                     </TableCell>
                     <TableCell>{r.label}</TableCell>
-                    <TableCell className="text-right">{r.kind === "charge" ? <Money value={r.amount} /> : null}</TableCell>
-                    <TableCell className="text-right">{r.kind === "credit" ? <Money value={r.amount} /> : null}</TableCell>
+                    <TableCell className="text-right">
+                      {r.kind === "charge" ? <Money value={r.amount} /> : null}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {r.kind === "credit" ? <Money value={r.amount} /> : null}
+                    </TableCell>
                     <TableCell className="text-right font-medium">
                       <Money value={r.balance} />
                     </TableCell>

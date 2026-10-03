@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { invoiceTotals, validateInvoiceTotals } from "@chipa/domain";
-import {
-  ClaudeInvoiceExtractor,
-  DEFAULT_AI_MODEL,
-  parseClaudeResponse,
-} from "./claude-extractor";
+import { ClaudeInvoiceExtractor, DEFAULT_AI_MODEL, parseClaudeResponse } from "./claude-extractor";
 import { ExtractionError, normalizeDate, normalizeExtraction, normalizeInvoiceKind } from "./extraction";
 import { getInvoiceExtractor } from "./extractor";
 import { MockInvoiceExtractor } from "./mock-extractor";
@@ -19,8 +15,22 @@ const SAMPLE_RESPONSE = {
   issueDate: "05/10/2026",
   dueDate: "",
   items: [
-    { description: "HUEVO BLANCO X KG", qty: "18,000", unit: "Kgs", unitPriceNet: "3.222,00", vatRate: 10.5, vatAmount: "6.088,95" },
-    { description: "JAMON COCIDO FETEADO", qty: 5, unit: "kg", unitPriceNet: 9100, vatRate: "21", vatAmount: null },
+    {
+      description: "HUEVO BLANCO X KG",
+      qty: "18,000",
+      unit: "Kgs",
+      unitPriceNet: "3.222,00",
+      vatRate: 10.5,
+      vatAmount: "6.088,95",
+    },
+    {
+      description: "JAMON COCIDO FETEADO",
+      qty: 5,
+      unit: "kg",
+      unitPriceNet: 9100,
+      vatRate: "21",
+      vatAmount: null,
+    },
     { description: "", qty: 1, unit: "kg", unitPriceNet: 1, vatRate: 21, vatAmount: 0 },
   ],
   netTotal: "103.496,00",
@@ -83,7 +93,10 @@ describe("normalización de la respuesta de Claude (RF-08)", () => {
 });
 
 describe("parseClaudeResponse (sin red)", () => {
-  const ok = (text: string) => ({ stop_reason: "end_turn" as const, content: [{ type: "text" as const, text, citations: null }] });
+  const ok = (text: string) => ({
+    stop_reason: "end_turn" as const,
+    content: [{ type: "text" as const, text, citations: null }],
+  });
 
   it("interpreta el JSON de la respuesta y conserva la respuesta cruda", () => {
     const e = parseClaudeResponse(ok(JSON.stringify(SAMPLE_RESPONSE)), "m");
@@ -95,8 +108,12 @@ describe("parseClaudeResponse (sin red)", () => {
   it("falla con mensajes claros", () => {
     expect(() => parseClaudeResponse(ok("no es json"), "m")).toThrow(/no se pudo interpretar/);
     expect(() => parseClaudeResponse({ stop_reason: "refusal", content: [] }, "m")).toThrow(/no quiso/);
-    expect(() => parseClaudeResponse({ stop_reason: "max_tokens", content: [] }, "m")).toThrow(/demasiado larga/);
-    expect(() => parseClaudeResponse({ stop_reason: "end_turn", content: [] }, "m")).toThrow(/no devolvió datos/);
+    expect(() => parseClaudeResponse({ stop_reason: "max_tokens", content: [] }, "m")).toThrow(
+      /demasiado larga/,
+    );
+    expect(() => parseClaudeResponse({ stop_reason: "end_turn", content: [] }, "m")).toThrow(
+      /no devolvió datos/,
+    );
   });
 });
 
@@ -117,7 +134,11 @@ describe("ClaudeInvoiceExtractor (cliente simulado)", () => {
     const [media] = req.messages[0].content;
     expect(media).toMatchObject({
       type: "image",
-      source: { type: "base64", media_type: "image/jpeg", data: Buffer.from("fake-image").toString("base64") },
+      source: {
+        type: "base64",
+        media_type: "image/jpeg",
+        data: Buffer.from("fake-image").toString("base64"),
+      },
     });
   });
 
@@ -140,7 +161,10 @@ describe("ClaudeInvoiceExtractor (cliente simulado)", () => {
 
     const failing = { messages: { create: vi.fn().mockRejectedValue(new Error("ECONNRESET")) } } as never;
     await expect(
-      new ClaudeInvoiceExtractor({ client: failing }).extract({ bytes: Buffer.from("x"), contentType: "image/png" }),
+      new ClaudeInvoiceExtractor({ client: failing }).extract({
+        bytes: Buffer.from("x"),
+        contentType: "image/png",
+      }),
     ).rejects.toThrow(/No se pudo conectar/);
   });
 });

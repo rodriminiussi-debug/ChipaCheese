@@ -68,10 +68,12 @@ export class ClaudeInvoiceExtractor implements InvoiceExtractor {
         ],
       });
     } catch (e) {
-      if (e instanceof Anthropic.RateLimitError) throw new ExtractionError("El servicio de IA está saturado.");
+      if (e instanceof Anthropic.RateLimitError)
+        throw new ExtractionError("El servicio de IA está saturado.");
       if (e instanceof Anthropic.AuthenticationError)
         throw new ExtractionError("La clave de la IA no es válida (ANTHROPIC_API_KEY).");
-      if (e instanceof Anthropic.APIError) throw new ExtractionError(`Error del servicio de IA (${e.status}).`);
+      if (e instanceof Anthropic.APIError)
+        throw new ExtractionError(`Error del servicio de IA (${e.status}).`);
       throw new ExtractionError("No se pudo conectar con el servicio de IA.");
     }
 

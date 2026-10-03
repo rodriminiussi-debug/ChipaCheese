@@ -12,7 +12,10 @@ export async function listOrders(
 ) {
   const o = schema.purchaseOrders;
   return db.query.purchaseOrders.findMany({
-    where: and(f.status ? eq(o.status, f.status) : undefined, f.supplierId ? eq(o.supplierId, f.supplierId) : undefined),
+    where: and(
+      f.status ? eq(o.status, f.status) : undefined,
+      f.supplierId ? eq(o.supplierId, f.supplierId) : undefined,
+    ),
     orderBy: [desc(o.orderedAt), desc(o.number)],
     with: { supplier: true },
     limit: 200,
@@ -147,6 +150,42 @@ export async function changeOrderStatus(db: Executor, id: string, status: "sent"
         : `No se puede pasar una orden ${order.status === "cancelled" ? "cancelada" : "enviada"} a ese estado.`,
     );
   }
-  const [row] = await db.update(schema.purchaseOrders).set({ status }).where(eq(schema.purchaseOrders.id, id)).returning();
+  const [row] = await db
+    .update(schema.purchaseOrders)
+    .set({ status })
+    .where(eq(schema.purchaseOrders.id, id))
+    .returning();
   return row!;
+}
+
+/** Opciones del formulario de OC: proveedores (con sus insumos), insumos con último precio y usuarios. */
+export async function orderFormOptions(db: Executor) {
+  const [suppliers, sold, ingredients, users, latest] = await Promise.all([
+    db.query.suppliers.findMany({
+      where: eq(schema.suppliers.active, true),
+      orderBy: asc(schema.suppliers.legalName),
+    }),
+    db.query.supplierIngredients.findMany(),
+    db.query.ingredients.findMany({
+      where: eq(schema.ingredients.active, true),
+      orderBy: asc(schema.ingredients.name),
+    }),
+    db.query.users.findMany({ where: eq(schema.users.active, true), orderBy: asc(schema.users.name) }),
+    getLatestPrices(db),
+  ]);
+  return {
+    suppliers: suppliers.map((s) => ({
+      id: s.id,
+      name: s.legalName,
+      leadTimeDays: s.leadTimeDays,
+      ingredientIds: sold.filter((x) => x.supplierId === s.id).map((x) => x.ingredientId),
+    })),
+    ingredients: ingredients.map((i) => ({
+      id: i.id,
+      name: i.name,
+      unit: i.unit,
+      lastPrice: latest[i.id]?.unitPriceNet ?? null,
+    })),
+    users: users.filter((u) => u.role !== "operator").map((u) => ({ id: u.id, name: u.name })),
+  };
 }

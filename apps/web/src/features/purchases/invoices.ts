@@ -41,7 +41,10 @@ export async function listInvoices(db: Executor, f: InvoiceListFilter = {}) {
     f.status ? eq(i.status, f.status) : undefined,
     f.supplierId ? eq(i.supplierId, f.supplierId) : undefined,
     f.month
-      ? and(sql`${i.issueDate} >= ${`${f.month}-01`}::date`, sql`${i.issueDate} < (${`${f.month}-01`}::date + interval '1 month')`)
+      ? and(
+          sql`${i.issueDate} >= ${`${f.month}-01`}::date`,
+          sql`${i.issueDate} < (${`${f.month}-01`}::date + interval '1 month')`,
+        )
       : undefined,
     f.q
       ? or(
@@ -84,7 +87,9 @@ export async function suggestIngredients(db: Executor, supplierId: string | null
   const [ingredients, sold, history] = await Promise.all([
     db.query.ingredients.findMany({ where: eq(schema.ingredients.active, true) }),
     supplierId
-      ? db.query.supplierIngredients.findMany({ where: eq(schema.supplierIngredients.supplierId, supplierId) })
+      ? db.query.supplierIngredients.findMany({
+          where: eq(schema.supplierIngredients.supplierId, supplierId),
+        })
       : Promise.resolve([]),
     supplierId
       ? db
@@ -93,7 +98,10 @@ export async function suggestIngredients(db: Executor, supplierId: string | null
             ingredientId: schema.purchaseInvoiceItems.ingredientId,
           })
           .from(schema.purchaseInvoiceItems)
-          .innerJoin(schema.purchaseInvoices, eq(schema.purchaseInvoices.id, schema.purchaseInvoiceItems.invoiceId))
+          .innerJoin(
+            schema.purchaseInvoices,
+            eq(schema.purchaseInvoices.id, schema.purchaseInvoiceItems.invoiceId),
+          )
           .where(
             and(
               eq(schema.purchaseInvoices.supplierId, supplierId),
@@ -107,7 +115,8 @@ export async function suggestIngredients(db: Executor, supplierId: string | null
   const byHistory = new Map<string, string>();
   for (const h of history) {
     const key = normalizeText(h.description);
-    if (h.ingredientId && known.has(h.ingredientId) && !byHistory.has(key)) byHistory.set(key, h.ingredientId);
+    if (h.ingredientId && known.has(h.ingredientId) && !byHistory.has(key))
+      byHistory.set(key, h.ingredientId);
   }
   const soldIds = new Set(sold.map((s) => s.ingredientId));
   const candidates = (list: typeof ingredients) => list.map((i) => ({ id: i.id, names: [i.name] }));
@@ -117,7 +126,9 @@ export async function suggestIngredients(db: Executor, supplierId: string | null
     const fromHistory = byHistory.get(normalizeText(d));
     if (fromHistory) return fromHistory;
     return (
-      bestNameMatch(d, candidates(mine), 0.5)?.id ?? bestNameMatch(d, candidates(ingredients), 0.6)?.id ?? null
+      bestNameMatch(d, candidates(mine), 0.5)?.id ??
+      bestNameMatch(d, candidates(ingredients), 0.6)?.id ??
+      null
     );
   });
 }
@@ -165,7 +176,12 @@ async function insertItems(
   if (!items.length) return;
   await db.insert(schema.purchaseInvoiceItems).values(
     items.map((it, idx) => {
-      const line: InvoiceLine = { qty: it.qty, unitPriceNet: it.unitPriceNet, vatRate: it.vatRate, vatAmount: it.vatAmount };
+      const line: InvoiceLine = {
+        qty: it.qty,
+        unitPriceNet: it.unitPriceNet,
+        vatRate: it.vatRate,
+        vatAmount: it.vatAmount,
+      };
       const vat = lineVat(line);
       return {
         invoiceId,
@@ -235,9 +251,9 @@ export async function createDraftFromExtraction(
   const ingredientIds = suggestions.filter((s): s is string => !!s);
   const units = new Map(
     ingredientIds.length
-      ? (
-          await db.query.ingredients.findMany({ where: inArray(schema.ingredients.id, ingredientIds) })
-        ).map((i) => [i.id, i.unit] as const)
+      ? (await db.query.ingredients.findMany({ where: inArray(schema.ingredients.id, ingredientIds) })).map(
+          (i) => [i.id, i.unit] as const,
+        )
       : [],
   );
   await insertItems(
@@ -275,7 +291,12 @@ async function loadDraft(db: Executor, id: string) {
 }
 
 function toLines(items: InvoiceFormData["items"]): InvoiceLine[] {
-  return items.map((i) => ({ qty: i.qty, unitPriceNet: i.unitPriceNet, vatRate: i.vatRate, vatAmount: i.vatAmount }));
+  return items.map((i) => ({
+    qty: i.qty,
+    unitPriceNet: i.unitPriceNet,
+    vatRate: i.vatRate,
+    vatAmount: i.vatAmount,
+  }));
 }
 
 /** Totales calculados desde las líneas y comparación con los de la factura (para mostrar diferencias). */
@@ -338,8 +359,7 @@ const FIELD_LABEL = { net: "neto", vat: "IVA", total: "total" } as const;
 export async function confirmInvoice(db: Executor, input: InvoiceFormData & { acceptDifferences?: boolean }) {
   await saveInvoice(db, input);
   const invoice = (await getInvoice(db, input.id))!;
-  const fail = (msg: string, field?: string) =>
-    new UserError(msg, field ? { [field]: [msg] } : undefined);
+  const fail = (msg: string, field?: string) => new UserError(msg, field ? { [field]: [msg] } : undefined);
 
   if (!invoice.supplierId || !invoice.supplier) throw fail("Elegí el proveedor.", "supplierId");
   if (!invoice.issueDate) throw fail("Ingresá la fecha de emisión.", "issueDate");
@@ -349,7 +369,9 @@ export async function confirmInvoice(db: Executor, input: InvoiceFormData & { ac
   const bad = invoice.items.findIndex((i) => !(i.qty > 0));
   if (bad >= 0) throw fail(`La línea ${bad + 1} no tiene cantidad.`, `items.${bad}.qty`);
 
-  const ingredientIds = [...new Set(invoice.items.map((i) => i.ingredientId).filter((x): x is string => !!x))];
+  const ingredientIds = [
+    ...new Set(invoice.items.map((i) => i.ingredientId).filter((x): x is string => !!x)),
+  ];
   const ingredients = ingredientIds.length
     ? await db.query.ingredients.findMany({ where: inArray(schema.ingredients.id, ingredientIds) })
     : [];
@@ -380,11 +402,17 @@ export async function confirmInvoice(db: Executor, input: InvoiceFormData & { ac
   });
   if (!check.ok && !input.acceptDifferences) {
     const detail = check.diffs
-      .map((d) => `${FIELD_LABEL[d.field]}: calculado ${d.computed.toFixed(2)} vs factura ${d.declared.toFixed(2)}`)
+      .map(
+        (d) =>
+          `${FIELD_LABEL[d.field]}: calculado ${d.computed.toFixed(2)} vs factura ${d.declared.toFixed(2)}`,
+      )
       .join("; ");
-    throw new UserError(`Los totales no coinciden con la factura (${detail}). Revisá las líneas o aceptá la diferencia.`, {
-      declaredTotal: ["No coincide con las líneas"],
-    });
+    throw new UserError(
+      `Los totales no coinciden con la factura (${detail}). Revisá las líneas o aceptá la diferencia.`,
+      {
+        declaredTotal: ["No coincide con las líneas"],
+      },
+    );
   }
 
   const dueDate = invoiceDueDate({
@@ -392,7 +420,10 @@ export async function confirmInvoice(db: Executor, input: InvoiceFormData & { ac
     dueDate: invoice.dueDate,
     paymentTermsDays: invoice.supplier.paymentTermsDays,
   });
-  await db.update(INVOICE_COLUMNS).set({ status: "confirmed", dueDate }).where(eq(INVOICE_COLUMNS.id, invoice.id));
+  await db
+    .update(INVOICE_COLUMNS)
+    .set({ status: "confirmed", dueDate })
+    .where(eq(INVOICE_COLUMNS.id, invoice.id));
 
   const isCreditNote = invoice.invoiceType.startsWith("NC_");
   const priced = invoice.items.filter((i) => i.ingredientId && !isCreditNote);
@@ -408,14 +439,21 @@ export async function confirmInvoice(db: Executor, input: InvoiceFormData & { ac
     );
 
   // Si el proveedor no tenía CUIT cargado y la factura lo trae (válido y libre), se completa.
-  const extracted = (invoice.aiExtraction as { extracted?: { supplierCuit?: string | null } } | null)?.extracted;
+  const extracted = (invoice.aiExtraction as { extracted?: { supplierCuit?: string | null } } | null)
+    ?.extracted;
   const cuit = cuitDigits(extracted?.supplierCuit);
   if (!invoice.supplier.cuit && cuit && isValidCuit(cuit)) {
     const taken = await db.query.suppliers.findFirst({ where: eq(schema.suppliers.cuit, cuit) });
-    if (!taken) await db.update(schema.suppliers).set({ cuit }).where(eq(schema.suppliers.id, invoice.supplierId));
+    if (!taken)
+      await db.update(schema.suppliers).set({ cuit }).where(eq(schema.suppliers.id, invoice.supplierId));
   }
 
-  return { id: invoice.id, pricesRecorded: priced.length, unmappedLines: invoice.items.length - priced.length, differences: check.diffs };
+  return {
+    id: invoice.id,
+    pricesRecorded: priced.length,
+    unmappedLines: invoice.items.length - priced.length,
+    differences: check.diffs,
+  };
 }
 
 /** Elimina un borrador (no las confirmadas). */
@@ -427,8 +465,11 @@ export async function deleteDraftInvoice(db: Executor, id: string) {
 /** Da de alta el proveedor con los datos que la IA leyó en la factura y lo asigna al borrador. */
 export async function createSupplierFromDraft(db: Executor, invoiceId: string) {
   const invoice = await loadDraft(db, invoiceId);
-  const x = (invoice.aiExtraction as { extracted?: { supplierName?: string | null; supplierCuit?: string | null } } | null)
-    ?.extracted;
+  const x = (
+    invoice.aiExtraction as {
+      extracted?: { supplierName?: string | null; supplierCuit?: string | null };
+    } | null
+  )?.extracted;
   if (!x?.supplierName) throw new UserError("La factura no tiene el nombre del proveedor leído.");
   const cuit = cuitDigits(x.supplierCuit);
   const validCuit = cuit && isValidCuit(cuit) ? cuit : null;

@@ -11,7 +11,9 @@ export interface OrderMessageInput {
 
 /** Texto del pedido para mandar por WhatsApp al proveedor (un solo canal, RF-10). */
 export function buildOrderMessage(o: OrderMessageInput): string {
-  const lines = o.items.map((i) => `• ${formatNumber(i.qty, Number.isInteger(i.qty) ? 0 : 2)} ${UNIT_LABEL[i.unit]} ${i.name}`);
+  const lines = o.items.map(
+    (i) => `• ${formatNumber(i.qty, Number.isInteger(i.qty) ? 0 : 2)} ${UNIT_LABEL[i.unit]} ${i.name}`,
+  );
   return [
     `Hola ${o.supplierName}! Te paso el pedido ${o.number} de Chipa Cheese:`,
     ...lines,

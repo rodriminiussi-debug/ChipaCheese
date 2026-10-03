@@ -48,7 +48,8 @@ export async function ingredientPriceHistory(db: Executor, ingredientId: string)
   // Variación por proveedor (cada serie contra su compra anterior).
   const seriesKey = (s: string | null) => s ?? "none";
   const series = new Map<string, typeof rows>();
-  for (const r of rows) series.set(seriesKey(r.supplierId), [...(series.get(seriesKey(r.supplierId)) ?? []), r]);
+  for (const r of rows)
+    series.set(seriesKey(r.supplierId), [...(series.get(seriesKey(r.supplierId)) ?? []), r]);
   const variationById = new Map<string, number | null>();
   for (const list of series.values()) {
     const vars = purchaseVariations(list.map((r) => ({ date: r.date, price: r.unitPriceNet })));
@@ -83,7 +84,8 @@ export async function ingredientPriceHistory(db: Executor, ingredientId: string)
       .sort((a, b) => a.lastPrice - b.lastPrice)
       .map((s) => ({
         ...s,
-        vsCheapestPct: cheapest != null && s.lastPrice !== cheapest ? priceVariationPct(cheapest, s.lastPrice) : 0,
+        vsCheapestPct:
+          cheapest != null && s.lastPrice !== cheapest ? priceVariationPct(cheapest, s.lastPrice) : 0,
       })),
     /** Último precio de cada mes (cualquier proveedor) con su variación mensual. */
     monthly: monthlyPriceSeries(rows.map((r) => ({ date: r.date, price: r.unitPriceNet }))),
@@ -94,7 +96,10 @@ export type IngredientPriceHistory = NonNullable<Awaited<ReturnType<typeof ingre
 /** Resumen por insumo: último precio, variación vs la compra anterior y cantidad de proveedores. */
 export async function priceOverview(db: Executor) {
   const [ingredients, prices] = await Promise.all([
-    db.query.ingredients.findMany({ where: eq(schema.ingredients.active, true), orderBy: asc(schema.ingredients.name) }),
+    db.query.ingredients.findMany({
+      where: eq(schema.ingredients.active, true),
+      orderBy: asc(schema.ingredients.name),
+    }),
     db
       .select({
         ingredientId: schema.ingredientPrices.ingredientId,
@@ -105,10 +110,7 @@ export async function priceOverview(db: Executor) {
       })
       .from(schema.ingredientPrices)
       .leftJoin(schema.suppliers, eq(schema.suppliers.id, schema.ingredientPrices.supplierId))
-      .orderBy(
-        desc(schema.ingredientPrices.date),
-        desc(schema.ingredientPrices.createdAt),
-      ),
+      .orderBy(desc(schema.ingredientPrices.date), desc(schema.ingredientPrices.createdAt)),
   ]);
   const byIngredient = new Map<string, typeof prices>();
   for (const r of prices) byIngredient.set(r.ingredientId, [...(byIngredient.get(r.ingredientId) ?? []), r]);

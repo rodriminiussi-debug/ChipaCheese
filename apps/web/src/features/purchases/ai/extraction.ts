@@ -178,7 +178,9 @@ export const normalizeUnit = (v: unknown): ExtractedUnit | null => {
 
 const KINDS: InvoiceKind[] = ["A", "B", "C", "X", "NC_A", "NC_B", "NC_C"];
 export function normalizeInvoiceKind(v: unknown): InvoiceKind | null {
-  const t = text(v)?.toUpperCase().replace(/[\s-]+/g, "_");
+  const t = text(v)
+    ?.toUpperCase()
+    .replace(/[\s-]+/g, "_");
   if (!t) return null;
   if ((KINDS as string[]).includes(t)) return t as InvoiceKind;
   const m = /^(?:FACTURA_)?([ABCX])$/.exec(t);
@@ -200,7 +202,8 @@ function normalizeVatRate(v: unknown): number {
  * Nunca lanza por datos faltantes: lo que no se puede leer queda en null para que lo complete el usuario.
  */
 export function normalizeExtraction(raw: unknown, meta: ExtractionMeta): ExtractedInvoice {
-  if (!raw || typeof raw !== "object") throw new ExtractionError("La respuesta de la IA no es un objeto.", raw);
+  if (!raw || typeof raw !== "object")
+    throw new ExtractionError("La respuesta de la IA no es un objeto.", raw);
   const r = raw as Record<string, unknown>;
   const rawItems = Array.isArray(r.items) ? r.items : [];
   const items: ExtractedItem[] = [];

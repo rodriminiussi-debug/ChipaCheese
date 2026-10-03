@@ -27,7 +27,11 @@ type PaymentRow = typeof schema.supplierPayments.$inferSelect;
 
 const invoiceDate = (i: InvoiceRow): IsoDate => i.issueDate ?? toIsoDateAR(i.createdAt);
 
-export function buildLedger(supplier: Pick<SupplierRow, "paymentTermsDays">, invoices: InvoiceRow[], payments: PaymentRow[]) {
+export function buildLedger(
+  supplier: Pick<SupplierRow, "paymentTermsDays">,
+  invoices: InvoiceRow[],
+  payments: PaymentRow[],
+) {
   const charges: Charge[] = [];
   const credits: Credit[] = [];
   const labels = new Map<string, string>();
@@ -35,19 +39,29 @@ export function buildLedger(supplier: Pick<SupplierRow, "paymentTermsDays">, inv
     if (inv.status !== "confirmed") continue;
     const date = invoiceDate(inv);
     const kind = inv.invoiceType.replace("_", " ");
-    labels.set(inv.id, `${inv.invoiceType.startsWith("NC_") ? "Nota de crédito" : "Factura"} ${kind.replace("NC ", "")} ${formatInvoiceNumber(inv.pointOfSale, inv.number)}`);
+    labels.set(
+      inv.id,
+      `${inv.invoiceType.startsWith("NC_") ? "Nota de crédito" : "Factura"} ${kind.replace("NC ", "")} ${formatInvoiceNumber(inv.pointOfSale, inv.number)}`,
+    );
     if (inv.invoiceType.startsWith("NC_")) credits.push({ id: inv.id, date, amount: inv.total });
     else
       charges.push({
         id: inv.id,
         date,
-        dueDate: invoiceDueDate({ issueDate: date, dueDate: inv.dueDate, paymentTermsDays: supplier.paymentTermsDays }),
+        dueDate: invoiceDueDate({
+          issueDate: date,
+          dueDate: inv.dueDate,
+          paymentTermsDays: supplier.paymentTermsDays,
+        }),
         amount: inv.total,
       });
   }
   for (const p of payments) {
     credits.push({ id: p.id, date: p.date, amount: p.amount });
-    labels.set(p.id, `Pago (${PAYMENT_METHOD[p.method] ?? p.method})${p.reference ? ` · ${p.reference}` : ""}`);
+    labels.set(
+      p.id,
+      `Pago (${PAYMENT_METHOD[p.method] ?? p.method})${p.reference ? ` · ${p.reference}` : ""}`,
+    );
   }
   return { charges, credits, labels };
 }
@@ -55,26 +69,52 @@ export function buildLedger(supplier: Pick<SupplierRow, "paymentTermsDays">, inv
 export interface SupplierAccount {
   balance: number;
   aging: AgingBuckets;
-  statement: { id: string; date: IsoDate; kind: "charge" | "credit"; label: string; amount: number; balance: number }[];
+  statement: {
+    id: string;
+    date: IsoDate;
+    kind: "charge" | "credit";
+    label: string;
+    amount: number;
+    balance: number;
+  }[];
   openCharges: { id: string; label: string; dueDate: IsoDate; open: number; overdue: boolean }[];
 }
 
-export async function getSupplierAccount(db: Executor, supplierId: string, today: IsoDate): Promise<SupplierAccount> {
+export async function getSupplierAccount(
+  db: Executor,
+  supplierId: string,
+  today: IsoDate,
+): Promise<SupplierAccount> {
   const supplier = await db.query.suppliers.findFirst({ where: eq(schema.suppliers.id, supplierId) });
   if (!supplier) throw new UserError("El proveedor no existe.");
   const [invoices, payments] = await Promise.all([
     db.query.purchaseInvoices.findMany({
-      where: and(eq(schema.purchaseInvoices.supplierId, supplierId), eq(schema.purchaseInvoices.status, "confirmed")),
+      where: and(
+        eq(schema.purchaseInvoices.supplierId, supplierId),
+        eq(schema.purchaseInvoices.status, "confirmed"),
+      ),
     }),
-    db.query.supplierPayments.findMany({ where: eq(schema.supplierPayments.supplierId, supplierId), orderBy: asc(schema.supplierPayments.date) }),
+    db.query.supplierPayments.findMany({
+      where: eq(schema.supplierPayments.supplierId, supplierId),
+      orderBy: asc(schema.supplierPayments.date),
+    }),
   ]);
   const { charges, credits, labels } = buildLedger(supplier, invoices, payments);
   const open = applyFifo(charges, credits).filter((c) => c.open > 0);
   return {
     balance: accountBalance(charges, credits),
     aging: agingBuckets(open, today),
-    statement: statementWithRunningBalance(charges, credits).map((r) => ({ ...r, label: labels.get(r.id) ?? "" })),
-    openCharges: open.map((c) => ({ id: c.chargeId, label: labels.get(c.chargeId) ?? "", dueDate: c.dueDate, open: c.open, overdue: c.dueDate < today })),
+    statement: statementWithRunningBalance(charges, credits).map((r) => ({
+      ...r,
+      label: labels.get(r.id) ?? "",
+    })),
+    openCharges: open.map((c) => ({
+      id: c.chargeId,
+      label: labels.get(c.chargeId) ?? "",
+      dueDate: c.dueDate,
+      open: c.open,
+      overdue: c.dueDate < today,
+    })),
   };
 }
 

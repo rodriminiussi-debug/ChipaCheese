@@ -29,8 +29,14 @@ export async function receptionLocations(db: Executor) {
 export async function receptionFormData(db: Executor, orderId?: string | null) {
   const [places, ingredients, suppliers, sold] = await Promise.all([
     receptionLocations(db),
-    db.query.ingredients.findMany({ where: eq(schema.ingredients.active, true), orderBy: asc(schema.ingredients.name) }),
-    db.query.suppliers.findMany({ where: eq(schema.suppliers.active, true), orderBy: asc(schema.suppliers.legalName) }),
+    db.query.ingredients.findMany({
+      where: eq(schema.ingredients.active, true),
+      orderBy: asc(schema.ingredients.name),
+    }),
+    db.query.suppliers.findMany({
+      where: eq(schema.suppliers.active, true),
+      orderBy: asc(schema.suppliers.legalName),
+    }),
     db.query.supplierIngredients.findMany(),
   ]);
   const order = orderId ? await getOrder(db, orderId) : null;
@@ -52,7 +58,12 @@ export async function receptionFormData(db: Executor, orderId?: string | null) {
           supplierId: order.supplierId,
           status: order.status,
           lines: order.items
-            .map((i) => ({ ingredientId: i.ingredientId, ordered: i.qty, received: i.received, pending: roundQty(Math.max(0, i.qty - i.received)) }))
+            .map((i) => ({
+              ingredientId: i.ingredientId,
+              ordered: i.qty,
+              received: i.received,
+              pending: roundQty(Math.max(0, i.qty - i.received)),
+            }))
             .filter((l) => l.pending > 0),
         }
       : null,
@@ -89,10 +100,14 @@ export async function createReception(db: Executor, userId: string | null, input
   for (const l of lines) {
     const ing = byId.get(l.ingredientId);
     if (!ing) throw new UserError("Algún insumo no existe.");
-    const f = (field: string, msg: string) => new UserError(`${ing.name}: ${msg}`, { [`lines.${l.index}.${field}`]: [msg] });
-    if (ing.refrigerated && l.temperatureC == null) throw f("temperatureC", "la temperatura es obligatoria para refrigerados");
-    if (ing.refrigerated && !l.expiryDate) throw f("expiryDate", "el vencimiento es obligatorio para refrigerados");
-    if (ing.category !== "packaging" && !l.supplierLotCode) throw f("supplierLotCode", "falta el lote del proveedor");
+    const f = (field: string, msg: string) =>
+      new UserError(`${ing.name}: ${msg}`, { [`lines.${l.index}.${field}`]: [msg] });
+    if (ing.refrigerated && l.temperatureC == null)
+      throw f("temperatureC", "la temperatura es obligatoria para refrigerados");
+    if (ing.refrigerated && !l.expiryDate)
+      throw f("expiryDate", "el vencimiento es obligatorio para refrigerados");
+    if (ing.category !== "packaging" && !l.supplierLotCode)
+      throw f("supplierLotCode", "falta el lote del proveedor");
   }
 
   const [reception] = await db
@@ -147,7 +162,10 @@ export async function createReception(db: Executor, userId: string | null, input
       order.status,
     );
     if (orderStatus !== order.status)
-      await db.update(schema.purchaseOrders).set({ status: orderStatus }).where(eq(schema.purchaseOrders.id, order.id));
+      await db
+        .update(schema.purchaseOrders)
+        .set({ status: orderStatus })
+        .where(eq(schema.purchaseOrders.id, order.id));
   }
 
   const alerts = lines
