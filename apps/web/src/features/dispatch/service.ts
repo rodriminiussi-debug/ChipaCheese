@@ -20,7 +20,12 @@ import { getSetting } from "@/server/settings";
 import { TZ, toIsoDateAR } from "@/lib/dates";
 import { ORDER_STATUS } from "@/lib/labels";
 import { changeOrderStatus } from "@/features/orders/service";
-import { allocateProductFefo, locationByCode, recordProductMovements } from "@/features/stock/ledger";
+import {
+  allocateProductFefo,
+  finishedLotBalances,
+  locationByCode,
+  recordProductMovements,
+} from "@/features/stock/ledger";
 import { formatDispatchNumber } from "./labels";
 import {
   ROUTE_ORDER_STATUSES,
@@ -589,7 +594,15 @@ export interface StopDispatch {
   receivedByName: string | null;
   notes: string | null;
   proofFileKey: string | null;
-  items: { productName: string; lotCode: string; expiryDate: IsoDate; qtyUnits: number }[];
+  items: {
+    id: string;
+    productName: string;
+    lotCode: string;
+    expiryDate: IsoDate;
+    qtyUnits: number;
+    /** Unidades realmente entregadas si hubo entrega parcial. */
+    qtyDelivered: number | null;
+  }[];
 }
 export interface StopView {
   id: string;
@@ -668,10 +681,12 @@ export async function getRoute(db: Executor, id: string) {
         notes: current.notes,
         proofFileKey: current.proofFileKey,
         items: current.items.map((i) => ({
+          id: i.id,
           productName: i.product.name,
           lotCode: i.lot.code,
           expiryDate: i.lot.expiryDate,
           qtyUnits: i.qtyUnits,
+          qtyDelivered: i.qtyDelivered,
         })),
       },
       rejectedCount:
@@ -983,11 +998,21 @@ async function markRouteStopDone(db: Executor, d: { routeId: string | null; orde
     );
 }
 
-/** Entrega con conformidad: quién recibió y, si hay, la foto o firma ya guardada (`proofFileKey`). */
+/**
+ * Entrega con conformidad: quién recibió y, si hay, la foto o firma ya guardada (`proofFileKey`).
+ * Entrega parcial (RF-25): `quantities` trae la cantidad realmente entregada por línea del remito; lo que
+ * no se entregó vuelve al stock del lote en F3 con un movimiento `return`. Las líneas que no se informan
+ * se consideran entregadas completas. Si no se entregó nada hay que rechazar el remito.
+ */
 export async function deliverDispatch(
   db: Executor,
   userId: string | null,
-  input: { dispatchId: string; receivedByName: string; proofFileKey?: string | null },
+  input: {
+    dispatchId: string;
+    receivedByName: string;
+    proofFileKey?: string | null;
+    quantities?: { dispatchItemId: string; qty: number }[];
+  },
   now: Date = new Date(),
 ) {
   const name = input.receivedByName.trim();
@@ -998,6 +1023,48 @@ export async function deliverDispatch(
     throw new UserError(
       `El remito ${formatDispatchNumber(d.number)} está ${DISPATCH_STATUS_TEXT[d.status]}: solo se entrega un remito preparado.`,
     );
+
+  const items = await db.select().from(schema.dispatchItems).where(eq(schema.dispatchItems.dispatchId, d.id));
+  const delivered = new Map(items.map((i) => [i.id, i.qtyUnits]));
+  for (const q of input.quantities ?? []) {
+    const item = items.find((i) => i.id === q.dispatchItemId);
+    if (!item) throw new UserError("Una línea de la entrega no pertenece a este remito.");
+    if (!Number.isInteger(q.qty) || q.qty < 0 || q.qty > item.qtyUnits)
+      throw new UserError(
+        `La cantidad entregada tiene que estar entre 0 y ${item.qtyUnits} unidades (la del remito).`,
+        { quantities: ["Cantidad inválida"] },
+      );
+    delivered.set(item.id, q.qty);
+  }
+  const deliveredUnits = [...delivered.values()].reduce((a, n) => a + n, 0);
+  if (deliveredUnits === 0)
+    throw new UserError("Si no se entregó nada, rechazá el remito: el stock vuelve al lote.");
+
+  const partial = items.filter((i) => (delivered.get(i.id) ?? i.qtyUnits) < i.qtyUnits);
+  if (partial.length) {
+    const f3 = await locationByCode(db, "F3");
+    await recordProductMovements(
+      db,
+      userId,
+      partial.map((i) => ({
+        type: "return" as const,
+        productId: i.productId,
+        finishedLotId: i.finishedLotId,
+        locationId: f3.id,
+        qty: i.qtyUnits - delivered.get(i.id)!,
+        refTable: "dispatches",
+        refId: d.id,
+        note: `Entrega parcial del remito ${formatDispatchNumber(d.number)}: devolución al stock`,
+        occurredAt: now,
+      })),
+    );
+    for (const i of partial)
+      await db
+        .update(schema.dispatchItems)
+        .set({ qtyDelivered: delivered.get(i.id)! })
+        .where(eq(schema.dispatchItems.id, i.id));
+  }
+
   await db
     .update(schema.dispatches)
     .set({
@@ -1007,17 +1074,143 @@ export async function deliverDispatch(
       proofFileKey: input.proofFileKey ?? null,
     })
     .where(eq(schema.dispatches.id, d.id));
+  const totalUnits = items.reduce((a, i) => a + i.qtyUnits, 0);
   const order = await db.query.orders.findFirst({ where: eq(schema.orders.id, d.orderId) });
   if (order && canTransition(order.status, "delivered"))
     await changeOrderStatus(
       db,
       userId,
-      { id: order.id, to: "delivered", note: `Remito ${formatDispatchNumber(d.number)}: recibió ${name}` },
+      {
+        id: order.id,
+        to: "delivered",
+        note: `Remito ${formatDispatchNumber(d.number)}: recibió ${name}${
+          partial.length ? `. Entrega parcial: ${deliveredUnits} de ${totalUnits} u.` : ""
+        }`,
+      },
       now,
     );
   await markRouteStopDone(db, d, now);
-  return { id: d.id, number: d.number, orderId: d.orderId };
+  return {
+    id: d.id,
+    number: d.number,
+    orderId: d.orderId,
+    partial: partial.length > 0,
+    deliveredUnits,
+    returnedUnits: totalUnits - deliveredUnits,
+  };
 }
+
+/**
+ * Cambio manual del lote asignado por FEFO a una línea del remito (RF-25), con motivo obligatorio. Solo en
+ * remitos preparados. Valida que el lote elegido tenga stock suficiente en F3/F4 (y no esté retenido): la
+ * línea vuelve al lote anterior (movimiento `return` en F3) y se descuenta del nuevo.
+ */
+export async function changeDispatchLot(
+  db: Executor,
+  userId: string | null,
+  input: { dispatchItemId: string; finishedLotId: string; reason: string },
+  now: Date = new Date(),
+) {
+  const reason = input.reason.trim();
+  if (reason.length < 3)
+    throw new UserError("Contá por qué se cambia el lote.", { reason: ["Motivo obligatorio"] });
+  const [item] = await db
+    .select()
+    .from(schema.dispatchItems)
+    .where(eq(schema.dispatchItems.id, input.dispatchItemId));
+  if (!item) throw new UserError("La línea del remito no existe.");
+  const d = await lockDispatch(db, item.dispatchId);
+  if (d.status !== "prepared")
+    throw new UserError(
+      `El remito ${formatDispatchNumber(d.number)} está ${DISPATCH_STATUS_TEXT[d.status]}: solo se cambia el lote de un remito preparado.`,
+    );
+  if (item.finishedLotId === input.finishedLotId)
+    throw new UserError("Esa línea ya tiene ese lote.", { finishedLotId: ["Elegí otro lote"] });
+  const lot = await db.query.finishedLots.findFirst({
+    where: eq(schema.finishedLots.id, input.finishedLotId),
+  });
+  if (!lot) throw new UserError("El lote no existe.");
+  if (lot.onHold) throw new UserError(`El lote ${lot.code} está retenido por calidad.`);
+
+  // Stock del lote elegido para ese producto en F3/F4 (primero donde más hay).
+  const locationIds = await dispatchLocationIds(db);
+  const positions = (await finishedLotBalances(db, item.productId, { locationIds }))
+    .filter((b) => b.finishedLotId === lot.id)
+    .sort((a, b) => b.qty - a.qty);
+  const available = positions.reduce((a, b) => a + b.qty, 0);
+  if (available < item.qtyUnits)
+    throw new UserError(
+      `El lote ${lot.code} tiene ${available} u. en F3/F4: no alcanza para las ${item.qtyUnits} u. de la línea.`,
+      { finishedLotId: ["Stock insuficiente"] },
+    );
+  const takes: { locationId: string; qty: number }[] = [];
+  let left = item.qtyUnits;
+  for (const p of positions) {
+    if (left <= 0) break;
+    const qty = Math.min(left, p.qty);
+    takes.push({ locationId: p.locationId, qty });
+    left -= qty;
+  }
+
+  const oldLot = await db.query.finishedLots.findFirst({
+    where: eq(schema.finishedLots.id, item.finishedLotId),
+  });
+  const f3 = await locationByCode(db, "F3");
+  const note = `Cambio de lote del remito ${formatDispatchNumber(d.number)}: ${reason}`;
+  await recordProductMovements(db, userId, [
+    {
+      type: "return",
+      productId: item.productId,
+      finishedLotId: item.finishedLotId,
+      locationId: f3.id,
+      qty: item.qtyUnits,
+      refTable: "dispatches",
+      refId: d.id,
+      note: `${note} (vuelve ${oldLot?.code ?? "el lote anterior"})`,
+      occurredAt: now,
+    },
+    ...takes.map((t) => ({
+      type: "dispatch" as const,
+      productId: item.productId,
+      finishedLotId: lot.id,
+      locationId: t.locationId,
+      qty: -t.qty,
+      refTable: "dispatches",
+      refId: d.id,
+      note,
+      occurredAt: now,
+    })),
+  ]);
+  await db
+    .update(schema.dispatchItems)
+    .set({ finishedLotId: lot.id, lotChangeReason: reason })
+    .where(eq(schema.dispatchItems.id, item.id));
+  return { id: item.id, dispatchId: d.id, lotCode: lot.code };
+}
+
+/** Lotes con stock en F3/F4 entre los que se puede cambiar una línea del remito (RF-25). */
+export async function dispatchLotOptions(db: Executor, productId: string) {
+  const locationIds = await dispatchLocationIds(db);
+  const balances = await finishedLotBalances(db, productId, { locationIds });
+  const byLot = new Map<
+    string,
+    { finishedLotId: string; code: string; expiryDate: IsoDate; available: number }
+  >();
+  for (const b of balances) {
+    if (!b.finishedLotId) continue;
+    const cur = byLot.get(b.finishedLotId);
+    if (cur) cur.available += b.qty;
+    else
+      byLot.set(b.finishedLotId, {
+        finishedLotId: b.finishedLotId,
+        code: b.code,
+        expiryDate: b.expiryDate,
+        available: b.qty,
+      });
+  }
+  return [...byLot.values()].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+}
+export type DispatchLotOption = Awaited<ReturnType<typeof dispatchLotOptions>>[number];
 
 /**
  * Rechazo total en la entrega: el stock vuelve a cada lote en F3 (movimiento `return`) y el remito
@@ -1101,13 +1294,19 @@ export async function getDispatch(db: Executor, id: string) {
       productName: i.product.name,
       lotCode: i.lot.code,
       expiryDate: i.lot.expiryDate,
+      productId: i.productId,
+      finishedLotId: i.finishedLotId,
       qtyUnits: i.qtyUnits,
+      qtyDelivered: i.qtyDelivered,
+      lotChangeReason: i.lotChangeReason,
       kg: roundQty(i.qtyUnits * i.product.netWeightKg),
     }));
   return {
     ...d,
     items,
     totalUnits: items.reduce((a, i) => a + i.qtyUnits, 0),
+    /** Unidades realmente entregadas (RF-25): igual al total salvo entrega parcial. */
+    deliveredUnits: items.reduce((a, i) => a + (i.qtyDelivered ?? i.qtyUnits), 0),
     totalKg: roundQty(items.reduce((a, i) => a + i.kg, 0)),
   };
 }
@@ -1156,7 +1355,7 @@ export async function listRouteCosts(
   const delivered = await db
     .select({
       routeId: schema.dispatches.routeId,
-      kg: sql<number>`coalesce(sum(${schema.dispatchItems.qtyUnits} * ${schema.products.netWeightKg}), 0)`.mapWith(
+      kg: sql<number>`coalesce(sum(coalesce(${schema.dispatchItems.qtyDelivered}, ${schema.dispatchItems.qtyUnits}) * ${schema.products.netWeightKg}), 0)`.mapWith(
         Number,
       ),
       deliveries: sql<number>`count(distinct ${schema.dispatches.id})::int`,

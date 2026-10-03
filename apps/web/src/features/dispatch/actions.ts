@@ -7,6 +7,7 @@ import { putFile } from "@/server/storage";
 import {
   addOrdersInput,
   addSupplierStopInput,
+  changeDispatchLotInput,
   createRouteInput,
   deliverDispatchInput,
   finishRouteInput,
@@ -22,6 +23,7 @@ import {
 import {
   addOrdersToRoute,
   addSupplierStop,
+  changeDispatchLot,
   createDispatch,
   createRoute,
   createRouteDispatches,
@@ -178,10 +180,24 @@ export const deliverDispatchAction = action(
       dispatchId: input.dispatchId,
       receivedByName: input.receivedByName,
       proofFileKey,
+      quantities: input.quantities,
     });
     revalidateRoute();
     revalidatePath("/despacho/rutas/[id]", "page");
     revalidateOrders(res.orderId);
+    return res;
+  },
+);
+
+/** RF-25: cambia el lote asignado por FEFO a una línea del remito (motivo obligatorio). */
+export const changeDispatchLotAction = action(
+  { permission: "dispatch:write", schema: changeDispatchLotInput },
+  async (input, { tx, user }) => {
+    const res = await changeDispatchLot(tx, user.id, input);
+    revalidateRoute();
+    revalidatePath("/despacho/rutas/[id]", "page");
+    revalidatePath(`/despacho/remitos/${res.dispatchId}`);
+    revalidatePath("/stock/producto-terminado");
     return res;
   },
 );

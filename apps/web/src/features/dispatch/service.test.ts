@@ -4,10 +4,12 @@ import { inRollback } from "../../../tests/helpers";
 import {
   createDispatch,
   createRoute,
+  changeDispatchLot,
   createRouteDispatches,
   deliverDispatch,
   finishRoute,
   getDeliveryCostSummary,
+  getDispatch,
   getRoute,
   listDispatchRegistry,
   listRouteCosts,
@@ -408,6 +410,232 @@ describe("remito con lotes FEFO (RF-25)", () => {
     });
   });
 });
+
+describe("cambio manual de lote y entrega parcial del remito (RF-25)", () => {
+  async function lotId(tx: Tx, code: string) {
+    return (await tx.query.finishedLots.findFirst({ where: eq(schema.finishedLots.code, code) }))!.id;
+  }
+  async function remito(tx: Tx, userId: string, units: number) {
+    const o = await makeOrder(tx, "Supermercado Arcoiris", "ready", [[TAP, units]]);
+    const d = await createDispatch(tx, userId, { orderId: o.id }, NOW);
+    const items = await tx
+      .select({
+        id: schema.dispatchItems.id,
+        lot: schema.finishedLots.code,
+        qty: schema.dispatchItems.qtyUnits,
+      })
+      .from(schema.dispatchItems)
+      .innerJoin(schema.finishedLots, eq(schema.finishedLots.id, schema.dispatchItems.finishedLotId))
+      .where(eq(schema.dispatchItems.dispatchId, d.id))
+      .orderBy(asc(schema.finishedLots.expiryDate));
+    return { o, d, items };
+  }
+  const movesOf = (tx: Tx, dispatchId: string) =>
+    tx
+      .select()
+      .from(schema.stockMovements)
+      .where(
+        and(eq(schema.stockMovements.refTable, "dispatches"), eq(schema.stockMovements.refId, dispatchId)),
+      );
+
+  it("cambia el lote asignado por FEFO con motivo: vuelve al lote anterior, descuenta del elegido y lo registra", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const { d, items } = await remito(tx, userId, 10);
+      expect(items).toEqual([expect.objectContaining({ lot: "260901-1", qty: 10 })]);
+      expect(await productStock(tx, "260901-1", TAP)).toBe(50);
+      expect(await productStock(tx, "261001-1", TAP)).toBe(100);
+
+      await changeDispatchLot(
+        tx,
+        userId,
+        {
+          dispatchItemId: items[0]!.id,
+          finishedLotId: await lotId(tx, "261001-1"),
+          reason: "El cliente pidió el lote más nuevo",
+        },
+        NOW,
+      );
+      const item = (await tx.query.dispatchItems.findFirst({
+        where: eq(schema.dispatchItems.id, items[0]!.id),
+      }))!;
+      expect(item).toMatchObject({
+        finishedLotId: await lotId(tx, "261001-1"),
+        lotChangeReason: "El cliente pidió el lote más nuevo",
+        qtyUnits: 10,
+      });
+      expect(await productStock(tx, "260901-1", TAP)).toBe(60); // volvió
+      expect(await productStock(tx, "261001-1", TAP)).toBe(90); // se descontó
+      const moves = await movesOf(tx, d.id);
+      expect(moves.filter((m) => m.type === "return").map((m) => m.qty)).toEqual([10]);
+      expect(moves.reduce((a, m) => a + m.qty, 0)).toBe(-10); // neto: sigue saliendo 1 remito de 10 u.
+      // Queda en la auditoría de la tabla.
+      const audit = await tx.query.auditLog.findMany({ where: eq(schema.auditLog.recordId, item.id) });
+      expect(audit.some((a) => a.action === "U" && a.changedBy === userId)).toBe(true);
+    });
+  });
+
+  it("exige el motivo y valida el stock del lote elegido, que sea otro lote y que el remito siga preparado", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const { items } = await remito(tx, userId, 80); // 60 de 260901-1 + 20 de 261001-1
+      const [first, second] = items;
+      const lot2 = await lotId(tx, "261001-1");
+      const lot1 = await lotId(tx, "260901-1");
+      await expect(
+        changeDispatchLot(tx, userId, { dispatchItemId: first!.id, finishedLotId: lot2, reason: "  " }, NOW),
+      ).rejects.toThrow(/por qué se cambia el lote/);
+      await expect(
+        changeDispatchLot(
+          tx,
+          userId,
+          { dispatchItemId: first!.id, finishedLotId: lot1, reason: "mismo" },
+          NOW,
+        ),
+      ).rejects.toThrow(/ya tiene ese lote/);
+      // 260901-1 quedó sin stock: no se puede mover ahí la línea de 20 u. de 261001-1.
+      await expect(
+        changeDispatchLot(
+          tx,
+          userId,
+          { dispatchItemId: second!.id, finishedLotId: lot1, reason: "prueba" },
+          NOW,
+        ),
+      ).rejects.toThrow(/260901-1 tiene 0 u\..*no alcanza para las 20 u\./);
+      // 261001-1 tiene 80 u. libres: alcanza para las 60 u. de la primera línea.
+      await changeDispatchLot(
+        tx,
+        userId,
+        { dispatchItemId: first!.id, finishedLotId: lot2, reason: "prueba" },
+        NOW,
+      );
+      expect(await productStock(tx, "261001-1", TAP)).toBe(20);
+
+      // Lote retenido por calidad.
+      await tx.update(schema.finishedLots).set({ onHold: true }).where(eq(schema.finishedLots.id, lot1));
+      await expect(
+        changeDispatchLot(
+          tx,
+          userId,
+          { dispatchItemId: second!.id, finishedLotId: lot1, reason: "prueba" },
+          NOW,
+        ),
+      ).rejects.toThrow(/retenido por calidad/);
+    });
+  });
+
+  it("no se cambia el lote de un remito ya entregado", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const { d, items } = await remito(tx, userId, 10);
+      await deliverDispatch(tx, userId, { dispatchId: d.id, receivedByName: "Recibe" }, NOW);
+      await expect(
+        changeDispatchLot(
+          tx,
+          userId,
+          { dispatchItemId: items[0]!.id, finishedLotId: await lotId(tx, "261001-1"), reason: "tarde" },
+          NOW,
+        ),
+      ).rejects.toThrow(/solo se cambia el lote de un remito preparado/);
+    });
+  });
+
+  it("entrega parcial: guarda la cantidad real, devuelve el resto al stock con movimiento return y lo deja en el pedido", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const { o, d, items } = await remito(tx, userId, 10);
+      expect(await productStock(tx, "260901-1", TAP)).toBe(50);
+      const res = await deliverDispatch(
+        tx,
+        userId,
+        {
+          dispatchId: d.id,
+          receivedByName: "Recibe",
+          quantities: [{ dispatchItemId: items[0]!.id, qty: 6 }],
+        },
+        NOW,
+      );
+      expect(res).toMatchObject({ partial: true, deliveredUnits: 6, returnedUnits: 4 });
+      const item = (await tx.query.dispatchItems.findFirst({
+        where: eq(schema.dispatchItems.id, items[0]!.id),
+      }))!;
+      expect(item).toMatchObject({ qtyUnits: 10, qtyDelivered: 6 });
+      expect(await productStock(tx, "260901-1", TAP)).toBe(54);
+      const ret = (await movesOf(tx, d.id)).filter((m) => m.type === "return");
+      expect(ret.map((m) => m.qty)).toEqual([4]);
+      expect(ret[0]!.note).toMatch(/Entrega parcial/);
+      const order = await tx.query.orders.findFirst({
+        where: eq(schema.orders.id, o.id),
+        with: { events: true },
+      });
+      expect(order?.status).toBe("delivered");
+      expect(order?.events.at(-1)?.note).toMatch(/Entrega parcial: 6 de 10 u\./);
+      expect((await getDispatchForTest(tx, d.id)).deliveredUnits).toBe(6);
+    });
+  });
+
+  it("valida las cantidades: nada entregado se rechaza, no puede superar el remito ni ser negativa, y la completa no deja huella", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const { d, items } = await remito(tx, userId, 10);
+      const id = items[0]!.id;
+      const go = (qty: number) =>
+        deliverDispatch(
+          tx,
+          userId,
+          { dispatchId: d.id, receivedByName: "Recibe", quantities: [{ dispatchItemId: id, qty }] },
+          NOW,
+        );
+      await expect(go(0)).rejects.toThrow(/rechazá el remito/);
+      await expect(go(11)).rejects.toThrow(/entre 0 y 10/);
+      await expect(go(-1)).rejects.toThrow(/entre 0 y 10/);
+      await expect(go(2.5)).rejects.toThrow(/entre 0 y 10/);
+      await expect(
+        deliverDispatch(
+          tx,
+          userId,
+          {
+            dispatchId: d.id,
+            receivedByName: "Recibe",
+            quantities: [{ dispatchItemId: crypto.randomUUID(), qty: 1 }],
+          },
+          NOW,
+        ),
+      ).rejects.toThrow(/no pertenece a este remito/);
+      expect(await productStock(tx, "260901-1", TAP)).toBe(50); // nada se movió
+      const res = await go(10);
+      expect(res).toMatchObject({ partial: false, returnedUnits: 0 });
+      expect(
+        (await tx.query.dispatchItems.findFirst({ where: eq(schema.dispatchItems.id, id) }))?.qtyDelivered,
+      ).toBeNull();
+    });
+  });
+
+  it("el costo por kg usa los kg realmente entregados", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const o = await makeOrder(tx, "Supermercado Arcoiris", "ready", [[TAP, 50]]);
+      const route = await createRoute(tx, { ...routeInput([o.id]), vehicleId: await vehicleId(tx) });
+      const d = await createDispatch(tx, userId, { orderId: o.id, routeId: route.id }, NOW);
+      const item = (await tx.query.dispatchItems.findFirst({
+        where: eq(schema.dispatchItems.dispatchId, d.id),
+      }))!;
+      await deliverDispatch(
+        tx,
+        userId,
+        { dispatchId: d.id, receivedByName: "Recibe", quantities: [{ dispatchItemId: item.id, qty: 30 }] },
+        NOW,
+      );
+      await startRoute(tx, { id: route.id, kmStart: 12000 }, NOW);
+      await finishRoute(
+        tx,
+        userId,
+        finishRouteInput.parse({ id: route.id, kmEnd: "12085", coldUnitTempC: "-20" }),
+        LATER,
+      );
+      const [row] = await listRouteCosts(tx, { from: DAY, to: DAY });
+      expect(row!.kg).toBe(15); // 30 u. × 0,5 kg, no las 50 del remito
+    });
+  });
+});
+
+async function getDispatchForTest(tx: Tx, id: string) {
+  return (await getDispatch(tx, id))!;
+}
 
 describe("salida de la ruta (RF-26)", () => {
   async function routeWith(tx: Tx, userId: string, units = 20) {

@@ -424,6 +424,83 @@ test.describe("Despacho y reparto (logística)", () => {
     await page.goto(`/despacho/nueva?fecha=${DAY}`);
     await expect(page.getByTestId("proposal-pickup")).toHaveCount(0);
   });
+
+  test("RF-25: cambia a mano el lote del remito con motivo y registra una entrega parcial que devuelve el resto al stock", async ({
+    page,
+    sql,
+  }) => {
+    // Un lote propio, con vencimiento lejano (FEFO no lo elige) y stock en F3.
+    const [lot] = await sql`
+      insert into finished_lots (code, run_id, production_date, expiry_date)
+      values ('E2E-LOT-1', (select id from production_runs limit 1), '2026-10-01', '2027-09-30')
+      returning id`;
+    await sql`insert into stock_movements (type, item_kind, product_id, finished_lot_id, location_id, qty)
+      values ('adjustment', 'product', (select id from products where name = ${TAP}), ${lot!.id},
+              (select id from locations where code = 'F3'), 20)`;
+    const o = await makeOrder(sql, "Vía Dolce", "ready", TAP, 4);
+    const [route] = await sql`
+      insert into routes (date, vehicle_id) values (${DAY}, (select id from vehicles limit 1)) returning id`;
+    await sql`insert into route_stops (route_id, seq, kind, order_id, customer_id)
+      select ${route!.id}, 1, 'delivery', ${o.id}, customer_id from orders where id = ${o.id}`;
+
+    await page.goto(`/despacho/rutas/${route!.id}`);
+    await page.getByRole("button", { name: "Generar remito", exact: true }).first().click();
+    await expectToast(page, /Remito N° \d{8} generado/);
+    await page.getByRole("link", { name: "Ver remito" }).click();
+    await expect(page.getByTestId("remito")).toBeVisible();
+
+    // Cambio de lote: el motivo es obligatorio.
+    await page.getByRole("button", { name: /Cambiar el lote de Chipá tapitas/ }).click();
+    const dialog = page.getByRole("dialog");
+    const confirm = dialog.getByRole("button", { name: "Confirmar cambio de lote" });
+    const value = await dialog.locator("option", { hasText: "E2E-LOT-1" }).getAttribute("value");
+    await dialog.getByLabel("Lote nuevo").selectOption(value!);
+    await expect(confirm).toBeDisabled();
+    await dialog.getByLabel("Motivo del cambio").fill("El cliente pidió el lote más nuevo");
+    await confirm.click();
+    await expectToast(page, "Lote cambiado: ahora E2E-LOT-1");
+    const row = page.getByTestId("remito").getByRole("row", { name: /Chipá tapitas/ });
+    await expect(row).toContainText("E2E-LOT-1");
+    await expect(row).toContainText("Lote cambiado a mano: El cliente pidió el lote más nuevo");
+    const stockOf = async () => {
+      const [r] = await sql`select coalesce(sum(qty), 0)::float8 as qty from v_product_stock
+        where finished_lot_id = ${lot!.id}`;
+      return r!.qty as number;
+    };
+    expect(await stockOf()).toBe(16);
+
+    // Entrega parcial: se entregan 3 de 4 y la que sobra vuelve al lote.
+    await page.goto(`/despacho/rutas/${route!.id}`);
+    await page.getByRole("button", { name: "Entregar" }).click();
+    const deliver = page.getByRole("dialog");
+    await deliver.getByLabel("Recibió (nombre y apellido)").fill("Laura Pérez");
+    await deliver.getByLabel(/Entregado de Chipá tapitas 0,5 kg lote E2E-LOT-1/).fill("5");
+    await expect(deliver.getByRole("alert")).toContainText("entre 0 y lo que dice el remito");
+    await expect(deliver.getByRole("button", { name: "Confirmar entrega" })).toBeDisabled();
+    await deliver.getByLabel(/Entregado de Chipá tapitas 0,5 kg lote E2E-LOT-1/).fill("3");
+    await expect(deliver.getByRole("status")).toContainText("1 u. no se entregan y vuelven al stock");
+    await deliver.getByRole("button", { name: "Confirmar entrega" }).click();
+    await expectToast(page, "Entrega parcial registrada: 1 u. vuelven al stock");
+    await expect(page.getByTestId("stop-dispatch")).toContainText("entregadas 3");
+
+    const [item] = await sql`select qty_units, qty_delivered, lot_change_reason from dispatch_items
+      where finished_lot_id = ${lot!.id}`;
+    expect(item).toMatchObject({
+      qty_units: 4,
+      qty_delivered: 3,
+      lot_change_reason: "El cliente pidió el lote más nuevo",
+    });
+    expect(await stockOf()).toBe(17);
+    const [ret] = await sql`select count(*)::int as n, sum(qty)::float8 as qty from stock_movements
+      where type = 'return' and finished_lot_id = ${lot!.id}`;
+    expect(ret).toMatchObject({ n: 1, qty: 1 });
+
+    await page.getByRole("link", { name: "Ver remito" }).click();
+    const sheet = page.getByTestId("remito");
+    await expect(sheet.getByRole("columnheader", { name: "Entregado (u.)" })).toBeVisible();
+    await expect(sheet.getByRole("row", { name: /Chipá tapitas/ })).toContainText("3");
+    await expect(sheet.getByRole("button", { name: /Cambiar el lote/ })).toHaveCount(0);
+  });
 });
 
 test.describe("Permisos del módulo", () => {

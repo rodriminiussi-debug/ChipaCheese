@@ -69,12 +69,37 @@ export const generateDispatchInput = z.object({ routeId: uuid(), orderId: uuid()
 export const generateRouteDispatchesInput = z.object({ routeId: uuid() });
 
 /** RF-25: entrega con conformidad. `proof` es la foto o la firma dibujada (PNG). */
+export const deliveredQuantityInput = z.object({
+  dispatchItemId: uuid(),
+  qty: z.coerce.number().int("Cantidad entera").min(0, "No puede ser negativa"),
+});
 export const deliverDispatchInput = z.object({
   dispatchId: uuid(),
   receivedByName: z.string().trim().min(2, "Ingresá el nombre de quien recibe"),
   proof: z.custom<File>((v) => typeof File !== "undefined" && v instanceof File).optional(),
+  /** Entrega parcial: cantidad real por línea del remito, como JSON (viaja en FormData). */
+  quantities: z
+    .string()
+    .optional()
+    .transform((v, ctx) => {
+      if (!v) return [];
+      try {
+        return z.array(deliveredQuantityInput).parse(JSON.parse(v));
+      } catch {
+        ctx.addIssue({ code: "custom", message: "Cantidades entregadas inválidas" });
+        return z.NEVER;
+      }
+    }),
 });
 export type DeliverDispatchData = z.output<typeof deliverDispatchInput>;
+
+/** RF-25: cambio manual del lote de una línea del remito, con motivo obligatorio. */
+export const changeDispatchLotInput = z.object({
+  dispatchItemId: uuid(),
+  finishedLotId: uuid("Elegí el lote"),
+  reason: z.string().trim().min(3, "Contá por qué se cambia el lote"),
+});
+export type ChangeDispatchLotInput = z.input<typeof changeDispatchLotInput>;
 
 /** RF-25: rechazo total en la entrega (el stock vuelve al lote). */
 export const rejectDispatchInput = z.object({
