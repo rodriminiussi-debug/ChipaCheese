@@ -1,4 +1,10 @@
-import { type IsoDate, criticalDependencies, type TaskRef } from "@chipa/domain";
+import {
+  type IsoDate,
+  criticalDependencies,
+  suggestReplacements,
+  type Replacement,
+  type TaskRef,
+} from "@chipa/domain";
 import { and, asc, eq, inArray, lt, max, schema, type Executor } from "@chipa/db";
 import { UserError } from "@/server/errors";
 import type { SetSkillInput, ToggleAssignmentInput } from "./schemas";
@@ -27,20 +33,55 @@ export async function listSkills(db: Executor) {
   return rows.map((s) => ({ userId: s.userId, taskId: s.taskId, level: s.level }));
 }
 
-/** Pizarrón de un día: tareas × personas con lo asignado y el nivel de cada uno (para marcar a quien no sabe). */
-export async function taskBoard(db: Executor, date: IsoDate) {
+/** RF-23: tarea que se quedó sin nadie por las ausencias del día, con quiénes la pueden cubrir. */
+export interface AbsenceGap {
+  task: TaskRef;
+  /** Ausentes que estaban asignados a la tarea. */
+  absent: string[];
+  replacements: Replacement[];
+}
+
+/**
+ * Pizarrón de un día: tareas × personas con lo asignado y el nivel de cada uno (para marcar a quien no sabe).
+ * `absentIds`: personas ausentes ese día (RF-23); devuelve en `gaps` las tareas que quedaron sin cubrir por
+ * esas ausencias, con los reemplazos habilitados (nivel puede/experto) de la matriz de polivalencia.
+ */
+export async function taskBoard(db: Executor, date: IsoDate, opts: { absentIds?: string[] } = {}) {
   const [tasks, people, skills, assignments] = await Promise.all([
     listTasks(db),
     listPlantPeople(db),
     listSkills(db),
     db.query.taskAssignments.findMany({ where: eq(schema.taskAssignments.date, date) }),
   ]);
+  const absentIds = (opts.absentIds ?? []).filter((id) => people.some((p) => p.id === id));
+  const board = assignments.map((a) => ({ taskId: a.taskId, userId: a.userId }));
+  const busyUserIds = [...new Set(board.filter((a) => !absentIds.includes(a.userId)).map((a) => a.userId))];
+  const gaps: AbsenceGap[] = [];
+  for (const task of tasks) {
+    const assignedHere = board.filter((a) => a.taskId === task.id).map((a) => a.userId);
+    const absentHere = assignedHere.filter((u) => absentIds.includes(u));
+    // Solo las tareas que perdieron a alguien por una ausencia y quedaron sin nadie.
+    if (!absentHere.length || absentHere.length < assignedHere.length) continue;
+    gaps.push({
+      task,
+      absent: absentHere,
+      replacements: suggestReplacements({
+        taskId: task.id,
+        skills,
+        absentUserIds: absentIds,
+        assignedUserIds: assignedHere,
+        busyUserIds,
+      }),
+    });
+  }
   return {
     date,
     tasks,
     people,
     skills,
-    assignments: assignments.map((a) => ({ taskId: a.taskId, userId: a.userId })),
+    assignments: board,
+    absentIds,
+    gaps,
     alerts: criticalDependencies(tasks, skills),
   };
 }

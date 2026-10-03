@@ -293,6 +293,52 @@ test.describe("Producción y lotes (M4)", () => {
     await expectToast(page, /Consumos registrados/);
     await expect(page.getByRole("row", { name: /Leche/ }).first()).toContainText("LEC-QR-2");
   });
+
+  test("RF-23: al marcar una ausencia se sugieren los reemplazos habilitados de la matriz", async ({
+    page,
+    sql,
+  }) => {
+    // Datos propios: Amasadora asignada solo a A.F. hoy y E.A. habilitado como experto.
+    await sql`delete from task_assignments where date = ${dayAR()}`;
+    await sql`insert into task_assignments (date, task_id, user_id)
+      values (${dayAR()}, (select id from plant_tasks where name like 'Amasadora%'),
+              (select id from users where initials = 'A.F.'))`;
+    await sql`insert into user_skills (user_id, task_id, level)
+      values ((select id from users where initials = 'E.A.'), (select id from plant_tasks where name like 'Amasadora%'), 'expert')
+      on conflict (user_id, task_id) do update set level = 'expert'`;
+
+    await page.goto("/personas");
+    await expect(page.getByTestId("absence-gaps")).toHaveCount(0);
+    await page.getByRole("button", { name: "Marcar ausente a A.F." }).click();
+    await expect(page).toHaveURL(/ausentes=/);
+    const gaps = page.getByTestId("absence-gaps");
+    await expect(gaps).toContainText("Amasadora");
+    await expect(gaps).toContainText("A.F. ausente");
+    await expect(gaps).toContainText("E.A. (experto)");
+    const row = page.getByRole("row", { name: /Amasadora/ });
+    await expect(row).toContainText("sin cubrir: A.F. ausente");
+    // El ausente no se puede asignar a otras tareas.
+    await expect(page.getByLabel("Asignar A.F. a Huevos")).toBeDisabled();
+
+    // Aceptar el reemplazo sugerido lo asigna y cierra el hueco.
+    await page
+      .getByRole("list", { name: /Reemplazos habilitados para Amasadora/ })
+      .getByRole("button", { name: /E\.A\. como reemplazo/ })
+      .click();
+    await expect(page.getByLabel("Asignar E.A. a Amasadora")).toBeChecked();
+    await expect(page.getByTestId("absence-gaps")).toHaveCount(0);
+
+    // Una tarea sin asignar también ofrece sugerencias a pedido.
+    await page
+      .getByRole("row", { name: /Huevos/ })
+      .getByRole("button", { name: "Sugerir reemplazo" })
+      .click();
+    await expect(page.getByRole("list", { name: /Reemplazos habilitados para Huevos/ })).toBeVisible();
+
+    // Volver a marcar presente a A.F. quita la ausencia de la URL.
+    await page.getByRole("button", { name: "Quitar ausencia de A.F." }).click();
+    await expect(page).not.toHaveURL(/ausentes=/);
+  });
 });
 
 test.describe("permisos de producción", () => {
