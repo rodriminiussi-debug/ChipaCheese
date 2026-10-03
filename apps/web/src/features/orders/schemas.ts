@@ -32,11 +32,17 @@ export type UpdateOrderInput = z.input<typeof updateOrderInput>;
 export type UpdateOrderData = z.output<typeof updateOrderInput>;
 
 /** RF-03: cambio de estado. */
-export const transitionOrderInput = z.object({
-  id: z.string().uuid(),
-  to: z.enum(ORDER_STATUSES),
-  note: optText(),
-});
+export const transitionOrderInput = z
+  .object({
+    id: z.string().uuid(),
+    to: z.enum(ORDER_STATUSES),
+    note: optText(),
+  })
+  // Cancelar un pedido exige el motivo (queda en el historial).
+  .refine((v) => v.to !== "cancelled" || !!v.note, {
+    message: "Indicá el motivo de la cancelación",
+    path: ["note"],
+  });
 export type TransitionOrderData = z.output<typeof transitionOrderInput>;
 
 /** RF-05: consulta de fecha posible para un pedido a medio cargar. */

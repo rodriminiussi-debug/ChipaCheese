@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { schema, eq, type Tx } from "@chipa/db";
 import { inRollback } from "../../../tests/helpers";
-import { createOrderInput } from "./schemas";
+import { createOrderInput, transitionOrderInput } from "./schemas";
 import {
   changeOrderStatus,
   countOverdueOrders,
@@ -195,6 +195,26 @@ describe("estados del pedido (RF-03)", () => {
     });
   });
 
+  it("cancelar exige el motivo (RF-03): sin motivo o en blanco se rechaza y el pedido no cambia", async () => {
+    expect(transitionOrderInput.safeParse({ id: crypto.randomUUID(), to: "cancelled" }).success).toBe(false);
+    expect(
+      transitionOrderInput.safeParse({ id: crypto.randomUUID(), to: "cancelled", note: "  " }).success,
+    ).toBe(false);
+    expect(transitionOrderInput.safeParse({ id: crypto.randomUUID(), to: "ready" }).success).toBe(true);
+    await inRollback("nahuel", async (tx, userId) => {
+      const o = await newOrder(tx, userId);
+      await expect(changeOrderStatus(tx, userId, { id: o.id, to: "cancelled" })).rejects.toThrow(
+        /motivo de la cancelación/,
+      );
+      await expect(changeOrderStatus(tx, userId, { id: o.id, to: "cancelled", note: "   " })).rejects.toThrow(
+        /motivo de la cancelación/,
+      );
+      const d = await getOrder(tx, o.id);
+      expect(d?.status).toBe("received");
+      expect(d?.events).toHaveLength(1);
+    });
+  });
+
   it("cancela con nota y deja el pedido sin transiciones", async () => {
     await inRollback("nahuel", async (tx, userId) => {
       const o = await newOrder(tx, userId);
@@ -295,7 +315,7 @@ describe("listado y hoja de envasado (RF-03)", () => {
       // los cancelados no se preparan
       expect((await packingSheet(tx, "2026-10-09")).totalKg).toBe(425);
       const [big] = await listOrders(tx, { status: "received" }, TODAY);
-      await changeOrderStatus(tx, userId, { id: big!.id, to: "cancelled" });
+      await changeOrderStatus(tx, userId, { id: big!.id, to: "cancelled", note: "Duplicado" });
       expect((await packingSheet(tx, "2026-10-09")).orderCount).toBe(0);
     });
   });
@@ -349,7 +369,7 @@ describe("historial y frecuencia (RF-04)", () => {
         today: TODAY,
       });
       expect((await customerOrderStats(tx, via.id, TODAY)).orderCount).toBe(5);
-      await changeOrderStatus(tx, userId, { id: o.id, to: "cancelled" });
+      await changeOrderStatus(tx, userId, { id: o.id, to: "cancelled", note: "Duplicado" });
       expect((await customerOrderStats(tx, via.id, TODAY)).orderCount).toBe(4);
     });
   });

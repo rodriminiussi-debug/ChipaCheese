@@ -176,9 +176,9 @@ export default async function SimulatorPage(props: PageProps<"/stock/simulador">
             </Table>
           </div>
           <p className="text-muted-foreground text-xs">
-            Solo considera los insumos de la receta (no envases). "Disponible hoy" es el saldo actual de todas
-            las ubicaciones; "En camino" es lo que falta recibir de las órdenes de compra enviadas y no cuenta
-            como stock hasta la recepción.
+            Solo considera los insumos de la receta (no envases). &ldquo;Disponible hoy&rdquo; es el saldo
+            actual de todas las ubicaciones; &ldquo;En camino&rdquo; es lo que falta recibir de las órdenes de
+            compra enviadas y no cuenta como stock hasta la recepción.
           </p>
         </>
       )}

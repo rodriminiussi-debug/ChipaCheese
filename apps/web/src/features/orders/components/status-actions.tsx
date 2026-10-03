@@ -86,18 +86,27 @@ export function StatusActions({ orderId, next }: { orderId: string; next: OrderS
           <AlertDialogHeader>
             <AlertDialogTitle>¿Cancelar el pedido?</AlertDialogTitle>
             <AlertDialogDescription>
-              Queda registrado en el historial y ya no se puede reabrir.
+              Queda registrado en el historial con el motivo y ya no se puede reabrir.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
             aria-label="Motivo de la cancelación"
-            placeholder="Motivo (opcional)"
+            aria-required
+            placeholder="Motivo (obligatorio)"
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
+          {move.fieldErrors.note?.[0] ? (
+            <p className="text-destructive text-sm" role="alert">
+              {move.fieldErrors.note[0]}
+            </p>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel>Volver</AlertDialogCancel>
-            <AlertDialogAction onClick={() => move.run({ id: orderId, to: "cancelled", note: note || null })}>
+            <AlertDialogAction
+              disabled={!note.trim() || move.pending}
+              onClick={() => move.run({ id: orderId, to: "cancelled", note: note.trim() })}
+            >
               Sí, cancelar
             </AlertDialogAction>
           </AlertDialogFooter>

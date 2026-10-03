@@ -125,6 +125,29 @@ test.describe("Pedidos (RF-02 a RF-05)", () => {
     await expect(page.getByText("Agregá al menos un producto")).toBeVisible();
   });
 
+  test("RF-03: cancelar un pedido exige el motivo y queda en el historial", async ({ page, sql }) => {
+    const [c] = await sql`select id from customers where legal_name = 'Vía Dolce'`;
+    const [o] = await sql`insert into orders (customer_id, promised_date, status)
+      values (${c!.id}, '2026-10-20', 'confirmed') returning id`;
+    await page.goto(`/pedidos/${o!.id}`);
+    await page.getByRole("button", { name: "Cancelar pedido" }).click();
+    const confirm = page.getByRole("button", { name: "Sí, cancelar" });
+    await expect(confirm).toBeDisabled();
+    await page.getByLabel("Motivo de la cancelación").fill("   ");
+    await expect(confirm).toBeDisabled();
+    await page.getByLabel("Motivo de la cancelación").fill("El cliente se quedó sin lugar en el freezer");
+    await confirm.click();
+    await expectToast(page, "Pedido cancelado");
+    await expect(page.getByTestId("order-events")).toContainText(
+      "El cliente se quedó sin lugar en el freezer",
+    );
+    const events = await sql`select status, note from order_events where order_id = ${o!.id} order by at`;
+    expect(events.at(-1)).toMatchObject({
+      status: "cancelled",
+      note: "El cliente se quedó sin lugar en el freezer",
+    });
+  });
+
   test("repetir el último pedido carga las cantidades del cliente", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/pedidos/nuevo");

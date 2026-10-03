@@ -369,6 +369,10 @@ export async function changeOrderStatus(
     throw new UserError(
       `No se puede pasar el pedido de "${ORDER_STATUS[order.status]?.label}" a "${ORDER_STATUS[input.to]?.label}".`,
     );
+  // RF-03: cancelar exige el motivo; queda en el evento del historial del pedido.
+  const note = input.note?.trim() || null;
+  if (input.to === "cancelled" && !note)
+    throw new UserError("Indicá el motivo de la cancelación.", { note: ["Motivo obligatorio"] });
   const reachesDelivery = input.to === "delivered" || input.to === "invoiced" || input.to === "paid";
   await db
     .update(schema.orders)
@@ -379,7 +383,7 @@ export async function changeOrderStatus(
     .where(eq(schema.orders.id, order.id));
   await db
     .insert(schema.orderEvents)
-    .values({ orderId: order.id, status: input.to, at: now, byId: userId, note: input.note ?? null });
+    .values({ orderId: order.id, status: input.to, at: now, byId: userId, note });
   return { id: order.id, from: order.status, to: input.to };
 }
 
