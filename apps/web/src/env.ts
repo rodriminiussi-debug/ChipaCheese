@@ -14,6 +14,8 @@ const schema = z.object({
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
+  /** Modelo de Claude para leer facturas (default: el Sonnet más reciente). */
+  AI_MODEL: z.string().optional(),
   /** Fuerza el extractor de facturas simulado (tests E2E). */
   AI_MOCK: z.enum(["0", "1"]).default("0"),
 });
