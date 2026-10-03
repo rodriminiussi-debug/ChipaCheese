@@ -45,3 +45,6 @@ export const EXCEL_MISSING_CATEGORIES: { category: ExpenseCategory; hint: string
 export const SETTING_WITHDRAWALS = "finance.partner_withdrawals_monthly";
 /** ~$9M entre los tres socios (relevamiento, "Estimación de resultado mensual"). */
 export const DEFAULT_WITHDRAWALS = 9_000_000;
+
+/** Ingredientes cuyo nombre es un queso (para la oportunidad "5 % menos en quesos"). */
+export const isCheese = (name: string) => /queso|reggianito/i.test(name);

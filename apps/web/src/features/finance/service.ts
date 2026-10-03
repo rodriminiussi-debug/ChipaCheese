@@ -32,6 +32,7 @@ import {
   DEFAULT_WITHDRAWALS,
   EXCEL_MISSING_CATEGORIES,
   EXPENSE_CATEGORY,
+  isCheese,
   SETTING_WITHDRAWALS,
   type ExpenseCategory,
 } from "./labels";
@@ -238,9 +239,6 @@ export interface CostOverview {
     prices: Record<string, number | null>;
   }[];
 }
-
-/** Ingredientes cuyo nombre es un queso (para la oportunidad "5 % menos en quesos"). */
-export const isCheese = (name: string) => /queso|reggianito/i.test(name);
 
 export async function getCostOverview(db: Executor, today: IsoDate = todayAR()): Promise<CostOverview> {
   const costs = await getProductCosts(db, today);
