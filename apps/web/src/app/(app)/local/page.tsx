@@ -51,7 +51,7 @@ export default async function StorePage() {
         />
       </div>
 
-      <Tabs defaultValue={canSell ? "vender" : "ventas"}>
+      <Tabs defaultValue={canSell ? "vender" : "ventas"} className="min-w-0">
         <TabsList className="h-auto flex-wrap">
           {canSell ? <TabsTrigger value="vender">Vender</TabsTrigger> : null}
           <TabsTrigger value="ventas">Ventas</TabsTrigger>
@@ -65,7 +65,7 @@ export default async function StorePage() {
           </TabsContent>
         ) : null}
 
-        <TabsContent value="ventas" className="mt-4 grid gap-8">
+        <TabsContent value="ventas" className="mt-4 grid min-w-0 gap-8 [&>*]:min-w-0">
           <section aria-label="Ventas de hoy">
             <h2 className="mb-2 text-lg font-semibold">Ventas de hoy</h2>
             <div className="rounded-lg border">
@@ -168,7 +168,7 @@ export default async function StorePage() {
           </section>
         </TabsContent>
 
-        <TabsContent value="caja" className="mt-4 grid gap-4">
+        <TabsContent value="caja" className="mt-4 grid min-w-0 gap-4 [&>*]:min-w-0">
           {day.closing ? (
             <section aria-label="Caja cerrada" className="grid max-w-md gap-3">
               <Alert>
@@ -210,7 +210,7 @@ export default async function StorePage() {
           )}
         </TabsContent>
 
-        <TabsContent value="stock" className="mt-4">
+        <TabsContent value="stock" className="mt-4 min-w-0">
           <div className="rounded-lg border">
             <Table aria-label="Stock del local por lote">
               <TableHeader>

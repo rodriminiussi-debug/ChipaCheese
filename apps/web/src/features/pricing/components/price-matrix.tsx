@@ -56,7 +56,7 @@ export function PriceMatrix({
 
   return (
     <>
-      <Tabs defaultValue={lists[0]!.id}>
+      <Tabs defaultValue={lists[0]!.id} className="min-w-0">
         <TabsList className="h-auto flex-wrap">
           {lists.map((l) => (
             <TabsTrigger key={l.id} value={l.id}>
@@ -68,7 +68,7 @@ export function PriceMatrix({
           ))}
         </TabsList>
         {lists.map((l) => (
-          <TabsContent key={l.id} value={l.id} className="mt-4 grid gap-4">
+          <TabsContent key={l.id} value={l.id} className="mt-4 grid min-w-0 gap-4 [&>*]:min-w-0">
             <ListPanel
               list={l}
               canEdit={canEdit}

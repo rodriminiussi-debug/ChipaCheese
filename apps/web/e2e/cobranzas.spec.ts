@@ -260,6 +260,22 @@ test.describe("Cuenta corriente, cobros y cheques (RF-30, RF-31)", () => {
   });
 });
 
+test.describe("Responsive", () => {
+  test.use({ storageState: asRole("admin") });
+
+  test("precios y cobranzas no tienen scroll horizontal en el celular", async ({ page, sql }) => {
+    const [reina] = await sql`select id from customers where legal_name = 'Supermercado La Reina'`;
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const url of ["/precios", "/cobranzas", "/cobranzas/cheques", `/cobranzas/clientes/${reina!.id}`]) {
+      await page.goto(url);
+      await page.waitForLoadState("networkidle");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), url).toBe(
+        true,
+      );
+    }
+  });
+});
+
 test.describe("Cobros en ruta (RF-31)", () => {
   test.use({ storageState: asRole("logistics") });
 
