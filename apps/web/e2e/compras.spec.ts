@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import ExcelJS from "exceljs";
 import { test, expect, asRole, expectToast } from "./fixtures";
 
 const FACTURA = resolve(import.meta.dirname, "fixtures", "factura-prueba.png");
@@ -155,6 +156,39 @@ test.describe("Compras y proveedores (M2)", () => {
     expect(await stock()).toBe(before + 50);
   });
 
+  test("RF-10: orden de compra con retiro en proveedor y vista imprimible", async ({ page }) => {
+    await page.goto("/compras/ordenes/nueva");
+    await page.getByLabel("Proveedor *").click();
+    await page.getByRole("option", { name: "Leo Pelle" }).click();
+    await page.getByLabel("Insumo (línea 1)").click();
+    await page.getByRole("option", { name: "Manteca" }).click();
+    await page.getByLabel(/Cantidad.*línea 1/).fill("12");
+    await page.getByLabel("Retiro en proveedor").check();
+    await page.getByRole("button", { name: "Crear orden" }).click();
+    await expectToast(page, /Orden OC-\d+ creada/);
+    await expect(page.getByText("Retiro en proveedor", { exact: true })).toBeVisible();
+    const orderUrl = page.url();
+
+    await page.getByRole("link", { name: "Imprimir / PDF" }).click();
+    await expect(page).toHaveURL(/\/compras\/ordenes\/[0-9a-f-]{36}\/imprimir$/);
+    const sheet = page.getByTestId("orden-compra");
+    await expect(sheet.getByRole("heading", { name: /Orden de compra OC-\d+/ })).toBeVisible();
+    await expect(sheet).toContainText("Leo Pelle");
+    await expect(sheet.getByTestId("orden-retiro")).toContainText("Retiro en proveedor");
+    await expect(sheet.getByRole("row", { name: /Manteca/ })).toContainText("12 kg");
+    await expect(page.getByRole("button", { name: "Imprimir / guardar PDF" })).toBeVisible();
+
+    // Sin retiro, la hoja no lo marca.
+    await page.goBack();
+    await page.getByRole("link", { name: "Editar" }).click();
+    await page.getByLabel("Retiro en proveedor").uncheck();
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expectToast(page, "Orden guardada");
+    await page.goto(`${orderUrl}/imprimir`);
+    await expect(page.getByTestId("orden-compra")).toContainText("Entrega el proveedor");
+    await expect(page.getByTestId("orden-retiro")).toHaveCount(0);
+  });
+
   test("RF-11: recepción libre de un refrigerado exige temperatura y alerta por encima de 5 °C", async ({
     page,
   }) => {
@@ -204,6 +238,49 @@ test.describe("Compras y proveedores (M2)", () => {
     await expect(page.getByTestId("spend-vat")).toContainText("$ 171.412,50");
     await expect(page.getByTestId("spend-total")).toContainText("$ 1.131.417,50");
     await expect(page.getByRole("row").filter({ hasText: "Leo Pelle" }).first()).toContainText("$ 950.500");
+  });
+
+  test("RF-09: exporta el historial de precios a Excel y queda registrado quién lo exportó", async ({
+    page,
+  }) => {
+    await page.goto("/compras/precios");
+    await page.getByRole("link", { name: "Leche" }).first().click();
+    await expect(page).toHaveURL(/\/compras\/precios\/[0-9a-f-]{36}$/);
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("link", { name: "Exportar a Excel" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/^precios-leche-\d{4}-\d{2}-\d{2}\.xlsx$/);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile((await download.path())!);
+    expect(wb.worksheets.map((w) => w.name)).toEqual(["Historial", "Mensual"]);
+    const ws = wb.getWorksheet("Historial")!;
+    expect((ws.getRow(1).values as unknown[]).slice(1)).toEqual([
+      "Insumo",
+      "Unidad",
+      "Proveedor",
+      "Fecha",
+      "Precio neto",
+      "Variación %",
+      "Factura",
+    ]);
+    expect(ws.rowCount).toBeGreaterThan(1);
+    expect(ws.getRow(2).getCell(1).value).toBe("Leche");
+
+    // Todos los insumos desde el listado.
+    await page.goto("/compras/precios");
+    const [all] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("link", { name: "Exportar a Excel" }).click(),
+    ]);
+    expect(all.suggestedFilename()).toMatch(/^precios-todos-/);
+
+    await page.goto("/admin/auditoria?vista=exportaciones");
+    const rows = page.getByRole("table", { name: "Exportaciones" }).getByRole("row");
+    await expect(rows.nth(1)).toContainText("Historial de precios (Excel)");
+    await expect(rows.nth(1)).toContainText("Nahuel");
+    await expect(rows.nth(1)).toContainText("insumo: todos");
+    await expect(rows.nth(2)).toContainText("insumo: Leche");
   });
 });
 

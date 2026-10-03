@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { pdfResponse, renderBpmPdf } from "@/server/export/pdf";
+import { logExport } from "@/server/export/log";
 import { can } from "@/lib/rbac";
 import { formatDateTimeAR } from "@/lib/dates";
 import { searchTrace } from "@/features/traceability/service";
@@ -19,5 +20,6 @@ export async function GET(req: Request) {
   if (!result.finished && result.raw.length === 0) return new Response("Lote no encontrado", { status: 404 });
   const now = formatDateTimeAR(new Date());
   const pdf = await renderBpmPdf(traceSheet(result, now), now);
+  await logExport(user.id, "traza_pdf", { lote: term });
   return pdfResponse(pdf, `trazabilidad-${term}.pdf`);
 }

@@ -66,6 +66,72 @@ export async function expectedDeliveries(db: Executor, today: IsoDate) {
   return orders.map((order) => ({ order, timing: deliveryTiming(order.expectedAt, today) }));
 }
 
+export interface IncomingOrder {
+  orderId: string;
+  number: string;
+  supplier: string;
+  expectedAt: IsoDate | null;
+  /** Cantidad todavía pendiente de recibir de ese insumo en esa orden. */
+  qty: number;
+}
+
+/**
+ * Compras en camino (RF-17): por insumo, lo que falta recibir de las OC enviadas o parcialmente recibidas
+ * (pedido − recibido), con la fecha esperada de cada orden. No es stock: es disponibilidad futura.
+ */
+export async function incomingByIngredient(db: Executor): Promise<Record<string, IncomingOrder[]>> {
+  const o = schema.purchaseOrders;
+  const ordered = await db
+    .select({
+      orderId: o.id,
+      number: o.number,
+      expectedAt: o.expectedAt,
+      supplier: schema.suppliers.legalName,
+      ingredientId: schema.purchaseOrderItems.ingredientId,
+      qty: sql<number>`sum(${schema.purchaseOrderItems.qty})`.mapWith(Number),
+    })
+    .from(schema.purchaseOrderItems)
+    .innerJoin(o, eq(o.id, schema.purchaseOrderItems.purchaseOrderId))
+    .innerJoin(schema.suppliers, eq(schema.suppliers.id, o.supplierId))
+    .where(inArray(o.status, ["sent", "partially_received"]))
+    .groupBy(
+      o.id,
+      o.number,
+      o.expectedAt,
+      schema.suppliers.legalName,
+      schema.purchaseOrderItems.ingredientId,
+    );
+  if (!ordered.length) return {};
+
+  const received = await db
+    .select({
+      orderId: schema.receptions.purchaseOrderId,
+      ingredientId: schema.rawLots.ingredientId,
+      qty: sql<number>`sum(${schema.rawLots.receivedQty})`.mapWith(Number),
+    })
+    .from(schema.rawLots)
+    .innerJoin(schema.receptions, eq(schema.receptions.id, schema.rawLots.receptionId))
+    .where(inArray(schema.receptions.purchaseOrderId, [...new Set(ordered.map((r) => r.orderId))]))
+    .groupBy(schema.receptions.purchaseOrderId, schema.rawLots.ingredientId);
+  const got = new Map(received.map((r) => [`${r.orderId}|${r.ingredientId}`, r.qty]));
+
+  const out: Record<string, IncomingOrder[]> = {};
+  for (const r of ordered) {
+    const pending = Math.round((r.qty - (got.get(`${r.orderId}|${r.ingredientId}`) ?? 0)) * 1000) / 1000;
+    if (pending <= 0) continue;
+    (out[r.ingredientId] ??= []).push({
+      orderId: r.orderId,
+      number: r.number,
+      supplier: r.supplier,
+      expectedAt: r.expectedAt,
+      qty: pending,
+    });
+  }
+  for (const list of Object.values(out))
+    list.sort((a, b) => (a.expectedAt ?? "9999-12-31").localeCompare(b.expectedAt ?? "9999-12-31"));
+  return out;
+}
+
 async function normalizeItems(db: Executor, items: PurchaseOrderData["items"]) {
   const ids = [...new Set(items.map((i) => i.ingredientId))];
   const ingredients = await db.query.ingredients.findMany({ where: inArray(schema.ingredients.id, ids) });
@@ -106,6 +172,7 @@ export async function createOrder(db: Executor, userId: string | null, input: Pu
       // Fecha esperada por defecto: pedido + plazo de entrega del proveedor.
       expectedAt: input.expectedAt ?? addDays(input.orderedAt, supplier.leadTimeDays),
       responsibleId: input.responsibleId ?? userId,
+      pickup: input.pickup,
       notes: input.notes,
       status: "draft",
     })
@@ -126,6 +193,7 @@ export async function updateOrder(db: Executor, id: string, input: PurchaseOrder
       orderedAt: input.orderedAt,
       expectedAt: input.expectedAt,
       responsibleId: input.responsibleId,
+      pickup: input.pickup,
       notes: input.notes,
     })
     .where(eq(schema.purchaseOrders.id, id))

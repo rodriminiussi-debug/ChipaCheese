@@ -1,17 +1,8 @@
-import {
-  addDays,
-  bagsEquivalent,
-  checkConsumption,
-  isoWeekday,
-  lossKg,
-  productionYield,
-  roundQty,
-  type ConsumptionReason,
-  type IsoDate,
-  type RecipeLine,
-  type ShapeDemand,
-  theoreticalConsumption,
-} from "@chipa/domain";
+import { addDays, isoWeekday, type IsoDate } from "./dates";
+import type { ShapeDemand } from "./planning";
+import { bagsEquivalent, roundQty } from "./units";
+import { lossKg, productionYield } from "./production";
+import { checkConsumption, theoreticalConsumption, type ConsumptionReason, type RecipeLine } from "./recipe";
 
 /**
  * Cálculos puros de producción que no son "regla de negocio del dominio" pero sí tienen lógica propia

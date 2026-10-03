@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CloudOff, Trash2 } from "lucide-react";
-import { parseDecimalAR } from "@chipa/domain";
+import { parseDecimalAR, PLAN_SHAPES, type PlanShape } from "@chipa/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAction } from "@/hooks/use-action";
@@ -12,7 +12,6 @@ import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { cn } from "@/lib/utils";
 import { SHAPE } from "@/lib/labels";
 import { deleteWeighingAction, recordWeighingsAction } from "../actions";
-import { PLAN_SHAPES, type PlanShape } from "../calc";
 import { fmtQty } from "../format";
 
 /** Pesadas por forma (RF-21): un kg por forma; se pueden cargar varias veces (bandejas) y se suman. */

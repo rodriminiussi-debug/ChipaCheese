@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PackagePlus } from "lucide-react";
+import { PackagePlus, QrCode } from "lucide-react";
 import { MAX_REFRIGERATED_TEMP_C, isTemperatureAlert } from "@chipa/domain";
 import { PageHeader } from "@/components/app/page-header";
 import { EmptyState } from "@/components/app/empty-state";
@@ -66,6 +66,7 @@ export default async function ReceptionsPage() {
                     <TableHead className="hidden sm:table-cell">Vence</TableHead>
                     <TableHead>Temp.</TableHead>
                     <TableHead className="hidden md:table-cell">Ubicación</TableHead>
+                    <TableHead className="text-right">Etiqueta</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -91,6 +92,16 @@ export default async function ReceptionsPage() {
                         )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">{l.location?.name ?? "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link
+                            href={`/etiquetas/lote-mp/${l.id}`}
+                            aria-label={`Etiqueta del lote de ${l.ingredient.name}`}
+                          >
+                            <QrCode /> Etiqueta
+                          </Link>
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

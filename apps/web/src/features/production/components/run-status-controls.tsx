@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
 import { setRunStatusAction } from "../actions";
-import { nextRunStatuses, type RunStatus } from "../calc";
+import { nextRunStatuses, type RunStatus } from "@chipa/domain";
 import { FREEZER_CODES, RUN_STATUS_ACTION } from "../labels";
 
 /**

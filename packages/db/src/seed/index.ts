@@ -55,7 +55,9 @@ async function seedMasters(tx: Tx): Promise<SeedRefs> {
     .insert(s.appSettings)
     .values(
       Object.entries(D.SETTINGS).map(([key, v]) => ({ key, value: v.value, description: v.description })),
-    );
+    )
+    // Algunos parámetros nuevos también los inserta una migración (upsert): no duplicar.
+    .onConflictDoNothing();
 
   for (const z of D.ZONES) {
     const [row] = await tx

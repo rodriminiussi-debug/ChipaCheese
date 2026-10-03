@@ -9,7 +9,7 @@ import {
   optUuid,
   recordedAtField,
 } from "@/lib/zod";
-import { PLAN_SHAPES } from "./calc";
+import { PLAN_SHAPES } from "@chipa/domain";
 
 /** Esquemas compartidos cliente/servidor del módulo de producción (RF-18 a RF-22). */
 

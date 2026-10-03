@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Save, Wand2 } from "lucide-react";
-import { parseDecimalAR, roundQty, validateDailyLoad } from "@chipa/domain";
+import {
+  parseDecimalAR,
+  roundQty,
+  validateDailyLoad,
+  capacityUsage,
+  PLAN_SHAPES,
+  type PlanShape,
+} from "@chipa/domain";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +28,6 @@ import {
 import { useAction } from "@/hooks/use-action";
 import { SHAPE } from "@/lib/labels";
 import { confirmPlanAction, savePlanAction } from "../actions";
-import { capacityUsage, PLAN_SHAPES, type PlanShape } from "../calc";
 import { fmtQty } from "../format";
 import { PLAN_STATUS } from "../labels";
 

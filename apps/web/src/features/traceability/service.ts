@@ -172,7 +172,10 @@ export async function traceFinishedLot(db: Executor, code: string): Promise<Fini
         customerId: schema.customers.id,
         customer: schema.customers.legalName,
         product: schema.products.name,
-        units: schema.dispatchItems.qtyUnits,
+        units:
+          sql<number>`coalesce(${schema.dispatchItems.qtyDelivered}, ${schema.dispatchItems.qtyUnits})`.mapWith(
+            Number,
+          ),
       })
       .from(schema.dispatchItems)
       .innerJoin(schema.dispatches, eq(schema.dispatches.id, schema.dispatchItems.dispatchId))
@@ -309,7 +312,10 @@ export async function traceRawLots(db: Executor, supplierLotCode: string): Promi
             code: schema.finishedLots.code,
             customerId: schema.customers.id,
             customer: schema.customers.legalName,
-            units: schema.dispatchItems.qtyUnits,
+            units:
+              sql<number>`coalesce(${schema.dispatchItems.qtyDelivered}, ${schema.dispatchItems.qtyUnits})`.mapWith(
+                Number,
+              ),
             date: schema.dispatches.dispatchedAt,
           })
           .from(schema.dispatchItems)

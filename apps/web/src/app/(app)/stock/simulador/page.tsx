@@ -1,6 +1,6 @@
 import { CheckCircle2, XCircle } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
-import { Kg, Num } from "@/components/app/format";
+import { DateText, Kg, Num } from "@/components/app/format";
 import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
@@ -80,7 +80,11 @@ export default async function SimulatorPage(props: PageProps<"/stock/simulador">
             )}
             <div>
               <p className="font-medium">
-                {sim.ok ? "Alcanza la materia prima" : "No alcanza la materia prima"}
+                {sim.ok
+                  ? "Alcanza la materia prima"
+                  : sim.okWithIncoming
+                    ? "No alcanza hoy, pero alcanzaría con las compras en camino"
+                    : "No alcanza la materia prima"}
               </p>
               <p className="text-muted-foreground text-sm">
                 Para {mode === "product_kg" ? <Kg value={sim.inputKg} /> : <>{sim.inputKg} kg de fécula</>}
@@ -113,8 +117,9 @@ export default async function SimulatorPage(props: PageProps<"/stock/simulador">
                 <TableRow>
                   <TableHead>Insumo</TableHead>
                   <TableHead className="text-right">Necesario</TableHead>
-                  <TableHead className="text-right">Disponible</TableHead>
-                  <TableHead className="text-right">Faltante</TableHead>
+                  <TableHead className="text-right">Disponible hoy</TableHead>
+                  <TableHead className="text-right">En camino</TableHead>
+                  <TableHead className="text-right">Faltante hoy</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
@@ -129,6 +134,23 @@ export default async function SimulatorPage(props: PageProps<"/stock/simulador">
                       <Num value={r.available} suffix={UNIT[r.unit]} />
                     </TableCell>
                     <TableCell className="text-right">
+                      {r.incoming > 0 ? (
+                        <div>
+                          <Num value={r.incoming} suffix={UNIT[r.unit]} />
+                          <div className="text-muted-foreground text-xs">
+                            {r.incomingOrders.map((o, i) => (
+                              <span key={o.orderId} className="block">
+                                {i === 0 ? "" : "+ "}
+                                {o.number} · {o.expectedAt ? <DateText value={o.expectedAt} /> : "sin fecha"}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
                       {r.shortfall > 0 ? (
                         <Num
                           value={r.shortfall}
@@ -140,7 +162,13 @@ export default async function SimulatorPage(props: PageProps<"/stock/simulador">
                       )}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge tone={r.ok ? "good" : "bad"}>{r.ok ? "Alcanza" : "Falta"}</StatusBadge>
+                      {r.ok ? (
+                        <StatusBadge tone="good">Alcanza</StatusBadge>
+                      ) : r.shortfallAfterIncoming === 0 ? (
+                        <StatusBadge tone="warn">Llega en camino</StatusBadge>
+                      ) : (
+                        <StatusBadge tone="bad">Falta</StatusBadge>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -148,8 +176,9 @@ export default async function SimulatorPage(props: PageProps<"/stock/simulador">
             </Table>
           </div>
           <p className="text-muted-foreground text-xs">
-            Solo considera los insumos de la receta (no envases). El stock es el saldo actual de todas las
-            ubicaciones.
+            Solo considera los insumos de la receta (no envases). &ldquo;Disponible hoy&rdquo; es el saldo
+            actual de todas las ubicaciones; &ldquo;En camino&rdquo; es lo que falta recibir de las órdenes de
+            compra enviadas y no cuenta como stock hasta la recepción.
           </p>
         </>
       )}

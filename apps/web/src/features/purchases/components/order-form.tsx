@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
 import { addDays } from "@chipa/domain";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,6 +45,7 @@ export function OrderForm({
       orderedAt: today,
       expectedAt: "",
       responsibleId: null,
+      pickup: false,
       notes: "",
       items: [{ ingredientId: "", qty: "", estimatedUnitPrice: "" }],
     },
@@ -146,6 +148,25 @@ export function OrderForm({
         <Field>
           <FieldLabel htmlFor="notes">Notas</FieldLabel>
           <Textarea id="notes" rows={1} {...form.register("notes")} />
+        </Field>
+        <Field className="sm:col-span-2">
+          <Controller
+            control={form.control}
+            name="pickup"
+            render={({ field }) => (
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <Checkbox
+                  id="pickup"
+                  checked={field.value === true}
+                  onCheckedChange={(v) => field.onChange(v === true)}
+                />
+                Retiro en proveedor
+                <span className="text-muted-foreground font-normal">
+                  (lo buscamos nosotros: aparece como parada sugerida al armar la ruta)
+                </span>
+              </label>
+            )}
+          />
         </Field>
       </FieldGroup>
 

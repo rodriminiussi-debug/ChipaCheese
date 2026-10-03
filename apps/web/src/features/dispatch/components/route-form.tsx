@@ -39,6 +39,10 @@ export function RouteForm({ proposal, options }: { proposal: RouteProposal; opti
   const [driverId, setDriverId] = useState(options.drivers.length === 1 ? options.drivers[0]!.id : NONE);
   const [vehicleId, setVehicleId] = useState(options.vehicles.length === 1 ? options.vehicles[0]!.id : NONE);
   const [notes, setNotes] = useState("");
+  // RF-10: retiros de OC marcadas "retiro en proveedor" cuya fecha esperada ya llegó, tildados de entrada.
+  const [suggested, setSuggested] = useState<Set<string>>(
+    () => new Set(proposal.pickups.map((p) => p.orderId)),
+  );
   const [pickups, setPickups] = useState<{ supplierId: string; notes: string }[]>([]);
   const [newSupplier, setNewSupplier] = useState(NONE);
   const [newNote, setNewNote] = useState("");
@@ -52,6 +56,8 @@ export function RouteForm({ proposal, options }: { proposal: RouteProposal; opti
   const kg = chosen.reduce((a, o) => a + o.kg, 0);
   const units = chosen.reduce((a, o) => a + o.units, 0);
   const notReady = chosen.filter((o) => !o.ready).length;
+  const chosenSuggestions = proposal.pickups.filter((p) => suggested.has(p.orderId));
+  const stopCount = pickups.length + chosenSuggestions.length;
   const supplierName = (id: string) => options.suppliers.find((s) => s.id === id)?.name ?? "Proveedor";
 
   function toggle(id: string, on: boolean) {
@@ -76,7 +82,10 @@ export function RouteForm({ proposal, options }: { proposal: RouteProposal; opti
       driverId: driverId === NONE ? null : driverId,
       vehicleId: vehicleId === NONE ? null : vehicleId,
       orderIds: chosen.map((o) => o.id),
-      supplierStops: pickups.map((p) => ({ supplierId: p.supplierId, notes: p.notes || null })),
+      supplierStops: [
+        ...chosenSuggestions.map((p) => ({ supplierId: p.supplierId, notes: p.note })),
+        ...pickups.map((p) => ({ supplierId: p.supplierId, notes: p.notes || null })),
+      ],
       notes: notes.trim() || null,
     });
   }
@@ -194,6 +203,43 @@ export function RouteForm({ proposal, options }: { proposal: RouteProposal; opti
           <CardTitle className="text-base">Retiros en proveedores</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3">
+          {proposal.pickups.length ? (
+            <div className="grid gap-2" role="group" aria-label="Retiros sugeridos por órdenes de compra">
+              <p className="text-sm font-medium">Sugeridos por órdenes de compra con retiro</p>
+              {proposal.pickups.map((p) => (
+                <label
+                  key={p.orderId}
+                  data-testid="proposal-pickup"
+                  className="has-[[data-state=checked]]:bg-muted/50 flex cursor-pointer items-start gap-3 rounded-md border p-3"
+                >
+                  <Checkbox
+                    checked={suggested.has(p.orderId)}
+                    aria-label={`Retirar ${p.number} en ${p.supplierName}`}
+                    onCheckedChange={(v) =>
+                      setSuggested((prev) => {
+                        const next = new Set(prev);
+                        if (v === true) next.add(p.orderId);
+                        else next.delete(p.orderId);
+                        return next;
+                      })
+                    }
+                    className="mt-0.5"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">
+                        {p.number} · {p.supplierName}
+                      </span>
+                      {p.expectedAt < date ? <StatusBadge tone="bad">Atrasada</StatusBadge> : null}
+                    </span>
+                    <span className="text-muted-foreground block text-sm">
+                      Esperada el <DateText value={p.expectedAt} /> · {p.summary}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : null}
           {pickups.length ? (
             <ul className="grid gap-2">
               {pickups.map((p, i) => (
@@ -263,7 +309,7 @@ export function RouteForm({ proposal, options }: { proposal: RouteProposal; opti
         <p className="text-sm" data-testid="route-totals">
           <span className="font-semibold">
             {chosen.length} {chosen.length === 1 ? "entrega" : "entregas"}
-            {pickups.length ? ` + ${pickups.length} ${pickups.length === 1 ? "retiro" : "retiros"}` : ""}
+            {stopCount ? ` + ${stopCount} ${stopCount === 1 ? "retiro" : "retiros"}` : ""}
           </span>{" "}
           · {formatKg(kg)} · {units} bultos
           {notReady ? (
@@ -275,7 +321,7 @@ export function RouteForm({ proposal, options }: { proposal: RouteProposal; opti
         <Button
           size="lg"
           className="h-11 px-6 text-base"
-          disabled={create.pending || (chosen.length === 0 && pickups.length === 0)}
+          disabled={create.pending || (chosen.length === 0 && stopCount === 0)}
           onClick={submit}
         >
           Crear ruta

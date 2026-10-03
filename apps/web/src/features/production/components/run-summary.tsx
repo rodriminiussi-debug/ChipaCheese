@@ -1,7 +1,7 @@
 import { SHAPE } from "@/lib/labels";
 import { StatCard } from "@/components/app/stat-card";
 import { fmtQty } from "../format";
-import type { RunSummary } from "../calc";
+import type { RunSummary } from "@chipa/domain";
 
 /** Rendimiento y merma de la producción (RF-21 / Regla 3) contra lo esperado de la receta. */
 export function RunSummaryCards({ summary }: { summary: RunSummary }) {

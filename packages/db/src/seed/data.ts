@@ -105,6 +105,10 @@ export const SETTINGS: Record<string, { value: unknown; description: string }> =
     value: 1.5,
     description: "Aviso 'cliente sin pedir' cuando pasan X veces su frecuencia",
   },
+  "orders.max_weekly_capacity_pct": {
+    value: 50,
+    description: "Aviso si un pedido ocupa más de este % de la capacidad semanal de producción (RF-05)",
+  },
   "delivery.driver_hourly_cost": { value: 5000, description: "Costo hora chofer (SUPUESTO)" },
   "company.name": { value: "Pacon SRL — Chipa Cheese", description: "Razón social" },
 };

@@ -190,6 +190,12 @@ export function StopCard({
               {d.items.map((i, k) => (
                 <li key={k}>
                   {i.qtyUnits} × {i.productName} — lote {i.lotCode} (vence {formatDateAR(i.expiryDate)})
+                  {i.qtyDelivered != null ? (
+                    <span className="font-medium text-amber-700 dark:text-amber-400">
+                      {" "}
+                      · entregadas {i.qtyDelivered}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -240,6 +246,7 @@ export function StopCard({
                 dispatchId={d.id}
                 dispatchLabel={formatDispatchNumber(d.number)}
                 customerName={stop.title}
+                items={d.items}
               />
               <RejectDialog
                 dispatchId={d.id}

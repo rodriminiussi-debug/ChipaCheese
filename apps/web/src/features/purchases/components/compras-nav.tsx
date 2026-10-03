@@ -19,7 +19,10 @@ export function ComprasNav() {
   const pathname = usePathname();
   const active = (href: string) => (href === "/compras" ? pathname === href : pathname.startsWith(href));
   return (
-    <nav aria-label="Compras" className="-mx-4 mb-6 overflow-x-auto border-b px-4 md:mx-0 md:px-0">
+    <nav
+      aria-label="Compras"
+      className="-mx-4 mb-6 overflow-x-auto border-b px-4 md:mx-0 md:px-0 print:hidden"
+    >
       <ul className="flex min-w-max gap-1">
         {TABS.map((t) => (
           <li key={t.href}>

@@ -93,6 +93,10 @@ export const dispatchItems = pgTable(
       .notNull()
       .references(() => finishedLots.id),
     qtyUnits: integer().notNull(),
+    /** Unidades realmente entregadas (RF-25). Null = se entregó todo `qtyUnits`. */
+    qtyDelivered: integer(),
+    /** Motivo del cambio manual del lote asignado por FEFO (RF-25). Null = asignación automática. */
+    lotChangeReason: text(),
     ...timestamps(),
   },
   (t) => [

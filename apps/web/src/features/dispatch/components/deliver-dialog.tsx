@@ -42,19 +42,31 @@ export function DeliverDialog({
   dispatchId,
   dispatchLabel,
   customerName,
+  items = [],
 }: {
   dispatchId: string;
   dispatchLabel: string;
   customerName: string;
+  /** Líneas del remito: permiten registrar una entrega parcial con la cantidad real entregada. */
+  items?: { id: string; productName: string; lotCode: string; qtyUnits: number }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [delivered, setDelivered] = useState<Record<string, string>>({});
   const pad = useRef<SignaturePadHandle>(null);
+  const qtyOf = (i: { id: string; qtyUnits: number }) => {
+    const raw = delivered[i.id];
+    return raw === undefined || raw === "" ? i.qtyUnits : Number(raw);
+  };
+  const invalid = items.some((i) => !Number.isInteger(qtyOf(i)) || qtyOf(i) < 0 || qtyOf(i) > i.qtyUnits);
+  const returned = items.reduce((a, i) => a + (Number.isInteger(qtyOf(i)) ? i.qtyUnits - qtyOf(i) : 0), 0);
+  const totalDelivered = items.reduce((a, i) => a + qtyOf(i), 0);
   const act = useAction(deliverDispatchAction, {
-    success: "Entrega registrada",
+    success: (r) =>
+      r.partial ? `Entrega parcial registrada: ${r.returnedUnits} u. vuelven al stock` : "Entrega registrada",
     onSuccess: () => {
       setOpen(false);
       router.refresh();
@@ -67,6 +79,10 @@ export function DeliverDialog({
       const fd = new FormData();
       fd.set("dispatchId", dispatchId);
       fd.set("receivedByName", name);
+      const changed = items
+        .filter((i) => qtyOf(i) !== i.qtyUnits)
+        .map((i) => ({ dispatchItemId: i.id, qty: qtyOf(i) }));
+      if (changed.length) fd.set("quantities", JSON.stringify(changed));
       const signature = await pad.current?.toFile();
       const proof = signature ?? (photo ? await shrinkImage(photo) : null);
       if (proof) fd.set("proof", proof);
@@ -105,6 +121,45 @@ export function DeliverDialog({
             />
             {err ? <p className="text-destructive text-sm">{err}</p> : null}
           </div>
+          {items.length ? (
+            <fieldset className="grid gap-2 rounded-lg border p-3">
+              <legend className="px-1 text-sm font-medium">Cantidad entregada</legend>
+              {items.map((i) => (
+                <div key={i.id} className="grid grid-cols-[1fr_5.5rem] items-center gap-2 text-sm">
+                  <Label htmlFor={`qty-${i.id}`} className="font-normal">
+                    {i.productName} · lote {i.lotCode}{" "}
+                    <span className="text-muted-foreground">(remito: {i.qtyUnits} u.)</span>
+                  </Label>
+                  <Input
+                    id={`qty-${i.id}`}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={i.qtyUnits}
+                    className="h-11 text-right text-base"
+                    value={delivered[i.id] ?? String(i.qtyUnits)}
+                    onChange={(e) => setDelivered((prev) => ({ ...prev, [i.id]: e.target.value }))}
+                    aria-label={`Entregado de ${i.productName} lote ${i.lotCode}`}
+                  />
+                </div>
+              ))}
+              {returned > 0 && !invalid ? (
+                <p className="text-sm text-amber-700 dark:text-amber-400" role="status">
+                  Entrega parcial: {returned} u. no se entregan y vuelven al stock del lote.
+                </p>
+              ) : null}
+              {invalid ? (
+                <p className="text-destructive text-sm" role="alert">
+                  Cada cantidad tiene que ser un entero entre 0 y lo que dice el remito.
+                </p>
+              ) : null}
+              {totalDelivered === 0 && !invalid ? (
+                <p className="text-destructive text-sm" role="alert">
+                  Si no se entregó nada, rechazá el remito.
+                </p>
+              ) : null}
+            </fieldset>
+          ) : null}
           <div className="grid gap-1.5">
             <Label htmlFor={`photo-${dispatchId}`} className="flex items-center gap-1.5">
               <Camera className="size-4" /> Foto de la conformidad
@@ -121,7 +176,13 @@ export function DeliverDialog({
           <Button
             size="lg"
             className="h-12 text-base"
-            disabled={busy || act.pending || name.trim().length < 2}
+            disabled={
+              busy ||
+              act.pending ||
+              name.trim().length < 2 ||
+              invalid ||
+              (items.length > 0 && totalDelivered === 0)
+            }
             onClick={submit}
           >
             Confirmar entrega

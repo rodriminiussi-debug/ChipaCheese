@@ -18,7 +18,9 @@ import { db } from "@/server/db";
 import { formatDateTimeAR } from "@/lib/dates";
 import { PrintButton } from "@/features/orders/components/print-button";
 import { PrintStyles } from "@/features/dispatch/components/print-styles";
-import { getDispatch } from "@/features/dispatch/service";
+import { dispatchLotOptions, getDispatch, type DispatchLotOption } from "@/features/dispatch/service";
+import { ChangeLotDialog } from "@/features/dispatch/components/change-lot-dialog";
+import { can } from "@/lib/rbac";
 import { DISPATCH_STATUS, formatDispatchNumber, proofUrl } from "@/features/dispatch/labels";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -38,12 +40,24 @@ function formatCuit(cuit: string | null) {
 
 /** RF-25: remito imprimible con los lotes y vencimientos asignados por FEFO y espacio para la firma. */
 export default async function DispatchNotePage(props: PageProps<"/despacho/remitos/[id]">) {
-  await requirePermission("dispatch:read");
+  const user = await requirePermission("dispatch:read");
   const { id } = await props.params;
   if (!UUID.test(id)) notFound();
   const d = await getDispatch(db, id);
   if (!d) notFound();
   const st = DISPATCH_STATUS[d.status];
+  // RF-25: mientras el remito está preparado se puede cambiar a mano el lote de cada línea.
+  const canChangeLot = d.status === "prepared" && can(user.role, "dispatch:write");
+  const lotOptions = canChangeLot
+    ? new Map(
+        await Promise.all(
+          [...new Set(d.items.map((i) => i.productId))].map(
+            async (pid) => [pid, await dispatchLotOptions(db, pid)] as const,
+          ),
+        ),
+      )
+    : new Map<string, DispatchLotOption[]>();
+  const partial = d.items.some((i) => i.qtyDelivered != null);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -113,6 +127,7 @@ export default async function DispatchNotePage(props: PageProps<"/despacho/remit
               <TableHead>Lote</TableHead>
               <TableHead>Vencimiento</TableHead>
               <TableHead className="text-right">Cantidad (u.)</TableHead>
+              {partial ? <TableHead className="text-right">Entregado (u.)</TableHead> : null}
               <TableHead className="text-right">Kg</TableHead>
             </TableRow>
           </TableHeader>
@@ -120,9 +135,30 @@ export default async function DispatchNotePage(props: PageProps<"/despacho/remit
             {d.items.map((i) => (
               <TableRow key={i.id}>
                 <TableCell>{i.productName}</TableCell>
-                <TableCell className="font-medium tabular-nums">{i.lotCode}</TableCell>
+                <TableCell className="font-medium tabular-nums">
+                  {i.lotCode}
+                  {i.lotChangeReason ? (
+                    <span className="text-muted-foreground block text-xs font-normal print:hidden">
+                      Lote cambiado a mano: {i.lotChangeReason}
+                    </span>
+                  ) : null}
+                  {canChangeLot ? (
+                    <ChangeLotDialog
+                      dispatchItemId={i.id}
+                      productName={i.productName}
+                      currentLotCode={i.lotCode}
+                      qtyUnits={i.qtyUnits}
+                      options={lotOptions.get(i.productId) ?? []}
+                    />
+                  ) : null}
+                </TableCell>
                 <TableCell className="tabular-nums">{formatDateAR(i.expiryDate)}</TableCell>
                 <TableCell className="text-right tabular-nums">{i.qtyUnits}</TableCell>
+                {partial ? (
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {i.qtyDelivered ?? i.qtyUnits}
+                  </TableCell>
+                ) : null}
                 <TableCell className="text-right tabular-nums">{formatKg(i.kg)}</TableCell>
               </TableRow>
             ))}
@@ -133,6 +169,9 @@ export default async function DispatchNotePage(props: PageProps<"/despacho/remit
                 Total
               </TableCell>
               <TableCell className="text-right font-semibold tabular-nums">{d.totalUnits}</TableCell>
+              {partial ? (
+                <TableCell className="text-right font-semibold tabular-nums">{d.deliveredUnits}</TableCell>
+              ) : null}
               <TableCell className="text-right font-semibold tabular-nums">{formatKg(d.totalKg)}</TableCell>
             </TableRow>
           </TableFooter>

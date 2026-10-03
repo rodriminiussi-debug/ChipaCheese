@@ -15,3 +15,6 @@ export * from "./finance";
 export * from "./format";
 export * from "./stock-control";
 export * from "./purchasing";
+export * from "./production-plan";
+export * from "./skills";
+export * from "./lot-qr";

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Printer } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/app/status-badge";
 import { DateText, Money, Num } from "@/components/app/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -40,12 +42,24 @@ export default async function OrderPage(props: PageProps<"/compras/ordenes/[id]"
               {order.supplier.legalName}
             </Link>{" "}
             <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+            {order.pickup ? (
+              <StatusBadge tone="info" className="ml-1">
+                Retiro en proveedor
+              </StatusBadge>
+            ) : null}
           </>
         }
         actions={
-          can(user.role, "purchases:write") ? (
-            <OrderActions orderId={order.id} status={order.status} whatsappUrl={whatsappUrl} />
-          ) : null
+          <>
+            <Button variant="outline" asChild>
+              <Link href={`/compras/ordenes/${order.id}/imprimir`}>
+                <Printer /> Imprimir / PDF
+              </Link>
+            </Button>
+            {can(user.role, "purchases:write") ? (
+              <OrderActions orderId={order.id} status={order.status} whatsappUrl={whatsappUrl} />
+            ) : null}
+          </>
         }
       />
       <dl className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -21,7 +21,14 @@ export interface BpmSheet {
   notes?: string;
   signatures?: string[];
   orientation?: "portrait" | "landscape";
+  /** Índices de las filas que son cargas tardías (RF-36): se resaltan en el PDF y en el Excel. */
+  lateRows?: number[];
+  /** Celdas [fila, columna] que son cargas tardías (p. ej. la planilla de limpieza). */
+  lateCells?: [number, number][];
 }
+
+/** Fondo de las cargas tardías (amarillo: se ve también en blanco y negro como un gris). */
+export const LATE_FILL = "#FFE08A";
 
 const s = StyleSheet.create({
   page: { padding: 24, fontSize: 8, fontFamily: "Helvetica" },
@@ -48,6 +55,7 @@ const s = StyleSheet.create({
     borderColor: "#000",
   },
   td: { padding: 3, borderRightWidth: 1, borderColor: "#000" },
+  late: { backgroundColor: LATE_FILL },
   notes: { marginTop: 8 },
   signatures: { flexDirection: "row", justifyContent: "space-around", marginTop: 28 },
   signature: { width: 150, borderTopWidth: 1, borderColor: "#000", paddingTop: 2, textAlign: "center" },
@@ -63,6 +71,9 @@ const s = StyleSheet.create({
 });
 
 function Sheet({ sheet, generatedAt }: { sheet: BpmSheet; generatedAt: string }) {
+  const lateRows = new Set(sheet.lateRows ?? []);
+  const lateCells = new Set((sheet.lateCells ?? []).map(([r, c]) => `${r}:${c}`));
+  const hasLate = lateRows.size > 0 || lateCells.size > 0;
   const total = sheet.columns.reduce((a, c) => a + (c.width ?? 1), 0);
   const w = (c: BpmColumn) => `${((c.width ?? 1) / total) * 100}%`;
   return (
@@ -91,9 +102,16 @@ function Sheet({ sheet, generatedAt }: { sheet: BpmSheet; generatedAt: string })
             ))}
           </View>
           {sheet.rows.map((r, ri) => (
-            <View key={ri} style={s.row} wrap={false}>
+            <View key={ri} style={[s.row, lateRows.has(ri) ? s.late : {}]} wrap={false}>
               {sheet.columns.map((c, ci) => (
-                <Text key={ci} style={[s.td, { width: w(c), textAlign: c.align ?? "left" }]}>
+                <Text
+                  key={ci}
+                  style={[
+                    s.td,
+                    { width: w(c), textAlign: c.align ?? "left" },
+                    lateCells.has(`${ri}:${ci}`) ? s.late : {},
+                  ]}
+                >
                   {r[ci] == null ? "" : String(r[ci])}
                 </Text>
               ))}
@@ -101,6 +119,11 @@ function Sheet({ sheet, generatedAt }: { sheet: BpmSheet; generatedAt: string })
           ))}
         </View>
         {sheet.notes ? <Text style={s.notes}>{sheet.notes}</Text> : null}
+        {hasLate ? (
+          <Text style={[s.notes, { fontFamily: "Helvetica-Bold" }]}>
+            Fondo amarillo = CARGA TARDÍA: se registró en un día posterior al que corresponde.
+          </Text>
+        ) : null}
         {sheet.signatures?.length ? (
           <View style={s.signatures} wrap={false}>
             {sheet.signatures.map((sig) => (

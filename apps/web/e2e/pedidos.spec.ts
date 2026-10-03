@@ -125,6 +125,29 @@ test.describe("Pedidos (RF-02 a RF-05)", () => {
     await expect(page.getByText("Agregá al menos un producto")).toBeVisible();
   });
 
+  test("RF-03: cancelar un pedido exige el motivo y queda en el historial", async ({ page, sql }) => {
+    const [c] = await sql`select id from customers where legal_name = 'Vía Dolce'`;
+    const [o] = await sql`insert into orders (customer_id, promised_date, status)
+      values (${c!.id}, '2026-10-20', 'confirmed') returning id`;
+    await page.goto(`/pedidos/${o!.id}`);
+    await page.getByRole("button", { name: "Cancelar pedido" }).click();
+    const confirm = page.getByRole("button", { name: "Sí, cancelar" });
+    await expect(confirm).toBeDisabled();
+    await page.getByLabel("Motivo de la cancelación").fill("   ");
+    await expect(confirm).toBeDisabled();
+    await page.getByLabel("Motivo de la cancelación").fill("El cliente se quedó sin lugar en el freezer");
+    await confirm.click();
+    await expectToast(page, "Pedido cancelado");
+    await expect(page.getByTestId("order-events")).toContainText(
+      "El cliente se quedó sin lugar en el freezer",
+    );
+    const events = await sql`select status, note from order_events where order_id = ${o!.id} order by at`;
+    expect(events.at(-1)).toMatchObject({
+      status: "cancelled",
+      note: "El cliente se quedó sin lugar en el freezer",
+    });
+  });
+
   test("repetir el último pedido carga las cantidades del cliente", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/pedidos/nuevo");
@@ -191,6 +214,38 @@ test.describe("Pedidos (RF-02 a RF-05)", () => {
     await expect(card).toContainText("Cronograma de producción sugerido");
     await expect(card).toContainText("150 kg");
     await expect(card).toContainText("128 kg");
+  });
+
+  test("RF-05: aviso por ocupar más del 50 % de la capacidad semanal y botón Usar esta fecha", async ({
+    page,
+    sql,
+  }) => {
+    await page.goto("/pedidos?estado=received");
+    await page
+      .getByRole("row", { name: /La Reina/ })
+      .getByRole("link")
+      .click();
+    await expect(page).toHaveURL(/\/pedidos\/[0-9a-f-]{36}$/);
+    const orderUrl = page.url();
+    const card = page.getByTestId("estimate-card");
+    // 425 kg contra 750 kg por semana (150 kg × 5 días) = 56,7 %.
+    await expect(card.getByTestId("capacity-warning")).toContainText("56,7 % de la capacidad semanal");
+    await expect(card.getByTestId("capacity-warning")).toContainText("máximo de 50 %");
+    const possible = await card.getByTestId("estimate-date").textContent();
+
+    await card.getByRole("button", { name: "Usar esta fecha" }).click();
+    await expectToast(page, /Fecha comprometida:/);
+    await expect(card.getByRole("button", { name: "Usar esta fecha" })).toHaveCount(0);
+    const [row] = await sql`select to_char(promised_date, 'DD/MM/YYYY') as d from orders
+      where id = ${orderUrl.split("/").pop()!}`;
+    expect(possible).toContain(row!.d);
+    await expect(page.getByTestId("order-events")).toContainText("(fecha posible)");
+
+    // El parámetro es configurable: con 80 % ya no avisa.
+    await sql`update app_settings set value = '80'::jsonb where key = 'orders.max_weekly_capacity_pct'`;
+    await page.reload();
+    await expect(page.getByTestId("capacity-warning")).toHaveCount(0);
+    await sql`update app_settings set value = '50'::jsonb where key = 'orders.max_weekly_capacity_pct'`;
   });
 
   test("calculadora: ¿para cuándo puedo entregar X kg?", async ({ page }) => {

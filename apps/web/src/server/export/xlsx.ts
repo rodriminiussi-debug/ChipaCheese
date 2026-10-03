@@ -9,6 +9,9 @@ export interface XlsxColumn<T> {
   width?: number;
 }
 
+/** Amarillo de las cargas tardías (RF-36). */
+export const HIGHLIGHT_ARGB = "FFFFE08A";
+
 const FORMATS: Record<string, string> = {
   money: '"$" #,##0.00',
   qty: "#,##0.000",
@@ -18,7 +21,15 @@ const FORMATS: Record<string, string> = {
 
 /** Arma un .xlsx con una o varias hojas. Encabezado en negrita, fijado y con autofiltro. */
 export async function buildXlsx(
-  sheets: { name: string; columns: XlsxColumn<never>[]; rows: unknown[] }[],
+  sheets: {
+    name: string;
+    columns: XlsxColumn<never>[];
+    rows: unknown[];
+    /** Índices de filas (sin contar el encabezado) a resaltar, p. ej. las cargas tardías de los registros BPM. */
+    highlightRows?: number[];
+    /** Celdas [fila, columna] (base 0, sin contar el encabezado) a resaltar. */
+    highlightCells?: [number, number][];
+  }[],
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Chipa Cheese — Sistema de gestión";
@@ -43,6 +54,10 @@ export async function buildXlsx(
     sheet.columns.forEach((c, i) => {
       if (c.format) ws.getColumn(i + 1).numFmt = FORMATS[c.format] ?? c.format;
     });
+    const fill = { type: "pattern" as const, pattern: "solid" as const, fgColor: { argb: HIGHLIGHT_ARGB } };
+    for (const r of sheet.highlightRows ?? [])
+      for (let c = 1; c <= sheet.columns.length; c++) ws.getCell(r + 2, c).fill = fill;
+    for (const [r, c] of sheet.highlightCells ?? []) ws.getCell(r + 2, c + 1).fill = fill;
     ws.getRow(1).font = { bold: true };
     ws.views = [{ state: "frozen", ySplit: 1 }];
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: sheet.columns.length } };

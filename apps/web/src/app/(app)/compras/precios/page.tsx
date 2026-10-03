@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
 import { DateText, Money, Num } from "@/components/app/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,6 +19,13 @@ export default async function PricesPage() {
       <PageHeader
         title="Precios de compra"
         description="Último precio neto (sin IVA) por insumo, con variación contra la compra anterior (RF-09)."
+        actions={
+          <Button asChild variant="outline">
+            <a href="/compras/precios/exportar" download>
+              <Download /> Exportar a Excel
+            </a>
+          </Button>
+        }
       />
       <div className="rounded-lg border">
         <Table>

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { index, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { day, id, money, pct, qty, timestamps } from "./_columns";
 import {
   documentSourceEnum,
@@ -25,6 +25,8 @@ export const purchaseOrders = pgTable(
     expectedAt: day(),
     status: purchaseOrderStatusEnum().notNull().default("draft"),
     responsibleId: uuid().references(() => users.id),
+    /** Retiro en proveedor: la OC se busca con el vehículo propio y aparece como parada sugerida (RF-10). */
+    pickup: boolean().notNull().default(false),
     notes: text(),
     ...timestamps(),
   },

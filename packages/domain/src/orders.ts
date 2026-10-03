@@ -215,3 +215,19 @@ export function allocateBacklogKg(input: {
   }
   return result;
 }
+
+/**
+ * RF-05: qué parte de la capacidad semanal de producción ocupa un pedido (el caso del cliente de volumen
+ * que ocupaba ~70 % de la planta). Capacidad semanal = capacidad diaria × días hábiles por semana.
+ * `exceeds` es verdadero cuando supera estrictamente el máximo permitido `maxPct`.
+ */
+export function weeklyCapacityShare(input: {
+  orderKg: number;
+  dailyCapacityKg: number;
+  workdaysPerWeek: number;
+  maxPct: number;
+}): { weeklyCapacityKg: number; pct: number; maxPct: number; exceeds: boolean } {
+  const weeklyCapacityKg = Math.max(0, input.dailyCapacityKg * input.workdaysPerWeek);
+  const pct = weeklyCapacityKg > 0 ? Math.round((input.orderKg / weeklyCapacityKg) * 1000) / 10 : 0;
+  return { weeklyCapacityKg, pct, maxPct: input.maxPct, exceeds: weeklyCapacityKg > 0 && pct > input.maxPct };
+}

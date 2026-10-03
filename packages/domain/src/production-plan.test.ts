@@ -9,7 +9,7 @@ import {
   sumKgByPlanShape,
   summarizeRun,
   weekDays,
-} from "./calc";
+} from "./production-plan";
 
 describe("conversión de demanda a kg por forma (RF-19)", () => {
   it("el surtido se reparte en partes iguales y sándwich/pizzeta quedan fuera", () => {

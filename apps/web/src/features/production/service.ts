@@ -11,6 +11,16 @@ import {
   type IsoDate,
   type LotBalance,
   type RecipeLine,
+  CONSUMPTION_STATUSES,
+  PACKING_STATUSES,
+  PLAN_SHAPES,
+  WEIGHING_STATUSES,
+  buildConsumptionRows,
+  buildShapeDemands,
+  canTransitionRun,
+  summarizeRun,
+  weekDays,
+  type RunStatus,
 } from "@chipa/domain";
 import { and, asc, desc, eq, gte, inArray, lte, ne, schema, sql, type Executor } from "@chipa/db";
 import { UserError } from "@/server/errors";
@@ -23,18 +33,6 @@ import {
   type IngredientMovement,
   type ProductMovement,
 } from "@/features/stock/ledger";
-import {
-  CONSUMPTION_STATUSES,
-  PACKING_STATUSES,
-  PLAN_SHAPES,
-  WEIGHING_STATUSES,
-  buildConsumptionRows,
-  buildShapeDemands,
-  canTransitionRun,
-  summarizeRun,
-  weekDays,
-  type RunStatus,
-} from "./calc";
 import { RUN_STATUS } from "./labels";
 import type {
   CreateRunData,

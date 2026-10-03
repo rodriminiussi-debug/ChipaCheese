@@ -5,6 +5,7 @@ import { todayAR } from "@/lib/dates";
 import { buildBillingWorkbook } from "@/features/billing/export";
 import { monthInput } from "@/features/billing/schemas";
 import { xlsxResponse } from "@/server/export/xlsx";
+import { logExport } from "@/server/export/log";
 
 export const dynamic = "force-dynamic";
 
@@ -18,5 +19,6 @@ export async function GET(request: Request) {
   const parsed = monthInput.safeParse({ month: raw });
   if (!parsed.success) return new Response("Mes inválido (usá AAAA-MM)", { status: 400 });
   const buffer = await buildBillingWorkbook(db, parsed.data.month);
+  await logExport(user.id, "cobranzas_xlsx", { mes: parsed.data.month });
   return xlsxResponse(buffer, `cobranzas-${parsed.data.month}.xlsx`);
 }

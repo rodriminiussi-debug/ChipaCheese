@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { isoWeekday } from "@chipa/domain";
+import { isoWeekday, capacityUsage } from "@chipa/domain";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/app/status-badge";
 import { DateText } from "@/components/app/format";
 import { WEEKDAY_LABELS } from "@/lib/dates";
-import { capacityUsage } from "../calc";
 import { fmtQty } from "../format";
 import { PLAN_STATUS } from "../labels";
 import type { weekPlan } from "../service";

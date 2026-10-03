@@ -1,6 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { MIN_HOLDERS, type CriticalAlert } from "../skills";
+import { MIN_HOLDERS, type CriticalAlert } from "@chipa/domain";
 
 /** Alerta de dependencia crítica (RF-23): tareas críticas con menos de 2 personas que puedan hacerlas. */
 export function CriticalAlerts({

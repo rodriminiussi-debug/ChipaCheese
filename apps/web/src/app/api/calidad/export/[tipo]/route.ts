@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { pdfResponse, renderBpmPdf } from "@/server/export/pdf";
 import { xlsxResponse } from "@/server/export/xlsx";
+import { logExport } from "@/server/export/log";
 import { can, type Permission } from "@/lib/rbac";
 import { formatDateTimeAR, todayAR } from "@/lib/dates";
 import { buildReport, sheetToXlsx, REPORT_KINDS, type ReportKind } from "@/features/quality/export";
@@ -46,7 +47,12 @@ export async function GET(req: Request, ctx: RouteContext<"/api/calidad/export/[
 
   const sheet = await buildReport(db, kind, { from, to, month }, today);
   const name = `${kind}-${kind === "limpieza" ? (month ?? from.slice(0, 7)) : `${from}_${to}`}`;
-  if (format === "xlsx") return xlsxResponse(await sheetToXlsx(sheet), `${name}.xlsx`);
-  const pdf = await renderBpmPdf(sheet, formatDateTimeAR(new Date()));
-  return pdfResponse(pdf, `${name}.pdf`);
+  const body =
+    format === "xlsx" ? await sheetToXlsx(sheet) : await renderBpmPdf(sheet, formatDateTimeAR(new Date()));
+  await logExport(user.id, `${kind}_${format}`, {
+    desde: from,
+    hasta: to,
+    ...(kind === "limpieza" ? { mes: month ?? from.slice(0, 7) } : {}),
+  });
+  return format === "xlsx" ? xlsxResponse(body, `${name}.xlsx`) : pdfResponse(body, `${name}.pdf`);
 }

@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { pdfResponse } from "@/server/export/pdf";
 import { xlsxResponse } from "@/server/export/xlsx";
+import { logExport } from "@/server/export/log";
 import { can } from "@/lib/rbac";
 import { buildRegistryPdf, buildRegistryXlsx } from "@/features/dispatch/export";
 import { listDispatchRegistry } from "@/features/dispatch/service";
@@ -22,6 +23,11 @@ export async function GET(req: Request) {
   const filters = registryFiltersFromParams(Object.fromEntries(params));
   const rows = await listDispatchRegistry(db, filters);
   const name = `registro-despacho-${filters.from}_${filters.to}`;
-  if (params.get("formato") === "xlsx") return xlsxResponse(await buildRegistryXlsx(rows), `${name}.xlsx`);
-  return pdfResponse(await buildRegistryPdf(rows, filters), `${name}.pdf`);
+  const xlsx = params.get("formato") === "xlsx";
+  const body = xlsx ? await buildRegistryXlsx(rows) : await buildRegistryPdf(rows, filters);
+  await logExport(user.id, `despacho_registro_${xlsx ? "xlsx" : "pdf"}`, {
+    desde: filters.from,
+    hasta: filters.to,
+  });
+  return xlsx ? xlsxResponse(body, `${name}.xlsx`) : pdfResponse(body, `${name}.pdf`);
 }

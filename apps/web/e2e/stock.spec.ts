@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { test, expect, asRole, expectToast } from "./fixtures";
+import { test, expect, asRole, expectToast, demoDay } from "./fixtures";
 
 /**
  * M3 Stock y cobertura (RF-13 a RF-17). El archivo arranca de la base demo intacta (aislamiento por
@@ -225,6 +225,44 @@ test.describe("Stock (producción)", () => {
     await page.getByLabel("Cantidad (kg)").fill("100");
     await page.getByRole("button", { name: "Simular" }).click();
     await expect(page.getByRole("status")).toContainText("Alcanza la materia prima");
+  });
+
+  test("simulador: las compras en camino se muestran aparte del stock con su fecha esperada (RF-17)", async ({
+    page,
+    sql,
+  }) => {
+    const [{ qty }] = await sql<{ qty: string }[]>`
+      select coalesce(sum(v.qty), 0) as qty from v_ingredient_stock v
+      join ingredients i on i.id = v.ingredient_id where i.name = 'Fécula de mandioca'`;
+    const stock = Number(qty);
+    const kg = (n: number) =>
+      `${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
+    const [po] = await sql`
+      insert into purchase_orders (number, supplier_id, ordered_at, expected_at, status)
+      values ('OC-E2E-17', (select id from suppliers where legal_name = 'Leo Pelle'), ${demoDay(-1)}, ${demoDay(2)}, 'sent')
+      returning id`;
+    await sql`
+      insert into purchase_order_items (purchase_order_id, ingredient_id, qty, unit)
+      values (${po!.id}, (select id from ingredients where name = 'Fécula de mandioca'), 50, 'kg')`;
+
+    await page.goto("/stock/simulador");
+    await page.getByLabel("Quiero producir").selectOption("starch_kg");
+    await page.getByLabel("Cantidad (kg)").fill(String(stock + 50));
+    await page.getByRole("button", { name: "Simular" }).click();
+
+    const fecula = page.getByRole("row", { name: /Fécula de mandioca/ });
+    await expect(fecula).toContainText(kg(stock)); // disponible hoy: solo el stock real
+    await expect(fecula).toContainText("OC-E2E-17");
+    await expect(fecula).toContainText(demoDay(2).split("-").reverse().join("/"));
+    await expect(fecula).toContainText("Llega en camino");
+    await expect(page.getByRole("columnheader", { name: "En camino" })).toBeVisible();
+    // Faltante de hoy intacto: la mercadería en camino no cuenta como stock.
+    await expect(fecula).toContainText(kg(50));
+
+    // Cancelada, deja de figurar en camino.
+    await sql`update purchase_orders set status = 'cancelled' where id = ${po!.id}`;
+    await page.reload();
+    await expect(page.getByRole("row", { name: /Fécula de mandioca/ })).not.toContainText("OC-E2E-17");
   });
 
   test("descarga el Excel con el stock actual de MP y PT", async ({ page }) => {

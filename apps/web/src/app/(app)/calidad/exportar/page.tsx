@@ -7,7 +7,10 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { requirePermission } from "@/server/auth/session";
 import { can, type Permission } from "@/lib/rbac";
-import { todayAR } from "@/lib/dates";
+import { formatDateTimeAR, todayAR } from "@/lib/dates";
+import { db } from "@/server/db";
+import { listExportLog } from "@/features/admin/logs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { REPORT_KINDS, REPORT_LABELS, type ReportKind } from "@/features/quality/export";
 
 export const metadata = { title: "Calidad · Exportar" };
@@ -48,6 +51,11 @@ export default async function ExportPage(props: PageProps<"/calidad/exportar">) 
     return `/api/calidad/export/${kind}?${qs}` as Route;
   };
   const allowed = REPORT_KINDS.filter((k) => can(user.role, "export") && can(user.role, READ[k]));
+  // RF-36: quién exportó qué y cuándo (las exportaciones de esta pantalla).
+  const recent = await listExportLog(db, {
+    kinds: REPORT_KINDS.flatMap((k) => [`${k}_pdf`, `${k}_xlsx`]),
+    limit: 15,
+  });
 
   return (
     <>
@@ -100,6 +108,54 @@ export default async function ExportPage(props: PageProps<"/calidad/exportar">) 
           </Card>
         ))}
       </div>
+
+      <section className="mt-8 grid gap-3" aria-labelledby="ultimas-exportaciones">
+        <h2 id="ultimas-exportaciones" className="text-lg font-semibold">
+          Últimas exportaciones
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          Queda registrado quién generó cada PDF o Excel, de qué registro y con qué período.
+        </p>
+        <div className="rounded-lg border">
+          <Table aria-label="Últimas exportaciones">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Fecha y hora</TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead>Registro</TableHead>
+                <TableHead>Formato</TableHead>
+                <TableHead>Período</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recent.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-muted-foreground">
+                    Todavía no se exportó ningún registro.
+                  </TableCell>
+                </TableRow>
+              ) : null}
+              {recent.map((e) => {
+                const [kind, format] = e.kind.split("_") as [ReportKind, string];
+                const p = (e.params ?? {}) as { desde?: string; hasta?: string; mes?: string };
+                return (
+                  <TableRow key={e.id}>
+                    <TableCell className="whitespace-nowrap tabular-nums">
+                      {formatDateTimeAR(e.createdAt)}
+                    </TableCell>
+                    <TableCell>{e.user ?? "—"}</TableCell>
+                    <TableCell>{REPORT_LABELS[kind] ?? kind}</TableCell>
+                    <TableCell>{format === "xlsx" ? "Excel" : "PDF"}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {kind === "limpieza" && p.mes ? p.mes : `${p.desde ?? ""} a ${p.hasta ?? ""}`}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
     </>
   );
 }

@@ -7,12 +7,15 @@ import { requirePermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { can } from "@/lib/rbac";
 import { todayAR, WEEKDAY_LABELS } from "@/lib/dates";
+import { AbsenceGaps } from "@/features/people/components/absence-gaps";
 import { CriticalAlerts } from "@/features/people/components/critical-alerts";
 import { SkillsMatrix } from "@/features/people/components/skills-matrix";
 import { TaskBoard } from "@/features/people/components/task-board";
 import { skillMatrix, taskBoard } from "@/features/people/service";
 
 export const metadata = { title: "Personas y tareas" };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function validDate(v: unknown): IsoDate | null {
   if (typeof v !== "string") return null;
@@ -30,7 +33,8 @@ export default async function PeoplePage(props: PageProps<"/personas">) {
   const date = validDate(sp.fecha) ?? todayAR();
   const view = sp.vista === "matriz" ? "matriz" : "pizarron";
   const canWrite = can(user.role, "people:write");
-  const [board, matrix] = await Promise.all([taskBoard(db, date), skillMatrix(db)]);
+  const absentIds = typeof sp.ausentes === "string" ? sp.ausentes.split(",").filter((u) => UUID.test(u)) : [];
+  const [board, matrix] = await Promise.all([taskBoard(db, date, { absentIds }), skillMatrix(db)]);
 
   const tabClass = (active: boolean) =>
     `rounded-md px-3 py-1.5 text-sm font-medium ${active ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`;
@@ -80,7 +84,12 @@ export default async function PeoplePage(props: PageProps<"/personas">) {
                 <Link href={`/personas?fecha=${addDays(date, 1)}`}>Día siguiente →</Link>
               </Button>
             </div>
-            <TaskBoard key={`${date}-${board.assignments.length}`} board={board} canWrite={canWrite} />
+            <AbsenceGaps gaps={board.gaps} people={board.people} />
+            <TaskBoard
+              key={`${date}-${board.assignments.length}-${board.absentIds.join(",")}`}
+              board={board}
+              canWrite={canWrite}
+            />
           </section>
         ) : (
           <section aria-labelledby="matriz" className="grid gap-4">

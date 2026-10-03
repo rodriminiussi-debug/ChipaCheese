@@ -218,6 +218,132 @@ test.describe("Producción y lotes (M4)", () => {
     await expect(page.getByTestId("critical-alerts")).toContainText("6 tareas sin reemplazo");
     await expect(page.getByTestId("critical-alerts")).not.toContainText("Batidora: solo");
   });
+
+  test("RF-11: etiqueta con QR del lote de materia prima y selección escaneando el QR en consumos", async ({
+    page,
+    sql,
+  }) => {
+    // Dos lotes de leche: el primero vence antes que todos (la sugerencia FEFO de consumos lo elige) y el
+    // segundo vence al final (no se sugiere).
+    const lots: { id: string }[] = [];
+    for (const [code, days] of [
+      ["LEC-QR-1", 3],
+      ["LEC-QR-2", 300],
+    ] as const) {
+      const [lot] = await sql`
+        insert into raw_lots (ingredient_id, supplier_lot_code, expiry_date, received_qty, location_id)
+        values ((select id from ingredients where name = 'Leche'), ${code}, ${demoDay(days)}, 40,
+                (select id from locations where code = 'HELADERA'))
+        returning id`;
+      await sql`
+        insert into stock_movements (type, item_kind, ingredient_id, raw_lot_id, location_id, qty)
+        values ('receipt', 'ingredient', (select id from ingredients where name = 'Leche'), ${lot!.id},
+                (select id from locations where code = 'HELADERA'), 40)`;
+      lots.push({ id: lot!.id });
+    }
+    const lot = lots[0]!;
+    const lot2 = lots[1]!;
+
+    // Etiqueta desde el detalle del insumo: el QR contiene el id del lote.
+    await page.goto("/stock");
+    await page.getByRole("link", { name: "Leche" }).click();
+    await page.getByRole("link", { name: "Etiqueta del lote LEC-QR-1" }).click();
+    await expect(page).toHaveURL(new RegExp(`/etiquetas/lote-mp/${lot.id}`));
+    const qr = page.getByRole("img", { name: "Código QR del lote LEC-QR-1" });
+    await expect
+      .poll(() => qr.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+      .toBeGreaterThan(0);
+    await expect(page.getByTestId("raw-lot-label").first()).toContainText("Leche");
+    await expect(page.getByTestId("raw-lot-label").first()).toContainText("LEC-QR-1");
+    await expect(page.getByText(lot.id).first()).toBeVisible();
+    await page.getByLabel("Copias").fill("2");
+    await page.getByRole("button", { name: "Actualizar vista" }).click();
+    await expect(page.getByTestId("raw-lot-label")).toHaveCount(2);
+
+    // También desde la recepción.
+    await page.goto("/compras/recepciones");
+    await expect(page.getByRole("link", { name: /Etiqueta del lote de Leche/ }).first()).toBeVisible();
+
+    // Consumos: escanear (el lector tipea el id y manda Enter) selecciona el lote.
+    await page.goto("/produccion/nueva");
+    await page.getByRole("button", { name: "Operario J.T." }).click();
+    await page.getByRole("button", { name: "Crear producción" }).click();
+    await expect(page).toHaveURL(/\/produccion\/[0-9a-f-]{36}$/);
+    const lotSelect = page.getByLabel("Lote de Leche", { exact: true });
+    const scan = page.getByLabel("Escanear lote");
+    // El lote sugerido por FEFO ya estaba elegido: escanearlo no lo duplica.
+    await expect(lotSelect.locator("option:checked")).toContainText("LEC-QR-1");
+    await scan.fill(lot.id);
+    await scan.press("Enter");
+    await expect(page.getByText("Leche: el lote LEC-QR-1 ya estaba seleccionado.")).toBeVisible();
+    // El lector tipea el id y manda Enter: el lote escaneado reemplaza al sugerido.
+    await scan.fill(lot2.id);
+    await scan.press("Enter");
+    await expect(page.getByText("Leche: lote LEC-QR-2 seleccionado.")).toBeVisible();
+    await expect(lotSelect.locator("option:checked")).toContainText("LEC-QR-2");
+    // Un segundo escaneo del mismo insumo agrega otra línea.
+    await scan.fill(lot.id);
+    await scan.press("Enter");
+    await expect(page.getByText("Leche: lote LEC-QR-1 seleccionado.")).toBeVisible();
+    await expect(page.getByLabel("Lote de Leche (lote 2)").locator("option:checked")).toContainText(
+      "LEC-QR-1",
+    );
+    // Un texto que no es un QR de lote no cambia nada y avisa.
+    await scan.fill("260901-1");
+    await scan.press("Enter");
+    await expect(page.getByText("No es el QR de un lote de materia prima.")).toBeVisible();
+    await expect(lotSelect.locator("option:checked")).toContainText("LEC-QR-2");
+
+    await page.getByRole("button", { name: "Confirmar consumos" }).click();
+    await expectToast(page, /Consumos registrados/);
+    await expect(page.getByRole("row", { name: /Leche/ }).first()).toContainText("LEC-QR-2");
+  });
+
+  test("RF-23: al marcar una ausencia se sugieren los reemplazos habilitados de la matriz", async ({
+    page,
+    sql,
+  }) => {
+    // Datos propios: Amasadora asignada solo a A.F. hoy y E.A. habilitado como experto.
+    await sql`delete from task_assignments where date = ${dayAR()}`;
+    await sql`insert into task_assignments (date, task_id, user_id)
+      values (${dayAR()}, (select id from plant_tasks where name like 'Amasadora%'),
+              (select id from users where initials = 'A.F.'))`;
+    await sql`insert into user_skills (user_id, task_id, level)
+      values ((select id from users where initials = 'E.A.'), (select id from plant_tasks where name like 'Amasadora%'), 'expert')
+      on conflict (user_id, task_id) do update set level = 'expert'`;
+
+    await page.goto("/personas");
+    await expect(page.getByTestId("absence-gaps")).toHaveCount(0);
+    await page.getByRole("button", { name: "Marcar ausente a A.F." }).click();
+    await expect(page).toHaveURL(/ausentes=/);
+    const gaps = page.getByTestId("absence-gaps");
+    await expect(gaps).toContainText("Amasadora");
+    await expect(gaps).toContainText("A.F. ausente");
+    await expect(gaps).toContainText("E.A. (experto)");
+    const row = page.getByRole("row", { name: /Amasadora/ });
+    await expect(row).toContainText("sin cubrir: A.F. ausente");
+    // El ausente no se puede asignar a otras tareas.
+    await expect(page.getByLabel("Asignar A.F. a Huevos")).toBeDisabled();
+
+    // Aceptar el reemplazo sugerido lo asigna y cierra el hueco.
+    await page
+      .getByRole("list", { name: /Reemplazos habilitados para Amasadora/ })
+      .getByRole("button", { name: /E\.A\. como reemplazo/ })
+      .click();
+    await expect(page.getByLabel("Asignar E.A. a Amasadora")).toBeChecked();
+    await expect(page.getByTestId("absence-gaps")).toHaveCount(0);
+
+    // Una tarea sin asignar también ofrece sugerencias a pedido.
+    await page
+      .getByRole("row", { name: /Huevos/ })
+      .getByRole("button", { name: "Sugerir reemplazo" })
+      .click();
+    await expect(page.getByRole("list", { name: /Reemplazos habilitados para Huevos/ })).toBeVisible();
+
+    // Volver a marcar presente a A.F. quita la ausencia de la URL.
+    await page.getByRole("button", { name: "Quitar ausencia de A.F." }).click();
+    await expect(page).not.toHaveURL(/ausentes=/);
+  });
 });
 
 test.describe("permisos de producción", () => {

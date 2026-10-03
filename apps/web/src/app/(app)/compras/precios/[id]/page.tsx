@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { notFound } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
 import { EmptyState } from "@/components/app/empty-state";
 import { DateText, Money, Num } from "@/components/app/format";
@@ -34,9 +36,16 @@ export default async function IngredientPricePage(props: PageProps<"/compras/pre
         title={h.ingredient.name}
         description={`Precio neto (sin IVA) por ${UNIT[h.ingredient.unit]}, por proveedor y en el tiempo.`}
         actions={
-          <Link href="/compras/precios" className="text-muted-foreground text-sm hover:underline">
-            ← Todos los insumos
-          </Link>
+          <>
+            <Link href="/compras/precios" className="text-muted-foreground text-sm hover:underline">
+              ← Todos los insumos
+            </Link>
+            <Button asChild variant="outline">
+              <a href={`/compras/precios/exportar?insumo=${h.ingredient.id}`} download>
+                <Download /> Exportar a Excel
+              </a>
+            </Button>
+          </>
         }
       />
       {h.history.length === 0 ? (
