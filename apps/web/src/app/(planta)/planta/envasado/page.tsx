@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { finishedLotCode } from "@chipa/domain";
+import { finishedLotCode, PACKING_STATUSES } from "@chipa/domain";
 import { DateText } from "@/components/app/format";
 import { requirePermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { todayAR } from "@/lib/dates";
 import { SHAPE } from "@/lib/labels";
-import { PACKING_STATUSES } from "@/features/production/calc";
 import { PlantPackingForm } from "@/features/production/components/plant-packing-form";
 import { PlantRunPicker } from "@/features/production/components/plant-run-picker";
 import { RunStatusControls } from "@/features/production/components/run-status-controls";

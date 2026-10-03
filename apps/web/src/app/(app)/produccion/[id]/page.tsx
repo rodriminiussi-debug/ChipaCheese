@@ -19,7 +19,7 @@ import { RunStatusControls } from "@/features/production/components/run-status-c
 import { RunSummaryCards } from "@/features/production/components/run-summary";
 import { LateBadge } from "@/features/production/components/runs-table";
 import { WeighingForm, WeighingsList } from "@/features/production/components/weighing-form";
-import { CONSUMPTION_STATUSES, PACKING_STATUSES, WEIGHING_STATUSES } from "@/features/production/calc";
+import { CONSUMPTION_STATUSES, PACKING_STATUSES, WEIGHING_STATUSES } from "@chipa/domain";
 import { fmtQty } from "@/features/production/format";
 import { RUN_STATUS, SHIFT } from "@/features/production/labels";
 import { consumptionSuggestions, getRun, packingOptions, runSummary } from "@/features/production/service";

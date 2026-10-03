@@ -1,7 +1,6 @@
-import type { IsoDate } from "@chipa/domain";
+import { type IsoDate, criticalDependencies, type TaskRef } from "@chipa/domain";
 import { and, asc, eq, inArray, lt, max, schema, type Executor } from "@chipa/db";
 import { UserError } from "@/server/errors";
-import { criticalDependencies, type TaskRef } from "./skills";
 import type { SetSkillInput, ToggleAssignmentInput } from "./schemas";
 
 /**

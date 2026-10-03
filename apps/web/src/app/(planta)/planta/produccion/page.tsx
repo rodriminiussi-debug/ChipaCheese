@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/app/status-badge";
 import { requirePermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { todayAR } from "@/lib/dates";
-import { CONSUMPTION_STATUSES, WEIGHING_STATUSES } from "@/features/production/calc";
+import { CONSUMPTION_STATUSES, WEIGHING_STATUSES } from "@chipa/domain";
 import { ConsumptionForm } from "@/features/production/components/consumption-form";
 import { PlantRunPicker } from "@/features/production/components/plant-run-picker";
 import { RunStatusControls } from "@/features/production/components/run-status-controls";
