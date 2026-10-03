@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/hooks/use-action";
-import { formatDateTimeAR, formatTimeAR } from "@/lib/dates";
+import { formatDateTimeAR } from "@/lib/dates";
 import {
   addSupplierStopAction,
   finishRouteAction,
@@ -20,6 +20,7 @@ import {
   startRouteAction,
   updateRouteAction,
 } from "../actions";
+import { timeHM } from "../labels";
 import type { DispatchFormOptions } from "../service";
 
 const NONE = "__none__";
@@ -287,7 +288,7 @@ export function RouteRunPanel({ route, canWrite }: { route: RunPanelRoute; canWr
   if (!canWrite) {
     return route.status === "in_progress" ? (
       <p className="text-muted-foreground text-sm">
-        Salió {route.startedAt ? formatTimeAR(route.startedAt) : ""} con {route.kmStart} km.
+        Salió {route.startedAt ? timeHM(route.startedAt) : ""} con {route.kmStart} km.
       </p>
     ) : null;
   }
@@ -355,7 +356,7 @@ export function RouteRunPanel({ route, canWrite }: { route: RunPanelRoute; canWr
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          En curso — salió {route.startedAt ? formatTimeAR(route.startedAt) : ""} con {route.kmStart} km
+          En curso — salió {route.startedAt ? timeHM(route.startedAt) : ""} con {route.kmStart} km
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3">

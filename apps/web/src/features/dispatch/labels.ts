@@ -1,6 +1,6 @@
 import { formatDateAR, isoWeekday } from "@chipa/domain";
 import type { Tone } from "@/components/app/status-badge";
-import { WEEKDAY_LABELS } from "@/lib/dates";
+import { TZ, WEEKDAY_LABELS } from "@/lib/dates";
 
 /** Etiquetas en español del módulo de despacho (M5). */
 
@@ -77,3 +77,13 @@ export const weekdaysText = (days: readonly number[]) =>
 
 /** URL de una conformidad guardada (la sirve /api/files con control de sesión). */
 export const proofUrl = (key: string) => `/api/files/${key}`;
+
+/** Hora y minutos en 24 h ("09:05"), hora argentina. */
+export function timeHM(d: Date | string): string {
+  return new Intl.DateTimeFormat("es-AR", {
+    timeZone: TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(typeof d === "string" ? new Date(d) : d);
+}

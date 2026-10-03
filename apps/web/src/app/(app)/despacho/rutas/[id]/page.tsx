@@ -127,7 +127,7 @@ export default async function RoutePage(props: PageProps<"/despacho/rutas/[id]">
           />
         ) : null}
 
-        <RouteRunPanel route={runRoute} canWrite={canWrite} />
+        {route.status !== "in_progress" ? <RouteRunPanel route={runRoute} canWrite={canWrite} /> : null}
 
         {canWrite && open && withoutDispatch > 0 ? (
           <div>
@@ -154,6 +154,9 @@ export default async function RoutePage(props: PageProps<"/despacho/rutas/[id]">
             ))
           )}
         </section>
+
+        {/* En curso, el cierre va después de las paradas: se carga al volver. */}
+        {route.status === "in_progress" ? <RouteRunPanel route={runRoute} canWrite={canWrite} /> : null}
 
         {options && open ? <AddSupplierStop routeId={route.id} suppliers={options.suppliers} /> : null}
         {options && route.status === "in_progress" ? (

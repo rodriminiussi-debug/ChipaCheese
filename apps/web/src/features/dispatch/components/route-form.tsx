@@ -157,6 +157,7 @@ export function RouteForm({ proposal, options }: { proposal: RouteProposal; opti
               {z.orders.map((o) => (
                 <label
                   key={o.id}
+                  data-testid="proposal-order"
                   className="has-[[data-state=checked]]:bg-muted/50 flex cursor-pointer items-start gap-3 rounded-md border p-3"
                 >
                   <Checkbox
