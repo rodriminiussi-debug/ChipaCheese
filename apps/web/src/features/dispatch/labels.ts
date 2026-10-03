@@ -1,4 +1,6 @@
+import { formatDateAR, isoWeekday } from "@chipa/domain";
 import type { Tone } from "@/components/app/status-badge";
+import { WEEKDAY_LABELS } from "@/lib/dates";
 
 /** Etiquetas en español del módulo de despacho (M5). */
 
@@ -60,3 +62,18 @@ export function monthLabel(month: string): string {
   const [y, m] = month.split("-");
   return `${MONTHS[Number(m) - 1] ?? month} de ${y}`;
 }
+
+/** "Vie 02/10/2026". */
+export const weekdayDate = (d: string) => `${WEEKDAY_LABELS[isoWeekday(d)]} ${formatDateAR(d)}`;
+
+/** "Lun · Mié · Vie" para los días de reparto de una zona. */
+export const weekdaysText = (days: readonly number[]) =>
+  days.length
+    ? [...days]
+        .sort()
+        .map((d) => WEEKDAY_LABELS[d])
+        .join(" · ")
+    : "sin días fijados";
+
+/** URL de una conformidad guardada (la sirve /api/files con control de sesión). */
+export const proofUrl = (key: string) => `/api/files/${key}`;

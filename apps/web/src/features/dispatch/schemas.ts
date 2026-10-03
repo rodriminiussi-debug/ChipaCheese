@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { todayAR } from "@/lib/dates";
 import { decimal, isoDate, optDecimal, optText, optUuid } from "@/lib/zod";
 
 /** Estados de pedido que se pueden poner en una ruta (los no listos se marcan en la propuesta). */
@@ -88,4 +89,25 @@ export interface RegistryFilters {
   from: string;
   to: string;
   productId?: string;
+}
+
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** Lee `desde`, `hasta` y `producto` de la URL; por defecto, del 1.º del mes a hoy. */
+export function registryFiltersFromParams(
+  p: Record<string, string | string[] | undefined>,
+  today: string = todayAR(),
+): RegistryFilters {
+  const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
+  const desde = one(p.desde);
+  const hasta = one(p.hasta);
+  const producto = one(p.producto);
+  const from = desde && ISO.test(desde) ? desde : `${today.slice(0, 7)}-01`;
+  const to = hasta && ISO.test(hasta) ? hasta : today;
+  return {
+    from: from <= to ? from : to,
+    to: from <= to ? to : from,
+    ...(producto && UUID.test(producto) ? { productId: producto } : {}),
+  };
 }
