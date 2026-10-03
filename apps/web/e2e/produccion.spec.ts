@@ -1,9 +1,7 @@
-import { test, expect, asRole, expectToast } from "./fixtures";
+import { test, expect, asRole, expectToast, demoDay } from "./fixtures";
 
-const AR = "America/Argentina/Buenos_Aires";
-/** Fecha de hoy en Argentina (YYYY-MM-DD), igual que `todayAR()` del servidor. */
-const dayAR = (offset = 0) =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: AR }).format(new Date(Date.now() + offset * 86_400_000));
+/** Fecha de "hoy" de los tests (congelada en DEMO_TODAY, igual que `todayAR()` del servidor). */
+const dayAR = demoDay;
 
 test.describe("Producción y lotes (M4)", () => {
   test.use({ storageState: asRole("admin") });

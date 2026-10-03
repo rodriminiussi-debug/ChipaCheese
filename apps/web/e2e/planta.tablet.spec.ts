@@ -1,7 +1,6 @@
-import { test, expect, asRole, expectToast } from "./fixtures";
+import { test, expect, asRole, expectToast, demoDay } from "./fixtures";
 
-const AR = "America/Argentina/Buenos_Aires";
-const todayAR = () => new Intl.DateTimeFormat("en-CA", { timeZone: AR }).format(new Date());
+const todayAR = () => demoDay();
 
 test.describe("Modo planta en tablet (M4)", () => {
   test.use({ storageState: asRole("operator") });
@@ -22,7 +21,9 @@ test.describe("Modo planta en tablet (M4)", () => {
   async function openRun(page: import("@playwright/test").Page, number: number) {
     // Con varias producciones abiertas hay que elegir; con una sola se abre directo.
     await page.getByRole("heading", { level: 1 }).first().waitFor();
-    const pick = page.getByRole("link", { name: new RegExp(`Producción N° ${number}\\b`) });
+    const [y, m, d] = todayAR().split("-");
+    // Puede haber producciones de otros días con el mismo número (se envasa lo de ayer): número + fecha.
+    const pick = page.getByRole("link", { name: new RegExp(`Producción N° ${number} · ${d}/${m}/${y}`) });
     if (await pick.isVisible()) await pick.click();
   }
 

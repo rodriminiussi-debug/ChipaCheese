@@ -106,27 +106,51 @@ test.describe("Stock (producción)", () => {
     await expect(page.getByRole("row", { name: /Insumo E2E crítico/ })).toContainText("100,00");
   });
 
-  test("transferencia F3 → LOCAL mueve el saldo por FEFO (RF-16)", async ({ page }) => {
+  test("transferencia F3 → LOCAL mueve el saldo por FEFO (RF-16)", async ({ page, sql }) => {
+    // Estado actual (otros specs producen/despachan tapitas): calculamos lo esperado desde la base.
+    const lotsF3 = await sql<{ code: string; qty: string }[]>`
+      select fl.code, v.qty from v_product_stock v
+      join products p on p.id = v.product_id join locations l on l.id = v.location_id
+      join finished_lots fl on fl.id = v.finished_lot_id
+      where p.code = 'CH-TAP-500' and l.code = 'F3' and v.qty > 0 and not fl.on_hold
+      order by fl.expiry_date, fl.id`;
+    const [{ local }] = await sql<{ local: string }[]>`
+      select coalesce(sum(v.qty), 0) as local from v_product_stock v
+      join products p on p.id = v.product_id join locations l on l.id = v.location_id
+      where p.code = 'CH-TAP-500' and l.code = 'LOCAL'`;
+    const f3Before = lotsF3.reduce((a, l) => a + Number(l.qty), 0);
+    const localBefore = Number(local);
+    const UNITS = 70;
+    expect(f3Before).toBeGreaterThanOrEqual(UNITS);
+    let pending = UNITS;
+    const expected = lotsF3.flatMap((l) => {
+      const take = Math.min(pending, Number(l.qty));
+      pending -= take;
+      return take > 0 ? [{ code: l.code, take }] : [];
+    });
+    const fmt = (n: number) => n.toLocaleString("es-AR");
+
     await page.goto("/stock/producto-terminado");
     const row = page.getByRole("row", { name: /Chipá tapitas 0,5 kg/ }).first();
-    await expect(row.locator('[data-location="F3"]')).toContainText("160");
-    await expect(row.locator('[data-location="LOCAL"]')).not.toContainText("70");
+    await expect(row.locator('[data-location="F3"]')).toContainText(fmt(f3Before));
 
     await page.getByRole("button", { name: "Transferir" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByLabel("Producto").click();
     await page.getByRole("option", { name: "Chipá tapitas 0,5 kg" }).click();
-    await dialog.getByLabel("Unidades").fill("70");
+    await dialog.getByLabel("Unidades").fill(String(UNITS));
     await dialog.getByRole("button", { name: "Confirmar transferencia" }).click();
     await expectToast(page, "Transferencia registrada");
 
-    await expect(row.locator('[data-location="F3"]')).toContainText("90");
-    await expect(row.locator('[data-location="LOCAL"]')).toContainText("70");
-    await expect(row.locator('[data-location="LOCAL"]')).toContainText("35 kg");
-    // FEFO: del lote que vence primero salen 60 y del siguiente 10, y llegan al local con su lote.
-    const lots = page.getByRole("table", { name: "Detalle de producto terminado por lote" });
-    await expect(lots.getByRole("row", { name: /260901-1.*LOCAL/ })).toContainText("60");
-    await expect(lots.getByRole("row", { name: /261001-1.*LOCAL/ })).toContainText("10");
+    await expect(row.locator('[data-location="F3"]')).toContainText(fmt(f3Before - UNITS));
+    await expect(row.locator('[data-location="LOCAL"]')).toContainText(fmt(localBefore + UNITS));
+    // FEFO: salen primero los lotes que vencen antes, y llegan al local con su lote.
+    const [{ moved }] = await sql<{ moved: { code: string; qty: string }[] }[]>`
+      select coalesce(json_agg(json_build_object('code', fl.code, 'qty', m.qty) order by fl.expiry_date), '[]') as moved
+      from stock_movements m join locations l on l.id = m.location_id join finished_lots fl on fl.id = m.finished_lot_id
+      where m.type = 'transfer' and l.code = 'LOCAL' and m.qty > 0
+        and m.ref_id = (select ref_id from stock_movements where type = 'transfer' order by created_at desc limit 1)`;
+    expect(moved.map((m) => ({ code: m.code, take: Number(m.qty) }))).toEqual(expected);
 
     // Error: más unidades de las que hay en el origen.
     await page.getByRole("button", { name: "Transferir" }).click();
@@ -137,18 +161,29 @@ test.describe("Stock (producción)", () => {
     await expectToast(page, "No hay stock suficiente");
   });
 
-  test("inventario físico: carga parcial, confirmación y ajuste del stock (RF-15)", async ({ page }) => {
+  test("inventario físico: carga parcial, confirmación y ajuste del stock (RF-15)", async ({ page, sql }) => {
+    // Saldo actual del lote (producción puede haber consumido sal en otro spec): contamos 1 kg menos.
+    const [{ lot, total }] = await sql<{ lot: string; total: string }[]>`
+      select
+        (select coalesce(sum(v.qty), 0) from v_ingredient_stock v join raw_lots r on r.id = v.raw_lot_id
+          join locations l on l.id = v.location_id where r.supplier_lot_code = 'SAL-0901' and l.code = 'DEP-SECO') as lot,
+        (select coalesce(sum(v.qty), 0) from v_ingredient_stock v join ingredients i on i.id = v.ingredient_id
+          where i.name = 'Sal') as total`;
+    const counted = Math.round((Number(lot) - 1) * 1000) / 1000;
+    const kg = (n: number) =>
+      `${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
+
     await page.goto("/stock/inventario");
     await page.getByRole("button", { name: "Nuevo conteo de materia prima" }).click();
     await expect(page).toHaveURL(/\/stock\/inventario\/[0-9a-f-]{36}$/);
 
     const sal = page.getByLabel("Sal · lote SAL-0901 · DEP-SECO", { exact: true });
     await expect(sal).toBeVisible();
-    await sal.fill("7.1"); // el sistema dice 8,1 kg
+    await sal.fill(String(counted));
     await page.getByRole("button", { name: "Guardar avance" }).click();
     await expectToast(page, "Avance guardado");
     await page.reload();
-    await expect(sal).toHaveValue("7.1");
+    await expect(sal).toHaveValue(String(counted));
     await expect(page.getByText("Contadas: 1 de")).toBeVisible();
 
     await page.getByRole("button", { name: "Confirmar inventario" }).click();
@@ -164,7 +199,7 @@ test.describe("Stock (producción)", () => {
 
     // El stock quedó en lo contado y el ajuste figura en el libro mayor con su documento origen.
     await page.goto("/stock");
-    await expect(page.getByRole("row", { name: /^Sal/ })).toContainText("7,10 kg");
+    await expect(page.getByRole("row", { name: /^Sal/ })).toContainText(kg(Number(total) - 1));
     await page.goto("/stock/movimientos");
     await page.getByLabel("Tipo").selectOption("adjustment");
     await page.getByRole("button", { name: "Filtrar" }).click();

@@ -3,13 +3,18 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import postgres from "postgres";
 import { resetDatabase } from "@chipa/db/reset";
-import { BASE_URL, TEST_DATABASE_URL } from "../playwright.config";
+import { BASE_URL } from "../playwright.config";
+import { recreateTemplate, restoreTestDb, TEMPLATE_URL } from "./db";
 import { ROLE_USERS, type TestRole } from "./roles";
 
-/** Reinicia chipa_test y crea una sesión por rol (sin pasar por la UI, más rápido y estable). */
+/**
+ * Arma la base plantilla (seed + demo + una sesión por rol, sin pasar por la UI) y la clona como
+ * base de tests. Cada archivo de spec vuelve a clonarla (ver e2e/db.ts y el fixture `isolateFile`).
+ */
 export default async function globalSetup() {
-  await resetDatabase(TEST_DATABASE_URL, { demo: true });
-  const sql = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
+  await recreateTemplate();
+  await resetDatabase(TEMPLATE_URL, { demo: true });
+  const sql = postgres(TEMPLATE_URL, { max: 1, onnotice: () => {} });
   const dir = resolve(import.meta.dirname, ".auth");
   await mkdir(dir, { recursive: true });
   const { hostname } = new URL(BASE_URL);
@@ -41,4 +46,5 @@ export default async function globalSetup() {
   } finally {
     await sql.end();
   }
+  await restoreTestDb();
 }
