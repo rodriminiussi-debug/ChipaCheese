@@ -78,7 +78,11 @@ export function RunForm({
           <Input
             id="recipe"
             readOnly
-            value={options.recipe ? `${options.recipe.name} — versión ${options.recipe.version} (activa)` : "Sin receta activa"}
+            value={
+              options.recipe
+                ? `${options.recipe.name} — versión ${options.recipe.version} (activa)`
+                : "Sin receta activa"
+            }
           />
           <FieldDescription>Se produce siempre con la receta activa.</FieldDescription>
         </Field>
@@ -90,7 +94,14 @@ export function RunForm({
         </Field>
         <Field data-invalid={!!err("batches")}>
           <FieldLabel htmlFor="batches">Tandas de amasado</FieldLabel>
-          <Input id="batches" type="number" inputMode="numeric" min={1} max={6} {...form.register("batches")} />
+          <Input
+            id="batches"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={6}
+            {...form.register("batches")}
+          />
           <FieldError>{err("batches")}</FieldError>
         </Field>
         <Field data-invalid={!!err("responsibleId")}>

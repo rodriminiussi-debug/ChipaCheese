@@ -54,7 +54,9 @@ export function WeekPlan({
               />
               <span className="text-muted-foreground text-xs tabular-nums">
                 {fmtQty(d.plannedKg, 1)} de {fmtQty(capacityKg)} kg · {usage.pct} %
-                {d.runs ? ` · ${d.runs} producción${d.runs > 1 ? "es" : ""}, ${fmtQty(d.weighedKg, 1)} kg pesados` : ""}
+                {d.runs
+                  ? ` · ${d.runs} producción${d.runs > 1 ? "es" : ""}, ${fmtQty(d.weighedKg, 1)} kg pesados`
+                  : ""}
               </span>
             </div>
             <div className="sm:text-right">

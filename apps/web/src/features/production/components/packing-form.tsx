@@ -28,7 +28,8 @@ export function PackingForm({ runId, options }: { runId: string; options: Packin
       router.refresh();
     },
   });
-  const patch = (i: number, p: Partial<Row>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...p } : x)));
+  const patch = (i: number, p: Partial<Row>) =>
+    setRows((r) => r.map((x, j) => (j === i ? { ...x, ...p } : x)));
   const items = rows
     .map((r) => ({ productId: r.productId, locationId: r.locationId, units: Number(r.units) }))
     .filter((r) => r.units > 0);
@@ -36,7 +37,10 @@ export function PackingForm({ runId, options }: { runId: string; options: Packin
   return (
     <div className="grid gap-3">
       {rows.map((r, i) => (
-        <div key={i} className="grid grid-cols-[1fr_6rem] items-center gap-2 sm:grid-cols-[1fr_7rem_8rem_auto]">
+        <div
+          key={i}
+          className="grid grid-cols-[1fr_6rem] items-center gap-2 sm:grid-cols-[1fr_7rem_8rem_auto]"
+        >
           <NativeSelect
             aria-label={`Producto${rows.length > 1 ? ` ${i + 1}` : ""}`}
             value={r.productId}

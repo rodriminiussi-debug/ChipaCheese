@@ -105,7 +105,10 @@ export function ConsumptionForm({
                 const qty = parseDecimalAR(l.qty) ?? 0;
                 const suffix = i > 0 ? ` (lote ${i + 1})` : "";
                 return (
-                  <div key={i} className="grid grid-cols-[1fr_8rem_auto] items-center gap-2 sm:grid-cols-[1fr_10rem_auto]">
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1fr_8rem_auto] items-center gap-2 sm:grid-cols-[1fr_10rem_auto]"
+                  >
                     <NativeSelect
                       aria-label={`Lote de ${s.name}${suffix}`}
                       className={plant ? "h-14 text-lg" : undefined}
@@ -116,7 +119,8 @@ export function ConsumptionForm({
                       {s.lots.map((x) => (
                         <option key={x.rawLotId} value={x.rawLotId}>
                           {x.code}
-                          {x.expiryDate ? ` · vence ${formatDateAR(x.expiryDate)}` : ""} · quedan {fmtQty(x.qty)}
+                          {x.expiryDate ? ` · vence ${formatDateAR(x.expiryDate)}` : ""} · quedan{" "}
+                          {fmtQty(x.qty)}
                         </option>
                       ))}
                     </NativeSelect>
@@ -128,7 +132,9 @@ export function ConsumptionForm({
                         value={l.qty}
                         onChange={(e) => update(s.ingredientId, i, { qty: e.target.value })}
                       />
-                      <span className={cn("text-muted-foreground w-6 text-sm", plant && "text-lg")}>{unit}</span>
+                      <span className={cn("text-muted-foreground w-6 text-sm", plant && "text-lg")}>
+                        {unit}
+                      </span>
                     </div>
                     {i > 0 ? (
                       <Button
@@ -137,7 +143,10 @@ export function ConsumptionForm({
                         size="icon"
                         aria-label={`Quitar lote ${i + 1} de ${s.name}`}
                         onClick={() =>
-                          setLines((all) => ({ ...all, [s.ingredientId]: all[s.ingredientId]!.filter((_, j) => j !== i) }))
+                          setLines((all) => ({
+                            ...all,
+                            [s.ingredientId]: all[s.ingredientId]!.filter((_, j) => j !== i),
+                          }))
                         }
                       >
                         <X />

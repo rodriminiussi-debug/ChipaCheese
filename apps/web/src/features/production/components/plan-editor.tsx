@@ -9,7 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/app/status-badge";
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAction } from "@/hooks/use-action";
 import { SHAPE } from "@/lib/labels";
 import { confirmPlanAction, savePlanAction } from "../actions";
@@ -139,7 +147,7 @@ export function PlanEditor({
           value={Math.min(100, usage.pct)}
           className={
             usage.tone === "bad"
-              ? "h-2 [&_[data-slot=progress-indicator]]:bg-destructive"
+              ? "[&_[data-slot=progress-indicator]]:bg-destructive h-2"
               : usage.tone === "warn"
                 ? "h-2 [&_[data-slot=progress-indicator]]:bg-amber-500"
                 : "h-2"
@@ -181,9 +189,15 @@ export function PlanEditor({
             disabled={pending}
             onClick={() =>
               setKg({
-                tapita: String(suggestion.byShape.find((s) => s.shape === "tapita")?.kg ?? 0).replace(".", ","),
+                tapita: String(suggestion.byShape.find((s) => s.shape === "tapita")?.kg ?? 0).replace(
+                  ".",
+                  ",",
+                ),
                 arito: String(suggestion.byShape.find((s) => s.shape === "arito")?.kg ?? 0).replace(".", ","),
-                lenguita: String(suggestion.byShape.find((s) => s.shape === "lenguita")?.kg ?? 0).replace(".", ","),
+                lenguita: String(suggestion.byShape.find((s) => s.shape === "lenguita")?.kg ?? 0).replace(
+                  ".",
+                  ",",
+                ),
               })
             }
           >

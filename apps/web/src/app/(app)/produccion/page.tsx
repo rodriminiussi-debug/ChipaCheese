@@ -80,7 +80,10 @@ export default async function ProductionPage(props: PageProps<"/produccion">) {
             Producciones recientes
           </h2>
           {runs.length === 0 ? (
-            <EmptyState title="Todavía no hay producciones" description="Creá la primera desde “Nueva producción”." />
+            <EmptyState
+              title="Todavía no hay producciones"
+              description="Creá la primera desde “Nueva producción”."
+            />
           ) : (
             <RunsTable runs={runs} />
           )}

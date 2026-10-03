@@ -32,7 +32,7 @@ export function WeighingForm({ runId, variant = "desk" }: { runId: string; varia
 
   return (
     <div className="grid gap-3">
-      <div className={cn("grid gap-3", plant ? "sm:grid-cols-3" : "sm:grid-cols-3 sm:max-w-2xl")}>
+      <div className={cn("grid gap-3", plant ? "sm:grid-cols-3" : "sm:max-w-2xl sm:grid-cols-3")}>
         {PLAN_SHAPES.map((shape) => (
           <label key={shape} className={cn("grid gap-1 text-sm font-medium", plant && "text-lg")}>
             {SHAPE[shape]} (kg)
@@ -68,15 +68,17 @@ export function WeighingsList({
   editable: boolean;
 }) {
   const router = useRouter();
-  const del = useAction(deleteWeighingAction, { success: "Pesada eliminada", onSuccess: () => router.refresh() });
+  const del = useAction(deleteWeighingAction, {
+    success: "Pesada eliminada",
+    onSuccess: () => router.refresh(),
+  });
   if (!weighings.length) return <p className="text-muted-foreground text-sm">Todavía no hay pesadas.</p>;
   return (
     <ul className="divide-y rounded-lg border text-sm" aria-label="Pesadas cargadas">
       {weighings.map((w) => (
         <li key={w.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
           <span>
-            {SHAPE[w.shape]} ·{" "}
-            <span className="font-medium tabular-nums">{fmtQty(w.kg)} kg</span>
+            {SHAPE[w.shape]} · <span className="font-medium tabular-nums">{fmtQty(w.kg)} kg</span>
           </span>
           {editable ? (
             <Button
