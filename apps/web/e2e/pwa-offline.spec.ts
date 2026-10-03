@@ -6,7 +6,8 @@ import { test, expect, asRole, demoDay } from "./fixtures";
  * con `pnpm build && E2E_PROD=1 pnpm test:e2e e2e/pwa-offline.spec.ts` (en el E2E normal, con `next dev`, se omite).
  */
 test.skip(!process.env.E2E_PROD, "requiere el build de producción (E2E_PROD=1)");
-test.use({ storageState: asRole("admin") });
+// playwright.config bloquea el service worker para el resto de los specs; acá es lo que se prueba.
+test.use({ storageState: asRole("admin"), serviceWorkers: "allow" });
 
 test("las pantallas de planta, pedido nuevo y ruta del chofer se abren sin señal si ya se visitaron", async ({
   page,
@@ -47,5 +48,32 @@ test("las pantallas de planta, pedido nuevo y ruta del chofer se abren sin seña
   }
   // Una pantalla que nunca se visitó cae a la página "Sin conexión".
   await page.goto("/clientes");
+  await expect(page).toHaveTitle(/Sin conexión/);
+});
+
+test("al cerrar sesión se borran las pantallas guardadas (tablet compartida)", async ({ page, context }) => {
+  await page.goto("/planta/temperaturas");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await page.goto("/planta/temperaturas");
+  await page.waitForLoadState("networkidle");
+  const pagesCached = () =>
+    page.evaluate(async () => {
+      let n = 0;
+      for (const k of await caches.keys())
+        if (k.endsWith("-pages"))
+          n += (await (await caches.open(k)).keys()).filter(
+            (r) => new URL(r.url).pathname !== "/offline",
+          ).length;
+      return n;
+    });
+  expect(await pagesCached()).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "Salir" }).click();
+  await expect(page).toHaveURL(/\/login/);
+  await expect.poll(pagesCached).toBe(0);
+
+  await context.setOffline(true);
+  await page.goto("/planta/temperaturas");
   await expect(page).toHaveTitle(/Sin conexión/);
 });

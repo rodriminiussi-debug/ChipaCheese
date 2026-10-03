@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClearPageCache } from "@/components/pwa/clear-page-cache";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoginForm } from "@/features/auth/login-form";
@@ -11,6 +12,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
   const { next } = await props.searchParams;
   return (
     <main className="bg-muted/40 grid min-h-dvh place-items-center p-4">
+      <ClearPageCache />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-xl">Chipa Cheese</CardTitle>
