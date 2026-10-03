@@ -1,0 +1,4 @@
+Fecha de Emisión;Tipo de Comprobante;Punto de Venta;Número Desde;Número Hasta;Cód. Autorización;Tipo Doc. Emisor;Nro. Doc. Emisor;Denominación Emisor;Tipo Cambio;Moneda;Imp. Neto Gravado;Imp. Neto No Gravado;Imp. Op. Exentas;Otros Tributos;Total IVA;Imp. Total
+10/09/2026;1 - Factura A;5;4521;4521;76999999999991;80;30715555553;Leo Pelle SA;1,00;$;500000,00;0,00;0,00;0,00;105000,00;605000,00
+15/09/2026;1 - Factura A;5;4602;4602;76999999999992;80;30715555553;Leo Pelle SA;1,00;$;200000,00;0,00;0,00;0,00;42000,00;242000,00
+20/09/2026;1 - Factura A;3;880;880;76999999999993;80;30716666669;Mancinelli SRL;1,00;$;100000,00;0,00;0,00;0,00;21000,00;121000,00

@@ -1,0 +1,7 @@
+Fecha de Emisión;Tipo de Comprobante;Punto de Venta;Número Desde;Número Hasta;Cód. Autorización;Tipo Doc. Receptor;Nro. Doc. Receptor;Denominación Receptor;Tipo Cambio;Moneda;Imp. Neto Gravado;Imp. Neto No Gravado;Imp. Op. Exentas;Otros Tributos;IVA;Imp. Total
+15/09/2026;1 - Factura A;2;1301;1301;76123456789012;80;30712222227;La Esperanza;1,00;$;100000,00;0,00;0,00;0,00;21000,00;121000,00
+16/09/2026;1 - Factura A;2;1302;1302;76123456789013;80;30713333332;Vía Dolce;1,00;$;50000,00;0,00;0,00;0,00;10500,00;60500,00
+17/09/2026;1 - Factura A;2;1303;1303;76123456789014;80;30714444448;Kiosco Desconocido SRL;1,00;$;30000,00;0,00;0,00;0,00;6300,00;36300,00
+18/09/2026;3 - Nota de Crédito A;2;77;77;76123456789015;80;30712222227;La Esperanza;1,00;$;10000,00;0,00;0,00;0,00;2100,00;12100,00
+10/09/2026;1 - Factura A;2;1234;1234;76123456789016;80;30711111111;Supermercado La Reina;1,00;$;386776,86;0,00;0,00;0,00;81223,14;468000,00
+19/09/2026;2 - Nota de Débito A;2;12;12;76123456789017;80;30712222227;La Esperanza;1,00;$;1000,00;0,00;0,00;0,00;210,00;1210,00
