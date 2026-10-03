@@ -1,39 +1,18 @@
-import postgres from "postgres";
-import { TEST_DATABASE_URL } from "../playwright.config";
+import type postgres from "postgres";
 import { test, expect, asRole, expectToast } from "./fixtures";
 
 /**
- * M5 Despacho y reparto (RF-24 a RF-28). Comparte la base con el resto de los E2E: todo lo que crea
- * (pedidos, rutas, remitos, movimientos de stock) se limpia en afterAll para no alterar el saldo demo.
+ * M5 Despacho y reparto (RF-24 a RF-28). El archivo arranca de la base demo intacta (aislamiento por
+ * archivo en e2e/fixtures.ts); los tests del archivo comparten estado y corren en serie.
  */
 test.describe.configure({ mode: "serial" });
 
 const DAY = "2026-10-02"; // viernes
 const TAP = "Chipá tapitas 0,5 kg";
-let startedAt: Date;
-const admin = () => postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
 
-test.beforeAll(async () => {
-  const sql = admin();
-  [{ now: startedAt }] = (await sql`select now() as now`) as unknown as [{ now: Date }];
+// beforeEach (no beforeAll): corre después de la restauración de la base del archivo. Idempotente.
+test.beforeEach(async ({ sql }) => {
   await sql`update customers set address = 'Av. Pellegrini 1234' where legal_name = 'Supermercado Arcoiris'`;
-  await sql.end();
-});
-
-test.afterAll(async () => {
-  const sql = admin();
-  try {
-    await sql`delete from stock_movements where created_at >= ${startedAt}`;
-    await sql`delete from dispatch_items where dispatch_id in (select id from dispatches where created_at >= ${startedAt})`;
-    await sql`delete from dispatches where created_at >= ${startedAt}`;
-    await sql`delete from route_stops where route_id in (select id from routes where created_at >= ${startedAt})`;
-    await sql`delete from routes where created_at >= ${startedAt}`;
-    await sql`delete from temperature_logs where created_at >= ${startedAt}`;
-    await sql`delete from orders where created_at >= ${startedAt}`;
-    await sql`update customers set address = null where legal_name = 'Supermercado Arcoiris'`;
-  } finally {
-    await sql.end();
-  }
 });
 
 type Sql = postgres.Sql;

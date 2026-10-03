@@ -1,34 +1,11 @@
 import ExcelJS from "exceljs";
-import postgres from "postgres";
-import { TEST_DATABASE_URL } from "../playwright.config";
 import { test, expect, asRole, expectToast } from "./fixtures";
 
 /**
- * M3 Stock y cobertura (RF-13 a RF-17). Los tests comparten la base: todo lo que crean o mueven
- * se limpia en afterAll para no alterar el saldo demo que usan otros módulos.
+ * M3 Stock y cobertura (RF-13 a RF-17). El archivo arranca de la base demo intacta (aislamiento por
+ * archivo en e2e/fixtures.ts); los tests del archivo comparten estado y corren en serie.
  */
 test.describe.configure({ mode: "serial" });
-
-let startedAt: Date;
-const admin = () => postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
-
-test.beforeAll(async () => {
-  const sql = admin();
-  [{ now: startedAt }] = (await sql`select now() as now`) as unknown as [{ now: Date }];
-  await sql.end();
-});
-
-test.afterAll(async () => {
-  const sql = admin();
-  try {
-    await sql`delete from stock_movements where created_at >= ${startedAt}`;
-    await sql`delete from inventory_count_items where count_id in (select id from inventory_counts where created_at >= ${startedAt})`;
-    await sql`delete from inventory_counts where created_at >= ${startedAt}`;
-    await sql`delete from ingredients where name like 'Insumo E2E%'`;
-  } finally {
-    await sql.end();
-  }
-});
 
 test.describe("Stock (producción)", () => {
   test.use({ storageState: asRole("production_manager") });

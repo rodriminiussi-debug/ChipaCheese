@@ -65,7 +65,7 @@ apps/web/e2e/<modulo>.spec.ts   flujo feliz + 1 caso de error + 1 caso de permis
 - Servicio → test de integración con `inRollback`.
 - Fechas en E2E: `demoDay(offset)` de `e2e/fixtures.ts` (nunca la fecha real).
 - Pantalla → E2E en `apps/web/e2e/` usando `test.use({ storageState: asRole("<rol>") })` y selectores accesibles (`getByRole`, `getByLabel`). `data-testid` solo si no hay alternativa.
-- Aislamiento E2E: cada ARCHIVO de spec arranca de la base demo intacta (clon de una plantilla, `e2e/db.ts`); los tests dentro de un mismo archivo comparten estado y corren en orden. Aun así, no asumir saldos absolutos que un test previo del mismo archivo modificó (leer el valor actual con el fixture `sql` y afirmar sobre la diferencia, o crear datos propios).
+- Aislamiento E2E: cada ARCHIVO de spec arranca de la base demo intacta (clon de una plantilla, `e2e/db.ts`); los tests dentro de un mismo archivo comparten estado y corren en orden. Aun así, no asumir saldos absolutos que un test previo del mismo archivo modificó. No preparar datos en `beforeAll` (corre ANTES de la restauración de la base del archivo): usar `beforeEach` idempotente o crearlos dentro del test (leer el valor actual con el fixture `sql` y afirmar sobre la diferencia, o crear datos propios).
 - `pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e` en verde.
 
 ## Commits
