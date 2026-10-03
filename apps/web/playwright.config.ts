@@ -10,6 +10,8 @@ loadEnv({ path: resolvePath(import.meta.dirname, "../../.env"), quiet: true });
  */
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? "postgres://chipa:chipa@localhost:5433/chipa_test";
+/** Día de referencia de los datos demo (packages/db/src/seed/demo.ts). */
+export const DEMO_TODAY = "2026-10-02";
 const PORT = Number(process.env.E2E_PORT ?? 3200);
 export const BASE_URL = `http://localhost:${PORT}`;
 
@@ -45,6 +47,7 @@ export default defineConfig({
     env: {
       DATABASE_URL: TEST_DATABASE_URL,
       AI_MOCK: "1",
+      APP_TODAY: DEMO_TODAY,
       STORAGE_DRIVER: "local",
       STORAGE_LOCAL_DIR: ".data/test-uploads",
       NEXT_DIST_DIR_SUFFIX: "e2e",

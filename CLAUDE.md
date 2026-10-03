@@ -43,7 +43,7 @@ apps/web/e2e/<modulo>.spec.ts   flujo feliz + 1 caso de error + 1 caso de permis
 - Formularios: react-hook-form + `zodResolver(schema)` + `useAction(serverAction, { success: "…" })` (toast). Ver `customer-form.tsx`.
 - Stock: TODO movimiento de stock inserta en `stock_movements` (signo + entra / − sale) con `refTable/refId` del documento origen. Saldos: vistas `v_ingredient_stock`, `v_product_stock`. Nunca guardar saldos en columnas.
 - Precios: último precio sin IVA en `v_ingredient_last_price`. IVA se toma de la factura (Regla 11).
-- Fechas de negocio: `todayAR()` de `src/lib/dates.ts` (el server puede estar en UTC). Columnas `date` como string ISO.
+- Fechas de negocio: `todayAR()` de `src/lib/dates.ts` (el server puede estar en UTC). Columnas `date` como string ISO. NUNCA `new Date()` para "hoy": los tests congelan el día con `APP_TODAY=2026-10-02` (servidor) y `page.clock` (navegador, ya aplicado en `e2e/fixtures.ts`).
 - Formato UI: componentes `Money`, `Kg`, `Num`, `DateText` (`src/components/app/format.tsx`) — español argentino.
 - Etiquetas de enums en español: `src/lib/labels.ts`.
 - Parámetros del negocio (capacidad, costo hora, umbrales): `getSetting(key, fallback)` de `src/server/settings.ts`.

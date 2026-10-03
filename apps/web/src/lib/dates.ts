@@ -2,8 +2,16 @@ import type { IsoDate } from "@chipa/domain";
 
 export const TZ = "America/Argentina/Buenos_Aires";
 
-/** Fecha de hoy en Argentina como YYYY-MM-DD (el servidor puede estar en UTC). */
-export function todayAR(now: Date = new Date()): IsoDate {
+/**
+ * Fecha de hoy en Argentina como YYYY-MM-DD (el servidor puede estar en UTC).
+ * En tests se congela con APP_TODAY (los datos demo están armados alrededor del 02/10/2026).
+ */
+export function todayAR(now?: Date): IsoDate {
+  if (!now) {
+    const frozen = typeof process !== "undefined" ? process.env.APP_TODAY : undefined;
+    if (frozen && process.env.NODE_ENV !== "production") return frozen;
+    now = new Date();
+  }
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: TZ,
     year: "numeric",

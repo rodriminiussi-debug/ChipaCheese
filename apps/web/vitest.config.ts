@@ -27,6 +27,7 @@ export default defineConfig({
       SESSION_SECRET: "test-secret-0123456789",
       NODE_ENV: "test",
       AI_MOCK: "1",
+      APP_TODAY: "2026-10-02",
     },
   },
 });
