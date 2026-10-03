@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { flushQueue, onQueueChange, pendingItems } from "@/lib/offline-queue";
+import "./offline-actions"; // registra todas las acciones encolables (la cola se envía desde cualquier pantalla)
 
 /** Registra el service worker (solo producción). */
 export function ServiceWorkerRegister() {

@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Plus, X } from "lucide-react";
+import { AlertTriangle, CloudOff, Plus, X } from "lucide-react";
 import { checkConsumption, formatDateAR, parseDecimalAR, roundQty } from "@chipa/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/app/native-select";
 import { StatusBadge } from "@/components/app/status-badge";
-import { useAction } from "@/hooks/use-action";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
+import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { cn } from "@/lib/utils";
 import { recordConsumptionsAction } from "../actions";
 import { CONSUMPTION_REASON } from "../labels";
@@ -45,11 +46,17 @@ export function ConsumptionForm({
       ]),
     ),
   );
-  const save = useAction(recordConsumptionsAction, {
+  // Sin señal la confirmación queda en la cola del equipo y se envía al volver la conexión (idempotente).
+  const save = useOfflineAction(OFFLINE_ACTION.consumptions, recordConsumptionsAction, {
     success: (d) =>
       d.outOfRange > 0 ? `Consumos registrados: ${d.outOfRange} fuera de rango` : "Consumos registrados",
-    onSuccess: () => router.refresh(),
+    onSuccess: (_d, queued) => {
+      if (!queued) router.refresh();
+    },
   });
+  const queuedHere = useQueuedItems<{ runId: string }>(OFFLINE_ACTION.consumptions).filter(
+    (q) => q.payload.runId === runId,
+  );
 
   const update = (id: string, i: number, patch: Partial<Line>) =>
     setLines((all) => ({ ...all, [id]: all[id]!.map((l, j) => (j === i ? { ...l, ...patch } : l)) }));
@@ -57,6 +64,8 @@ export function ConsumptionForm({
   function submit() {
     save.run({
       runId,
+      clientId: crypto.randomUUID(),
+      recordedAt: new Date().toISOString(),
       lines: suggestions.flatMap((s) =>
         (lines[s.ingredientId] ?? []).map((l) => ({
           ingredientId: s.ingredientId,
@@ -69,6 +78,15 @@ export function ConsumptionForm({
 
   return (
     <div className="grid gap-3">
+      {queuedHere.length > 0 ? (
+        <p
+          className="flex items-center gap-2 rounded-lg border border-amber-500 bg-amber-50 p-3 text-base font-medium text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+          role="status"
+          data-testid="consumptions-pending"
+        >
+          <CloudOff className="size-5" /> Consumos pendientes de enviar: se envían al volver la señal.
+        </p>
+      ) : null}
       {suggestions.map((s) => {
         const unit = UNIT_SHORT[s.unit] ?? "";
         const rows = lines[s.ingredientId] ?? [];
@@ -192,7 +210,7 @@ export function ConsumptionForm({
         type="button"
         size={plant ? "lg" : "default"}
         className={cn(plant && "h-16 text-xl")}
-        disabled={save.pending}
+        disabled={save.pending || queuedHere.length > 0}
         onClick={submit}
       >
         {replacing ? "Corregir consumos" : "Confirmar consumos"}

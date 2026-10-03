@@ -12,6 +12,7 @@ import {
 } from "@chipa/domain";
 import { and, asc, count, desc, eq, gte, inArray, lte, ne, schema, type Executor } from "@chipa/db";
 import { todayAR, toIsoDateAR } from "@/lib/dates";
+import { clampRecordedAt } from "@/lib/idempotency";
 import { UserError } from "@/server/errors";
 import type { ComplaintData } from "./schemas";
 
@@ -24,10 +25,8 @@ import type { ComplaintData } from "./schemas";
 const TEMP_KINDS = ["freezer", "fridge", "vehicle"] as const;
 const KIND_RANK: Record<string, number> = { freezer: 0, fridge: 1, vehicle: 2 };
 
-/** Un registro que dice haberse tomado en el futuro se corrige a "ahora" (tolerancia de 5 min por el reloj de la tablet). */
-export function clampRecordedAt(recordedAt: Date, now = new Date()): Date {
-  return recordedAt.getTime() > now.getTime() + 5 * 60_000 ? now : recordedAt;
-}
+/** Un registro que dice haberse tomado en el futuro se corrige a "ahora" (ver `@/lib/idempotency`). */
+export { clampRecordedAt };
 
 // --- Limpieza (RF-34) --------------------------------------------------------------------------
 

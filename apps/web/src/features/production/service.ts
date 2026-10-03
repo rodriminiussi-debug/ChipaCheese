@@ -14,6 +14,7 @@ import {
 } from "@chipa/domain";
 import { and, asc, desc, eq, gte, inArray, lte, ne, schema, sql, type Executor } from "@chipa/db";
 import { UserError } from "@/server/errors";
+import { derivedClientId } from "@/lib/idempotency";
 import {
   locationByCode,
   rawLotBalances,
@@ -504,16 +505,44 @@ export async function consumptionSuggestions(db: Executor, run: RunDetail) {
 }
 export type ConsumptionSuggestion = Awaited<ReturnType<typeof consumptionSuggestions>>[number];
 
+/** Marca de un envío hecho desde la cola offline: idempotencia y hora real de la carga. */
+export interface OfflineStamp {
+  /** uuid generado en el dispositivo. Reenviar el mismo `clientId` no repite el efecto. */
+  clientId?: string | null;
+  /** Momento real de la carga (ya acotado a "ahora"). Si falta, se usa el momento de la llamada. */
+  recordedAt?: Date;
+}
+
 /**
  * Confirma los consumos reales. Inserta `production_consumptions` (teórico vs real, fuera de rango) y
  * movimientos negativos `production_consumption` en la ubicación de cada lote. Si ya había consumos
  * cargados se revierten con movimientos compensatorios (el libro mayor no se edita) y se reemplazan.
+ *
+ * Idempotente por `opts.clientId`: cada confirmación queda en `production_consumption_confirmations`. Como
+ * una confirmación REEMPLAZA los consumos anteriores, reenviarla (cola offline tras perder la respuesta)
+ * sin esta marca revertiría y volvería a cargar todo: con ella no mueve stock ni toca filas.
  */
 export async function recordConsumptions(
   db: Executor,
   userId: string | null,
   input: RecordConsumptionsInput,
+  opts: OfflineStamp = {},
 ) {
+  const at = opts.recordedAt ?? new Date();
+  const alreadyConfirmed = async () => {
+    const run = await requireRun(db, input.runId);
+    return {
+      rows: run.consumptions,
+      outOfRange: run.consumptions.filter((c) => c.outOfRange).length,
+      duplicate: true as const,
+    };
+  };
+  if (opts.clientId) {
+    const dup = await db.query.productionConsumptionConfirmations.findFirst({
+      where: eq(schema.productionConsumptionConfirmations.clientId, opts.clientId),
+    });
+    if (dup) return alreadyConfirmed();
+  }
   const run = await requireRun(db, input.runId);
   assertStatus(run, CONSUMPTION_STATUSES, "consumos");
   const entries = input.lines.map((l) => ({
@@ -545,6 +574,16 @@ export async function recordConsumptions(
     const lot = lots.find((l) => l.id === r.rawLotId);
     if (!lot || lot.ingredientId !== r.ingredientId)
       throw new UserError("El lote elegido no corresponde al insumo.");
+  }
+
+  // Reservar el clientId antes de escribir: si otro envío del mismo registro ganó la carrera, no repetir.
+  if (opts.clientId) {
+    const claimed = await db
+      .insert(schema.productionConsumptionConfirmations)
+      .values({ runId: run.id, clientId: opts.clientId, confirmedById: userId, confirmedAt: at })
+      .onConflictDoNothing({ target: schema.productionConsumptionConfirmations.clientId })
+      .returning({ id: schema.productionConsumptionConfirmations.id });
+    if (!claimed.length) return alreadyConfirmed();
   }
 
   // 1) Revertir lo cargado antes (movimientos compensatorios) y reemplazar las filas.
@@ -583,6 +622,7 @@ export async function recordConsumptions(
           refTable: "production_runs",
           refId: run.id,
           note: "Corrección de consumos",
+          occurredAt: at,
         })),
     );
     await db.delete(schema.productionConsumptions).where(eq(schema.productionConsumptions.runId, run.id));
@@ -631,6 +671,7 @@ export async function recordConsumptions(
       qty: -r.qtyActual,
       refTable: "production_runs",
       refId: run.id,
+      occurredAt: at,
     });
   }
   await recordIngredientMovements(db, userId, moves);
@@ -640,7 +681,7 @@ export async function recordConsumptions(
       .set({ status: "in_progress" })
       .where(eq(schema.productionRuns.id, run.id));
   }
-  return { rows, outOfRange: rows.filter((r) => r.outOfRange).length };
+  return { rows, outOfRange: rows.filter((r) => r.outOfRange).length, duplicate: false as const };
 }
 
 /** Cambia el estado respetando las transiciones válidas (planned → in_progress → freezing → packed → closed). */
@@ -673,18 +714,51 @@ export async function setRunStatus(db: Executor, input: SetRunStatusInput & { fr
 // RF-21 · Pesadas y rendimiento
 // ===========================================================================================
 
-export async function recordWeighings(db: Executor, userId: string | null, input: RecordWeighingsInput) {
-  const run = await requireRun(db, input.runId);
-  assertStatus(run, WEIGHING_STATUSES, "pesadas");
+/**
+ * Registra pesadas (una fila por forma). Idempotente por `opts.clientId`: cada fila guarda un `client_id`
+ * derivado (clientId + posición), así reenviar el mismo envío devuelve las filas ya cargadas sin duplicarlas.
+ * `weighedAt` toma la hora real de la carga (`opts.recordedAt`).
+ */
+export async function recordWeighings(
+  db: Executor,
+  userId: string | null,
+  input: RecordWeighingsInput,
+  opts: OfflineStamp = {},
+) {
   const items = input.items
     .map((i) => ({ shape: i.shape, kg: typeof i.kg === "number" ? i.kg : Number(i.kg) }))
     .filter((i) => i.kg > 0);
+  const lineIds = opts.clientId ? items.map((_, n) => derivedClientId(opts.clientId!, n)) : [];
+  const existing = async () =>
+    lineIds.length
+      ? db
+          .select()
+          .from(schema.productionWeighings)
+          .where(inArray(schema.productionWeighings.clientId, lineIds))
+      : [];
+  if (lineIds.length) {
+    const dup = await existing();
+    if (dup.length) return dup;
+  }
+  const run = await requireRun(db, input.runId);
+  assertStatus(run, WEIGHING_STATUSES, "pesadas");
   if (!items.length) throw new UserError("Cargá al menos una pesada mayor a cero.");
   const rows = await db
     .insert(schema.productionWeighings)
-    .values(items.map((i) => ({ runId: run.id, shape: i.shape, kg: roundQty(i.kg), weighedById: userId })))
+    .values(
+      items.map((i, n) => ({
+        runId: run.id,
+        shape: i.shape,
+        kg: roundQty(i.kg),
+        weighedById: userId,
+        ...(opts.recordedAt ? { weighedAt: opts.recordedAt } : {}),
+        clientId: lineIds[n] ?? null,
+      })),
+    )
+    .onConflictDoNothing({ target: schema.productionWeighings.clientId })
     .returning();
-  return rows;
+  // Carrera con otro envío del mismo registro: ganó el otro, devolvemos lo suyo.
+  return rows.length || !lineIds.length ? rows : existing();
 }
 
 export async function deleteWeighing(db: Executor, id: string) {
@@ -741,7 +815,29 @@ export type PackingOptions = Awaited<ReturnType<typeof packingOptions>>;
  * producto y ubicación, suma stock (`production_output`) y descuenta los envases de `product_components`
  * de categoría packaging del depósito seco.
  */
-export async function recordPacking(db: Executor, userId: string | null, input: RecordPackingInput) {
+export async function recordPacking(
+  db: Executor,
+  userId: string | null,
+  input: RecordPackingInput,
+  opts: OfflineStamp = {},
+) {
+  const at = opts.recordedAt ?? new Date();
+  const lineIds = opts.clientId ? input.items.map((_, n) => derivedClientId(opts.clientId!, n)) : [];
+  const existing = async () => {
+    const packings = await db
+      .select()
+      .from(schema.packings)
+      .where(inArray(schema.packings.clientId, lineIds));
+    if (!packings.length) return null;
+    const lot = await db.query.finishedLots.findFirst({
+      where: eq(schema.finishedLots.id, packings[0]!.finishedLotId),
+    });
+    return { lot: lot!, packings, duplicate: true as const };
+  };
+  if (lineIds.length) {
+    const dup = await existing();
+    if (dup) return dup;
+  }
   const run = await requireRun(db, input.runId);
   assertStatus(run, PACKING_STATUSES, "envasado");
   const items = input.items.map((i) => ({
@@ -781,7 +877,7 @@ export async function recordPacking(db: Executor, userId: string | null, input: 
 
   const dryStore = await locationByCode(db, "DEP-SECO");
   const packings = [];
-  for (const it of items) {
+  for (const [n, it] of items.entries()) {
     const product = products.find((p) => p.id === it.productId)!;
     const [packing] = await db
       .insert(schema.packings)
@@ -792,9 +888,16 @@ export async function recordPacking(db: Executor, userId: string | null, input: 
         kg: roundQty(it.units * product.netWeightKg),
         locationId: it.locationId,
         packedById: userId,
+        packedAt: at,
+        clientId: lineIds[n] ?? null,
       })
+      .onConflictDoNothing({ target: schema.packings.clientId })
       .returning();
-    packings.push(packing!);
+    if (!packing) {
+      // Carrera con otro envío del mismo registro: ya lo cargó (y movió el stock) la otra transacción.
+      return (await existing()) ?? { lot, packings, duplicate: true as const };
+    }
+    packings.push(packing);
     const output: ProductMovement = {
       type: "production_output",
       productId: product.id,
@@ -802,7 +905,8 @@ export async function recordPacking(db: Executor, userId: string | null, input: 
       locationId: it.locationId,
       qty: it.units,
       refTable: "packings",
-      refId: packing!.id,
+      refId: packing.id,
+      occurredAt: at,
     };
     await recordProductMovements(db, userId, [output]);
     await recordIngredientMovements(
@@ -817,12 +921,13 @@ export async function recordPacking(db: Executor, userId: string | null, input: 
           locationId: dryStore.id,
           qty: -roundQty(c.qtyPerUnit * it.units),
           refTable: "packings",
-          refId: packing!.id,
+          refId: packing.id,
           note: `Envase de ${product.name}`,
+          occurredAt: at,
         })),
     );
   }
-  return { lot, packings };
+  return { lot, packings, duplicate: false as const };
 }
 
 /** Lote por código con su producción, envasados y stock actual por producto y ubicación. */

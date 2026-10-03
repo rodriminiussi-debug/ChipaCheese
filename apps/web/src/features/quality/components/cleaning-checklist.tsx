@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, CloudOff, SprayCan, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
 import { useOfflineAction } from "@/hooks/use-offline-action";
 import { cn } from "@/lib/utils";
 import { recordCleaningAction } from "../actions";
@@ -64,7 +65,7 @@ function PointRow({ item, onDone }: { item: ChecklistItemView; onDone: () => voi
   const [saved, setSaved] = useState<{ result: "ok" | "deepen"; queued: boolean } | null>(null);
   const lastResult = useRef<"ok" | "deepen">("ok");
 
-  const { run, pending } = useOfflineAction("quality.cleaning", recordCleaningAction, {
+  const { run, pending } = useOfflineAction(OFFLINE_ACTION.cleaning, recordCleaningAction, {
     success: "Limpieza registrada",
     onSuccess: (_data, queued) => {
       setSaved({ result: lastResult.current, queued });

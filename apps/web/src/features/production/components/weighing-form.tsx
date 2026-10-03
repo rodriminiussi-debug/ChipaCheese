@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { CloudOff, Trash2 } from "lucide-react";
 import { parseDecimalAR } from "@chipa/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAction } from "@/hooks/use-action";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
+import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { cn } from "@/lib/utils";
 import { SHAPE } from "@/lib/labels";
 import { deleteWeighingAction, recordWeighingsAction } from "../actions";
@@ -19,13 +21,17 @@ export function WeighingForm({ runId, variant = "desk" }: { runId: string; varia
   const plant = variant === "plant";
   const empty = { tapita: "", arito: "", lenguita: "" } satisfies Record<PlanShape, string>;
   const [kg, setKg] = useState<Record<PlanShape, string>>(empty);
-  const save = useAction(recordWeighingsAction, {
+  // Sin señal las pesadas quedan en la cola del equipo y se envían al volver la conexión (idempotente).
+  const save = useOfflineAction(OFFLINE_ACTION.weighings, recordWeighingsAction, {
     success: "Pesadas registradas",
-    onSuccess: () => {
+    onSuccess: (_d, queued) => {
       setKg(empty);
-      router.refresh();
+      if (!queued) router.refresh();
     },
   });
+  const queuedHere = useQueuedItems<{ runId: string; items: { shape: PlanShape; kg: number }[] }>(
+    OFFLINE_ACTION.weighings,
+  ).filter((q) => q.payload.runId === runId);
   const items = PLAN_SHAPES.map((shape) => ({ shape, kg: parseDecimalAR(kg[shape]) ?? 0 })).filter(
     (i) => i.kg > 0,
   );
@@ -52,10 +58,32 @@ export function WeighingForm({ runId, variant = "desk" }: { runId: string; varia
         size={plant ? "lg" : "default"}
         className={cn("w-full sm:w-fit", plant && "h-16 text-xl sm:w-full")}
         disabled={save.pending || items.length === 0}
-        onClick={() => save.run({ runId, items })}
+        onClick={() =>
+          save.run({ runId, items, clientId: crypto.randomUUID(), recordedAt: new Date().toISOString() })
+        }
       >
         Guardar pesadas
       </Button>
+      {queuedHere.length > 0 ? (
+        <ul
+          className="divide-y rounded-lg border border-amber-500 bg-amber-50 text-base dark:bg-amber-950/30"
+          aria-label="Pesadas pendientes de enviar"
+          data-testid="weighings-pending"
+        >
+          {queuedHere.flatMap((q) =>
+            q.payload.items.map((i) => (
+              <li key={`${q.id}-${i.shape}`} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                <span>
+                  {SHAPE[i.shape]} · <span className="font-medium tabular-nums">{fmtQty(i.kg)} kg</span>
+                </span>
+                <span className="flex items-center gap-1 text-amber-900 dark:text-amber-200">
+                  <CloudOff className="size-4" /> Pendiente de enviar
+                </span>
+              </li>
+            )),
+          )}
+        </ul>
+      ) : null}
     </div>
   );
 }

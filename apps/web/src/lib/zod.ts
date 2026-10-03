@@ -56,6 +56,13 @@ export const int = (opts: { min?: number; max?: number } = {}) =>
     .min(opts.min ?? -Infinity, `Mínimo ${opts.min}`)
     .max(opts.max ?? Infinity, `Máximo ${opts.max}`);
 
+/**
+ * Campos de los registros encolables sin señal: `clientId` (uuid generado en el dispositivo; idempotencia al
+ * reenviar desde la cola) y `recordedAt` (ISO del momento real de la carga). Ver `src/lib/offline-queue.ts`.
+ */
+export const clientIdField = () => z.string().uuid("Identificador de envío inválido");
+export const recordedAtField = () => z.iso.datetime({ offset: true, message: "Fecha y hora inválidas" });
+
 /** Fecha de negocio YYYY-MM-DD. */
 export const isoDate = () => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida");
 export const optIsoDate = () =>

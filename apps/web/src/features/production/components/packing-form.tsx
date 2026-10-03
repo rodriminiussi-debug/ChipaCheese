@@ -6,7 +6,8 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/app/native-select";
-import { useAction } from "@/hooks/use-action";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
+import { useOfflineAction } from "@/hooks/use-offline-action";
 import { recordPackingAction } from "../actions";
 import type { PackingOptions } from "../service";
 
@@ -21,11 +22,11 @@ export function PackingForm({ runId, options }: { runId: string; options: Packin
     locationId: options.locations[0]?.id ?? "",
   });
   const [rows, setRows] = useState<Row[]>([blank()]);
-  const save = useAction(recordPackingAction, {
+  const save = useOfflineAction(OFFLINE_ACTION.packing, recordPackingAction, {
     success: (d) => `Envasado registrado en el lote ${d.lotCode}`,
-    onSuccess: () => {
+    onSuccess: (_d, queued) => {
       setRows([blank()]);
-      router.refresh();
+      if (!queued) router.refresh();
     },
   });
   const patch = (i: number, p: Partial<Row>) =>
@@ -93,7 +94,9 @@ export function PackingForm({ runId, options }: { runId: string; options: Packin
         <Button
           type="button"
           disabled={save.pending || items.length === 0}
-          onClick={() => save.run({ runId, items })}
+          onClick={() =>
+            save.run({ runId, items, clientId: crypto.randomUUID(), recordedAt: new Date().toISOString() })
+          }
         >
           Registrar envasado
         </Button>
