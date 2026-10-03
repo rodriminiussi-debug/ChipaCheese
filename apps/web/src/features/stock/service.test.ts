@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { and, eq, schema, type Tx } from "@chipa/db";
 import { inRollback } from "../../../tests/helpers";
+import { changeOrderStatus, createOrder, createReception } from "../purchases/service";
+import { purchaseOrderInput, receptionInput } from "../purchases/schemas";
 import { ingredientTotals, locationByCode, recordIngredientMovements } from "./ledger";
 import { ingredientAdjustmentInput, ingredientLevelsInput, productTransferInput } from "./schemas";
 import {
@@ -520,6 +522,116 @@ describe("etiqueta del lote de materia prima (RF-11)", () => {
   it("devuelve null si el lote no existe", async () => {
     await inRollback("af", async (tx) => {
       expect(await getRawLotLabel(tx, "00000000-0000-4000-8000-000000000000")).toBeNull();
+    });
+  });
+});
+
+describe("simulador con compras en camino (RF-17)", () => {
+  async function manteca(tx: Tx) {
+    const ing = await ingredientByName(tx, "Manteca");
+    const supplier = (await tx.query.suppliers.findFirst({
+      where: eq(schema.suppliers.legalName, "Leo Pelle"),
+    }))!;
+    return { ing, supplier };
+  }
+  const mk = async (
+    tx: Tx,
+    userId: string,
+    supplierId: string,
+    ingredientId: string,
+    qty: number,
+    expectedAt: string,
+    status?: "sent" | "cancelled",
+  ) => {
+    const o = await createOrder(
+      tx,
+      userId,
+      purchaseOrderInput.parse({
+        supplierId,
+        orderedAt: "2026-10-01",
+        expectedAt,
+        items: [{ ingredientId, qty }],
+      }),
+    );
+    if (status) await changeOrderStatus(tx, o.id, status);
+    return o;
+  };
+
+  it("muestra lo que falta recibir de las OC enviadas, con su fecha, separado del stock actual", async () => {
+    await inRollback("af", async (tx, userId) => {
+      const { ing, supplier } = await manteca(tx);
+      const stock = (await ingredientTotals(tx))[ing.id]!;
+      const base = (await simulateProductionFromStock(tx, { mode: "starch_kg", kg: 100 }))!;
+      const row0 = base.rows.find((r) => r.name === "Manteca")!;
+      expect(row0).toMatchObject({ incoming: 0, incomingDate: null, available: stock });
+
+      // Borrador y cancelada no cuentan; las enviadas sí, ordenadas por fecha esperada.
+      await mk(tx, userId, supplier.id, ing.id, 50, "2026-10-04");
+      const far = await mk(tx, userId, supplier.id, ing.id, 8, "2026-10-09", "sent");
+      const near = await mk(tx, userId, supplier.id, ing.id, 12, "2026-10-05", "sent");
+      const cancelled = await mk(tx, userId, supplier.id, ing.id, 99, "2026-10-03", "sent");
+      await changeOrderStatus(tx, cancelled.id, "cancelled");
+
+      const sim = (await simulateProductionFromStock(tx, { mode: "starch_kg", kg: 100 }))!;
+      const row = sim.rows.find((r) => r.name === "Manteca")!;
+      expect(row.available).toBe(stock); // el stock actual no cambia
+      expect(row.incoming).toBe(20);
+      expect(row.incomingDate).toBe("2026-10-05");
+      expect(row.incomingOrders.map((o) => [o.orderId, o.qty, o.expectedAt])).toEqual([
+        [near.id, 12, "2026-10-05"],
+        [far.id, 8, "2026-10-09"],
+      ]);
+      // Faltante hoy intacto; con lo que llega se cubre (20 kg necesarios contra 15 de stock + 20 en camino).
+      expect(row.shortfall).toBe(row0.shortfall);
+      expect(row.shortfallAfterIncoming).toBe(0);
+    });
+  });
+
+  it("una OC parcialmente recibida solo cuenta lo pendiente", async () => {
+    await inRollback("af", async (tx, userId) => {
+      const { ing, supplier } = await manteca(tx);
+      const o = await mk(tx, userId, supplier.id, ing.id, 30, "2026-10-06", "sent");
+      const loc = await locationByCode(tx, "HELADERA");
+      await createReception(
+        tx,
+        userId,
+        receptionInput.parse({
+          supplierId: supplier.id,
+          purchaseOrderId: o.id,
+          lines: [
+            {
+              ingredientId: ing.id,
+              qty: 10,
+              supplierLotCode: "MAN-X",
+              expiryDate: "2027-01-01",
+              temperatureC: "3",
+              locationId: loc.id,
+            },
+          ],
+        }),
+      );
+      const sim = (await simulateProductionFromStock(tx, { mode: "starch_kg", kg: 100 }))!;
+      const row = sim.rows.find((r) => r.name === "Manteca")!;
+      expect(row.incoming).toBe(20);
+      expect(row.incomingOrders).toHaveLength(1);
+      expect(row.incomingOrders[0]).toMatchObject({ orderId: o.id, number: o.number, qty: 20 });
+    });
+  });
+
+  it("okWithIncoming indica si alcanzaría cuando llegue todo lo que está en camino", async () => {
+    await inRollback("af", async (tx, userId) => {
+      const { supplier } = await manteca(tx);
+      const before = (await simulateProductionFromStock(tx, { mode: "starch_kg", kg: 300 }))!;
+      const short = before.rows.filter((r) => !r.ok);
+      expect(short.length).toBeGreaterThan(0);
+      expect(before.okWithIncoming).toBe(false);
+      // Se pide a un proveedor lo que falta de cada insumo (más uno): hoy sigue sin alcanzar.
+      for (const r of short)
+        await mk(tx, userId, supplier.id, r.ingredientId, r.shortfall + 1, "2026-10-07", "sent");
+      const after = (await simulateProductionFromStock(tx, { mode: "starch_kg", kg: 300 }))!;
+      expect(after.ok).toBe(false);
+      expect(after.okWithIncoming).toBe(true);
+      expect(after.rows.filter((r) => !r.ok).every((r) => r.shortfallAfterIncoming === 0)).toBe(true);
     });
   });
 });

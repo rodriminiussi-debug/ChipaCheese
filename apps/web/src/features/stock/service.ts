@@ -7,6 +7,7 @@ import {
   expiryAlert,
   reorderPoint,
   roundQty,
+  shortfallAfterIncoming,
   simulateProduction,
   starchKgForProductKg,
   addDays,
@@ -17,6 +18,7 @@ import {
 } from "@chipa/domain";
 import { and, asc, desc, eq, gte, ilike, isNull, lt, ne, or, schema, sql, type Executor } from "@chipa/db";
 import { toIsoDateAR, todayAR } from "@/lib/dates";
+import { incomingByIngredient, type IncomingOrder } from "@/features/purchases/orders";
 import { UserError } from "@/server/errors";
 import {
   allocateProductFefo,
@@ -658,7 +660,19 @@ export interface SimulationResult extends ProductionSimulation {
   inputKg: number;
   recipe: { id: string; name: string; version: number; expectedYieldPerKgStarch: number };
   /** Líneas con nombre y unidad de insumo, en el orden de la receta. */
-  rows: (ProductionSimulation["lines"][number] & { name: string; unit: "kg" | "l" | "unit" })[];
+  rows: (ProductionSimulation["lines"][number] & {
+    name: string;
+    unit: "kg" | "l" | "unit";
+    /** Compras en camino (OC enviadas sin recibir): disponibilidad futura, separada del stock actual. */
+    incoming: number;
+    incomingOrders: IncomingOrder[];
+    /** Primera fecha esperada entre las órdenes en camino. */
+    incomingDate: IsoDate | null;
+    /** Faltante si llega todo lo que está en camino. */
+    shortfallAfterIncoming: number;
+  })[];
+  /** Alcanzaría si llegara todo lo que está en camino. */
+  okWithIncoming: boolean;
 }
 
 /**
@@ -675,7 +689,10 @@ export async function simulateProductionFromStock(
     with: { items: { with: { ingredient: true }, orderBy: asc(schema.recipeItems.sortOrder) } },
   });
   if (!recipe) return null;
-  const stockByIngredient = await ingredientTotals(db);
+  const [stockByIngredient, incomingMap] = await Promise.all([
+    ingredientTotals(db),
+    incomingByIngredient(db),
+  ]);
   const starchKg =
     input.mode === "starch_kg" ? input.kg : starchKgForProductKg(input.kg, recipe.expectedYieldPerKgStarch);
   const sim = simulateProduction({
@@ -690,6 +707,19 @@ export async function simulateProductionFromStock(
     expectedYieldPerKgStarch: recipe.expectedYieldPerKgStarch,
   });
   const byId = new Map(recipe.items.map((i) => [i.ingredientId, i.ingredient]));
+  const rows: SimulationResult["rows"] = sim.lines.map((l) => {
+    const incomingOrders = incomingMap[l.ingredientId] ?? [];
+    const incoming = roundQty(incomingOrders.reduce((a, o) => a + o.qty, 0));
+    return {
+      ...l,
+      name: byId.get(l.ingredientId)?.name ?? l.ingredientId,
+      unit: byId.get(l.ingredientId)?.unit ?? "kg",
+      incoming,
+      incomingOrders,
+      incomingDate: incomingOrders.find((o) => o.expectedAt)?.expectedAt ?? null,
+      shortfallAfterIncoming: shortfallAfterIncoming(l.shortfall, incoming),
+    };
+  });
   return {
     ...sim,
     mode: input.mode,
@@ -700,11 +730,8 @@ export async function simulateProductionFromStock(
       version: recipe.version,
       expectedYieldPerKgStarch: recipe.expectedYieldPerKgStarch,
     },
-    rows: sim.lines.map((l) => ({
-      ...l,
-      name: byId.get(l.ingredientId)?.name ?? l.ingredientId,
-      unit: byId.get(l.ingredientId)?.unit ?? "kg",
-    })),
+    rows,
+    okWithIncoming: rows.every((r) => r.shortfallAfterIncoming === 0),
   };
 }
 

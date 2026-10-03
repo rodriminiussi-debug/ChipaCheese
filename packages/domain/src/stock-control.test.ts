@@ -5,6 +5,7 @@ import {
   countDifference,
   expiryAlert,
   maxStarchKg,
+  shortfallAfterIncoming,
   simulateProduction,
   valueDifference,
 } from "./stock-control";
@@ -160,5 +161,18 @@ describe("simulador (RF-17)", () => {
     });
     expect(r.ok).toBe(true);
     expect(r.completeRecipes).toBe(4);
+  });
+});
+
+describe("faltante con compras en camino (RF-17)", () => {
+  it("descuenta lo que llega del faltante, sin pasar de cero", () => {
+    expect(shortfallAfterIncoming(10, 4)).toBe(6);
+    expect(shortfallAfterIncoming(10, 10)).toBe(0);
+    expect(shortfallAfterIncoming(10, 25)).toBe(0);
+  });
+  it("sin faltante o sin nada en camino no cambia", () => {
+    expect(shortfallAfterIncoming(0, 5)).toBe(0);
+    expect(shortfallAfterIncoming(7.5, 0)).toBe(7.5);
+    expect(shortfallAfterIncoming(7.5, -3)).toBe(7.5);
   });
 });

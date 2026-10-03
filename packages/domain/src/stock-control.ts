@@ -99,6 +99,14 @@ export function maxStarchKg(lines: RecipeLine[], stockByIngredient: Record<strin
   return Number.isFinite(max) ? roundQty(max) : 0;
 }
 
+/**
+ * RF-17: faltante que queda si llega lo que está en camino (órdenes de compra enviadas, todavía sin recibir).
+ * No es stock: sirve para decir "falta hoy, pero llega el día X".
+ */
+export function shortfallAfterIncoming(shortfall: number, incoming: number): number {
+  return roundQty(Math.max(0, shortfall - Math.max(0, incoming)));
+}
+
 export interface SimulationLine {
   ingredientId: string;
   needed: number;
