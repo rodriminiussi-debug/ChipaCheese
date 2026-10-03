@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -44,7 +44,7 @@ export function RunForm({
     success: (d) => `Producción N° ${d.runNumber} creada`,
     onSuccess: (d) => router.push(`/produccion/${d.id}`),
   });
-  const date = form.watch("date");
+  const date = useWatch({ control: form.control, name: "date" });
   const errors = form.formState.errors;
   const err = (k: keyof CreateRunInput) => errors[k]?.message ?? create.fieldErrors[k]?.[0];
   const supervisors = options.users.filter((u) => u.role === "production_manager");
