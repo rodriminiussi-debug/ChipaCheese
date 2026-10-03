@@ -7,6 +7,7 @@ import {
   isoWeekday,
   isWorkday,
   monthKey,
+  monthsBack,
   nextWorkdays,
 } from "./dates";
 
@@ -82,5 +83,20 @@ describe("monthKey y validación", () => {
     expect(() => monthKey("abc")).toThrow(RangeError);
     expect(() => addDays("2026-9-1", 1)).toThrow(RangeError);
     expect(() => assertIsoDate("2026-02-28")).not.toThrow();
+  });
+});
+
+describe("monthsBack", () => {
+  it("los últimos N meses terminando en el indicado, del más viejo al más nuevo", () => {
+    expect(monthsBack("2026-09", 3)).toEqual(["2026-07", "2026-08", "2026-09"]);
+    expect(monthsBack("2026-09", 1)).toEqual(["2026-09"]);
+  });
+  it("cruza el año", () => {
+    expect(monthsBack("2026-02", 4)).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
+    expect(monthsBack("2026-09", 6)[0]).toBe("2026-04");
+  });
+  it("mes inválido o count 0", () => {
+    expect(() => monthsBack("2026-13", 2)).toThrow(RangeError);
+    expect(monthsBack("2026-09", 0)).toEqual([]);
   });
 });

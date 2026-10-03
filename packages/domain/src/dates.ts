@@ -99,3 +99,13 @@ export function monthKey(date: IsoDate): string {
   assertIsoDate(date);
   return date.slice(0, 7);
 }
+
+/**
+ * Los últimos `count` meses "YYYY-MM" terminando en `month` (inclusive), del más viejo al más nuevo.
+ * Ej.: ("2026-09", 3) → ["2026-07", "2026-08", "2026-09"].
+ */
+export function monthsBack(month: string, count: number): string[] {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new RangeError("month must be YYYY-MM");
+  const first = `${month}-01`;
+  return Array.from({ length: Math.max(0, count) }, (_, i) => monthKey(addMonths(first, i - (count - 1))));
+}
