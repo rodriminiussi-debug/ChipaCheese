@@ -1,6 +1,5 @@
 import { resolve } from "node:path";
 import ExcelJS from "exceljs";
-import type postgres from "postgres";
 import { test, expect, asRole, expectToast } from "./fixtures";
 
 /**
