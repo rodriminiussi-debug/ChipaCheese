@@ -25,10 +25,11 @@ const s3 =
       })
     : null;
 
-const localRoot = resolve(process.cwd(), env.STORAGE_LOCAL_DIR);
+// turbopackIgnore: ruta configurable en runtime; sin esto el build traza todo el proyecto.
+const localRoot = resolve(/*turbopackIgnore: true*/ process.cwd(), env.STORAGE_LOCAL_DIR);
 
 function localPath(key: string) {
-  const p = resolve(localRoot, key);
+  const p = resolve(/*turbopackIgnore: true*/ localRoot, key);
   if (!p.startsWith(localRoot + sep)) throw new Error("clave de archivo inválida");
   return p;
 }
@@ -44,8 +45,8 @@ export async function putFile(folder: string, file: File | Blob, filename = "arc
     );
   } else {
     const p = localPath(key);
-    await mkdir(dirname(p), { recursive: true });
-    await writeFile(p, body);
+    await mkdir(/*turbopackIgnore: true*/ dirname(p), { recursive: true });
+    await writeFile(/*turbopackIgnore: true*/ p, body);
   }
   return { key, contentType };
 }
@@ -56,7 +57,7 @@ export async function getFile(key: string): Promise<{ body: Buffer; contentType:
     const bytes = await res.Body!.transformToByteArray();
     return { body: Buffer.from(bytes), contentType: res.ContentType ?? "application/octet-stream" };
   }
-  const body = await readFile(localPath(key));
+  const body = await readFile(/*turbopackIgnore: true*/ localPath(key));
   return { body, contentType: guessType(key) };
 }
 

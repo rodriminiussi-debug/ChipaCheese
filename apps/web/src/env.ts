@@ -20,4 +20,18 @@ const schema = z.object({
   AI_MOCK: z.enum(["0", "1"]).default("0"),
 });
 
-export const env = schema.parse(process.env);
+/**
+ * Durante `next build` (Docker, Vercel, CI) no hay secretos de runtime: se usan placeholders que nunca
+ * se conectan (postgres.js abre conexiones recién en la primera consulta). En runtime la validación es estricta.
+ */
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
+export const env = schema.parse(
+  isBuildPhase
+    ? {
+        ...process.env,
+        DATABASE_URL: process.env.DATABASE_URL ?? "postgres://build:build@127.0.0.1:5432/build",
+        SESSION_SECRET: process.env.SESSION_SECRET ?? "build-phase-placeholder-secret",
+      }
+    : process.env,
+);
