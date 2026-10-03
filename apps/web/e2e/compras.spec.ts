@@ -81,7 +81,7 @@ test.describe("Compras y proveedores (M2)", () => {
     await page.getByRole("button", { name: "Confirmar factura" }).click();
     await expectToast(page, "Factura confirmada: 3 precios actualizados");
     await expect(page.getByRole("heading", { name: "Factura A 0003-00004567" })).toBeVisible();
-    await expect(page.getByText("Confirmada")).toBeVisible();
+    await expect(page.getByText("Confirmada", { exact: true })).toBeVisible();
 
     // Historial de precios: queda el último precio del queso barra con el gráfico y la tabla
     await page.goto("/compras/precios");

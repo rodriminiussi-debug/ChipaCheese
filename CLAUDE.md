@@ -64,6 +64,7 @@ apps/web/e2e/<modulo>.spec.ts   flujo feliz + 1 caso de error + 1 caso de permis
 - Regla de negocio nueva → test unitario en `packages/domain`.
 - Servicio → test de integración con `inRollback`.
 - Pantalla → E2E en `apps/web/e2e/` usando `test.use({ storageState: asRole("<rol>") })` y selectores accesibles (`getByRole`, `getByLabel`). `data-testid` solo si no hay alternativa.
+- Los E2E comparten una base y corren en serie: NUNCA asumir saldos/contadores absolutos que otro spec puede modificar (leer el valor actual con el fixture `sql` y afirmar sobre la diferencia, o crear datos propios).
 - `pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e` en verde.
 
 ## Commits

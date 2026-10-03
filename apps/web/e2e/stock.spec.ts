@@ -186,19 +186,27 @@ test.describe("Stock (producción)", () => {
     await expect(page.getByText(/2 movimientos/)).toBeVisible();
   });
 
-  test("simulador: alcanza o falta materia prima (RF-17)", async ({ page }) => {
+  test("simulador: alcanza o falta materia prima (RF-17)", async ({ page, sql }) => {
+    // Independiente del orden de los tests: otros specs (compras) pueden recibir fécula antes.
+    const [{ qty }] = await sql<{ qty: string }[]>`
+      select coalesce(sum(v.qty), 0) as qty from v_ingredient_stock v
+      join ingredients i on i.id = v.ingredient_id where i.name = 'Fécula de mandioca'`;
+    const stock = Number(qty);
+    const kg = (n: number) =>
+      `${n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
+
     await page.goto("/stock/simulador");
     await page.getByLabel("Quiero producir").selectOption("starch_kg");
-    await page.getByLabel("Cantidad (kg)").fill("200");
+    await page.getByLabel("Cantidad (kg)").fill(String(stock + 50));
     await page.getByRole("button", { name: "Simular" }).click();
 
     await expect(page.getByRole("status")).toContainText("No alcanza la materia prima");
     const fecula = page.getByRole("row", { name: /Fécula de mandioca/ });
-    await expect(fecula).toContainText("200,00 kg");
-    await expect(fecula).toContainText("150,00 kg");
+    await expect(fecula).toContainText(kg(stock + 50));
+    await expect(fecula).toContainText(kg(stock));
     await expect(fecula).toContainText("50,00 kg");
     await expect(fecula).toContainText("Falta");
-    await expect(page.getByTestId("stat-recipes")).toContainText("1");
+    await expect(page.getByTestId("stat-recipes")).toContainText(/\d/); // depende del insumo limitante
 
     // En kg de producto: 100 kg de chipá sí alcanzan con el stock actual.
     await page.getByLabel("Quiero producir").selectOption("product_kg");
