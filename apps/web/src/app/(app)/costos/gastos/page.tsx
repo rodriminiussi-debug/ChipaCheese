@@ -23,7 +23,7 @@ export default async function FixedExpensesPage(props: PageProps<"/costos/gastos
   const expenses = await listFixedExpenses(db, month);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <PageHeader
         title={`Gastos fijos · ${monthLabel(month)}`}
         description="Alquiler, servicios, sueldos, impuestos y todo lo que se paga haya o no producción (RF-42). Alimentan el resultado mensual."
@@ -35,9 +35,7 @@ export default async function FixedExpensesPage(props: PageProps<"/costos/gastos
           <AlertTriangle />
           <AlertTitle>Faltan categorías que el Excel de costos tampoco tenía</AlertTitle>
           <AlertDescription>
-            <p>
-              Sin estos gastos el resultado del mes puede salir más alto de lo real:
-            </p>
+            <p>Sin estos gastos el resultado del mes puede salir más alto de lo real:</p>
             <ul className="mt-1 list-disc pl-5">
               {expenses.missingCategories.map((m) => (
                 <li key={m.category}>

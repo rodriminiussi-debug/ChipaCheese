@@ -26,7 +26,9 @@ const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 /** "lun 28" para el eje del gráfico de producción (hora de Argentina: la fecha ya es de negocio). */
 function dayLabel(date: string) {
   const d = new Date(`${date}T12:00:00Z`);
-  const wd = new Intl.DateTimeFormat("es-AR", { weekday: "short", timeZone: "UTC" }).format(d).replace(".", "");
+  const wd = new Intl.DateTimeFormat("es-AR", { weekday: "short", timeZone: "UTC" })
+    .format(d)
+    .replace(".", "");
   return `${wd} ${Number(date.slice(8, 10))}`;
 }
 
@@ -42,13 +44,15 @@ export default async function DashboardPage(props: PageProps<"/tablero">) {
   const fin = d.financial;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <PageHeader
         title="Tablero"
         description={
           <>
-            {fin ? "¿Cuánto ganamos, qué tenemos y qué hay que atender?" : "Planta, stock y calidad de un vistazo."} Hoy es{" "}
-            {formatDateAR(today)}.
+            {fin
+              ? "¿Cuánto ganamos, qué tenemos y qué hay que atender?"
+              : "Planta, stock y calidad de un vistazo."}{" "}
+            Hoy es {formatDateAR(today)}.
           </>
         }
         actions={<MonthForm action="/tablero" month={month} label="Mes de los indicadores" />}

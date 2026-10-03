@@ -51,7 +51,9 @@ function LegendItem({ color, label, line }: { color: string; label: string; line
     <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
       <span
         aria-hidden
-        className={line ? "h-0.5 w-4 rounded" : "size-2.5 rounded-sm"}
+        className={
+          line ? "inline-block h-0.5 w-4 shrink-0 rounded" : "inline-block size-2.5 shrink-0 rounded-sm"
+        }
         style={{ background: color }}
       />
       {label}
@@ -74,7 +76,9 @@ function TooltipBox({
       <div className="mb-1 font-medium">{title}</div>
       {rows.map((r) => (
         <div key={r.label} className="flex items-center gap-2">
-          {r.color ? <span aria-hidden className="size-2 rounded-sm" style={{ background: r.color }} /> : null}
+          {r.color ? (
+            <span aria-hidden className="size-2 rounded-sm" style={{ background: r.color }} />
+          ) : null}
           <span className="text-muted-foreground">{r.label}</span>
           <span className="ml-auto pl-3 tabular-nums">{r.value}</span>
         </div>
@@ -97,7 +101,7 @@ export interface ProductionPoint {
 export function ProductionChart({ data, capacityKg }: { data: ProductionPoint[]; capacityKg: number }) {
   const max = Math.max(capacityKg, ...data.map((d) => d.kg));
   return (
-    <figure className="grid gap-2">
+    <figure className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <div className="flex flex-wrap gap-4">
         <LegendItem color="var(--viz-1)" label="Kg producidos" />
         <LegendItem color="var(--viz-muted)" label={`Capacidad ${capacityKg} kg/día`} line />
@@ -141,7 +145,13 @@ export function ProductionChart({ data, capacityKg }: { data: ProductionPoint[];
                 }}
               />
               <ReferenceLine y={capacityKg} stroke="var(--viz-muted)" strokeWidth={2} />
-              <Bar dataKey="kg" fill="var(--viz-1)" radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false}>
+              <Bar
+                dataKey="kg"
+                fill="var(--viz-1)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={24}
+                isAnimationActive={false}
+              >
                 {data.map((d) => (
                   <Cell key={d.date} fill="var(--viz-1)" />
                 ))}
@@ -185,11 +195,11 @@ export interface ChannelPoint {
 /** Ventas netas del mes por canal: barras horizontales con el valor en la punta. */
 export function ChannelSalesChart({ data }: { data: ChannelPoint[] }) {
   return (
-    <figure className="grid gap-2">
+    <figure className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <Frame label="Ventas netas del mes por canal">
         <div style={{ height: Math.max(120, data.length * 48 + 16) }} className="w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} layout="vertical" margin={{ top: 4, right: 64, bottom: 4, left: 0 }}>
+            <BarChart data={data} layout="vertical" margin={{ top: 4, right: 84, bottom: 4, left: 0 }}>
               <CartesianGrid horizontal={false} stroke="var(--viz-grid)" strokeWidth={1} />
               <XAxis type="number" hide domain={[0, "dataMax"]} />
               <YAxis
@@ -208,7 +218,9 @@ export function ChannelSalesChart({ data }: { data: ChannelPoint[] }) {
                     <TooltipBox
                       active={active}
                       title={p.label}
-                      rows={[{ label: "Ventas netas", value: formatARS(p.net), color: CHANNEL_COLOR[p.channel] }]}
+                      rows={[
+                        { label: "Ventas netas", value: formatARS(p.net), color: CHANNEL_COLOR[p.channel] },
+                      ]}
                     />
                   ) : null;
                 }}
@@ -258,22 +270,33 @@ export interface ResultPoint {
 /** Resultado de los últimos meses contra lo que retiran los socios. */
 export function ResultChart({ data, withdrawals }: { data: ResultPoint[]; withdrawals: number }) {
   const values = data.map((d) => d.result ?? 0);
-  const max = Math.max(withdrawals, ...values);
-  const min = Math.min(0, ...values);
+  // Eje con topes redondos (múltiplos de $1 M, o de $100 mil si todo es chico).
+  const unit = Math.max(withdrawals, ...values.map(Math.abs)) >= 2_000_000 ? 1_000_000 : 100_000;
+  const top = Math.ceil(Math.max(withdrawals, ...values) / unit) * unit;
+  const bottom = Math.floor(Math.min(0, ...values) / unit) * unit;
   return (
-    <figure className="grid gap-2">
+    <figure className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <div className="flex flex-wrap gap-4">
         <LegendItem color="var(--viz-1)" label="Resultado del mes" />
-        <LegendItem color="var(--viz-2)" label={`Retiros de los socios (${compactMoney(withdrawals)})`} line />
+        <LegendItem
+          color="var(--viz-2)"
+          label={`Retiros de los socios (${compactMoney(withdrawals)})`}
+          line
+        />
       </div>
       <Frame label="Resultado de los últimos seis meses contra los retiros de los socios">
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 12, right: 8, bottom: 0, left: 0 }} barCategoryGap="35%">
               <CartesianGrid vertical={false} stroke="var(--viz-grid)" strokeWidth={1} />
-              <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: "var(--viz-grid)" }} fontSize={11} />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={{ stroke: "var(--viz-grid)" }}
+                fontSize={11}
+              />
               <YAxis
-                domain={[min * 1.15, max * 1.15]}
+                domain={[bottom, top]}
                 tickFormatter={(v: number) => compactMoney(v)}
                 tickLine={false}
                 axisLine={false}
@@ -302,14 +325,13 @@ export function ResultChart({ data, withdrawals }: { data: ResultPoint[]; withdr
               />
               <ReferenceLine y={0} stroke="var(--viz-muted)" strokeWidth={1} />
               <ReferenceLine y={withdrawals} stroke="var(--viz-2)" strokeWidth={2} />
-              <Bar dataKey="result" fill="var(--viz-1)" radius={[4, 4, 4, 4]} maxBarSize={24} isAnimationActive={false}>
-                <LabelList
-                  dataKey="result"
-                  position="top"
-                  fontSize={11}
-                  formatter={(v: unknown) => (v == null ? "" : compactMoney(Number(v)))}
-                />
-              </Bar>
+              <Bar
+                dataKey="result"
+                fill="var(--viz-1)"
+                radius={[4, 4, 4, 4]}
+                maxBarSize={24}
+                isAnimationActive={false}
+              ></Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

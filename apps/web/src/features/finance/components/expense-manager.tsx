@@ -30,7 +30,15 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAction } from "@/hooks/use-action";
 import {
   copyFixedExpensesAction,
@@ -223,11 +231,18 @@ function ExpenseDialog({
   const update = useAction(updateFixedExpenseAction, { success: "Gasto actualizado", onSuccess: done });
   const pending = create.pending || update.pending;
   const serverErrors = row ? update.fieldErrors : create.fieldErrors;
-  const err = (name: keyof FixedExpenseInput) => form.formState.errors[name]?.message ?? serverErrors[name]?.[0];
+  const err = (name: keyof FixedExpenseInput) =>
+    form.formState.errors[name]?.message ?? serverErrors[name]?.[0];
 
   const submit = form.handleSubmit((data) =>
     row
-      ? update.run({ id: row.id, concept: data.concept, category: data.category, amount: data.amount, notes: data.notes })
+      ? update.run({
+          id: row.id,
+          concept: data.concept,
+          category: data.category,
+          amount: data.amount,
+          notes: data.notes,
+        })
       : create.run(data),
   );
 

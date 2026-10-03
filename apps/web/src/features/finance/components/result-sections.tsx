@@ -16,7 +16,7 @@ import { WithdrawalsForm } from "./withdrawals-form";
 export function ResultHeadline({ r, canWrite }: { r: MonthlyResultDetail; canWrite: boolean }) {
   const w = r.withdrawals;
   return (
-    <section aria-label="Resultado del mes" className="grid gap-3 lg:grid-cols-2">
+    <section aria-label="Resultado del mes" className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-2">
       <StatCard
         title={`Resultado de ${monthLabel(r.month)}`}
         value={<Money value={r.result} decimals={0} />}
@@ -39,14 +39,16 @@ export function ResultHeadline({ r, canWrite }: { r: MonthlyResultDetail; canWri
             ¿El resultado cubre los retiros de los socios?
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3">
+        <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-3">
           <div className="flex items-center gap-2 text-2xl font-semibold">
             {w.covers ? (
               <CheckCircle2 className="size-6 text-emerald-600" aria-hidden />
             ) : (
               <XCircle className="text-destructive size-6" aria-hidden />
             )}
-            <span data-testid="covers-verdict">{w.covers ? "Cubre los retiros" : "No cubre los retiros"}</span>
+            <span data-testid="covers-verdict">
+              {w.covers ? "Cubre los retiros" : "No cubre los retiros"}
+            </span>
           </div>
           <p className="text-muted-foreground text-sm" data-testid="covers-detail">
             Retiros: <Money value={w.amount} decimals={0} className="text-foreground" />
@@ -105,7 +107,7 @@ function Row({
 export function ResultTable({ r }: { r: MonthlyResultDetail }) {
   const units = r.costOfSales.unitsFromInvoicedOrders + r.costOfSales.unitsFromStore;
   return (
-    <section aria-labelledby="pnl-title" className="grid gap-2">
+    <section aria-labelledby="pnl-title" className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <h2 id="pnl-title" className="text-lg font-semibold">
         Cómo se llega al resultado
       </h2>
@@ -113,7 +115,11 @@ export function ResultTable({ r }: { r: MonthlyResultDetail }) {
         <Table aria-label={`Resultado de ${monthLabel(r.month)}`}>
           <TableBody>
             {r.salesByChannel.length === 0 ? (
-              <Row label="Ventas netas (sin IVA)" amount={0} detail="No hay facturas ni ventas del local en el mes" />
+              <Row
+                label="Ventas netas (sin IVA)"
+                amount={0}
+                detail="No hay facturas ni ventas del local en el mes"
+              />
             ) : null}
             {r.salesByChannel.map((c) => (
               <Row
@@ -132,7 +138,8 @@ export function ResultTable({ r }: { r: MonthlyResultDetail }) {
               testId="pnl-cost-of-sales"
               detail={
                 <>
-                  {units} unidad(es) vendidas × costo de materiales a los últimos precios (aproximación, ver abajo)
+                  {units} unidad(es) vendidas × costo de materiales a los últimos precios (aproximación, ver
+                  abajo)
                 </>
               }
             />
@@ -186,12 +193,14 @@ export function ResultTable({ r }: { r: MonthlyResultDetail }) {
 export function ResultNotices({ r }: { r: MonthlyResultDetail }) {
   const n = r.notices;
   return (
-    <section aria-label="Avisos del resultado" className="grid gap-3">
+    <section aria-label="Avisos del resultado" className="grid grid-cols-[minmax(0,1fr)] gap-3">
       {!r.hasData ? (
         <Alert>
           <Info />
           <AlertTitle>El mes no tiene datos</AlertTitle>
-          <AlertDescription>No hay ventas, producciones ni gastos cargados en {monthLabel(r.month)}.</AlertDescription>
+          <AlertDescription>
+            No hay ventas, producciones ni gastos cargados en {monthLabel(r.month)}.
+          </AlertDescription>
         </Alert>
       ) : null}
       {n.deliveredWithoutInvoice.orders > 0 ? (
@@ -200,8 +209,8 @@ export function ResultNotices({ r }: { r: MonthlyResultDetail }) {
           <AlertTitle>Hay pedidos entregados sin factura</AlertTitle>
           <AlertDescription>
             {n.deliveredWithoutInvoice.orders} pedido(s) entregados en el mes por{" "}
-            <Money value={n.deliveredWithoutInvoice.amount} decimals={0} /> no tienen factura: no suman a las ventas ni al
-            costo de ventas. Cargalos en{" "}
+            <Money value={n.deliveredWithoutInvoice.amount} decimals={0} /> no tienen factura: no suman a las
+            ventas ni al costo de ventas. Cargalos en{" "}
             <Link href={"/cobranzas" as Route} className="underline">
               Cobranzas
             </Link>{" "}
@@ -214,8 +223,9 @@ export function ResultNotices({ r }: { r: MonthlyResultDetail }) {
           <AlertTriangle />
           <AlertTitle>Facturas sin pedido asociado</AlertTitle>
           <AlertDescription>
-            {n.invoicesWithoutOrder.count} factura(s) por <Money value={n.invoicesWithoutOrder.net} decimals={0} /> netos
-            suman ventas pero no tienen costo de ventas (el sistema no sabe qué productos llevaban).
+            {n.invoicesWithoutOrder.count} factura(s) por{" "}
+            <Money value={n.invoicesWithoutOrder.net} decimals={0} /> netos suman ventas pero no tienen costo
+            de ventas (el sistema no sabe qué productos llevaban).
           </AlertDescription>
         </Alert>
       ) : null}
@@ -224,8 +234,8 @@ export function ResultNotices({ r }: { r: MonthlyResultDetail }) {
           <AlertTriangle />
           <AlertTitle>Costo subestimado por precios faltantes</AlertTitle>
           <AlertDescription>
-            Se vendieron {r.costOfSales.underpriced.join(", ")} y falta el precio de algún componente: el costo real es
-            mayor.
+            Se vendieron {r.costOfSales.underpriced.join(", ")} y falta el precio de algún componente: el
+            costo real es mayor.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -234,8 +244,8 @@ export function ResultNotices({ r }: { r: MonthlyResultDetail }) {
           <AlertTriangle />
           <AlertTitle>Gastos fijos que probablemente falten</AlertTitle>
           <AlertDescription>
-            No hay nada cargado en {r.fixed.missingCategories.map((m) => m.label.toLowerCase()).join(", ")}. El Excel de
-            costos tampoco los tenía, así que el resultado puede estar sobrestimado.{" "}
+            No hay nada cargado en {r.fixed.missingCategories.map((m) => m.label.toLowerCase()).join(", ")}.
+            El Excel de costos tampoco los tenía, así que el resultado puede estar sobrestimado.{" "}
             <Link href={`/costos/gastos?mes=${r.month}` as Route} className="underline">
               Cargarlos
             </Link>
@@ -251,24 +261,25 @@ export function ResultNotices({ r }: { r: MonthlyResultDetail }) {
         </CardHeader>
         <CardContent className="text-muted-foreground grid gap-2 text-sm">
           <p>
-            <strong className="text-foreground">Ventas:</strong> facturas emitidas en el mes por canal (netas, sin IVA; las
-            notas de crédito restan) más las ventas del local, que se toman con 21 % de IVA incluido.
+            <strong className="text-foreground">Ventas:</strong> facturas emitidas en el mes por canal (netas,
+            sin IVA; las notas de crédito restan) más las ventas del local, que se toman con 21 % de IVA
+            incluido.
           </p>
           <p>
-            <strong className="text-foreground">Costo de ventas:</strong> unidades de los pedidos con factura en el mes
-            ({r.costOfSales.unitsFromInvoicedOrders}) y vendidas en el local ({r.costOfSales.unitsFromStore}) × costo de
-            ingredientes y envase por unidad. Se usan los <em>últimos precios de compra</em> y el rendimiento real vigentes
-            hoy, no los precios de la fecha de cada venta. La mano de obra no está acá: se resta aparte para no contarla
-            dos veces.
+            <strong className="text-foreground">Costo de ventas:</strong> unidades de los pedidos con factura
+            en el mes ({r.costOfSales.unitsFromInvoicedOrders}) y vendidas en el local (
+            {r.costOfSales.unitsFromStore}) × costo de ingredientes y envase por unidad. Se usan los{" "}
+            <em>últimos precios de compra</em> y el rendimiento real vigentes hoy, no los precios de la fecha
+            de cada venta. La mano de obra no está acá: se resta aparte para no contarla dos veces.
           </p>
           <p>
-            <strong className="text-foreground">Mano de obra:</strong> producciones realizadas en el mes × el costo de una
-            producción (personas × horas × costo hora de la configuración). Se carga en el mes en que se produce, aunque
-            se venda después.
+            <strong className="text-foreground">Mano de obra:</strong> producciones realizadas en el mes × el
+            costo de una producción (personas × horas × costo hora de la configuración). Se carga en el mes en
+            que se produce, aunque se venda después.
           </p>
           <p>
-            <strong className="text-foreground">Gastos fijos y reparto:</strong> lo cargado para el mes y el costo de las
-            rutas del mes (kilometraje, combustible y horas del chofer).
+            <strong className="text-foreground">Gastos fijos y reparto:</strong> lo cargado para el mes y el
+            costo de las rutas del mes (kilometraje, combustible y horas del chofer).
           </p>
         </CardContent>
       </Card>

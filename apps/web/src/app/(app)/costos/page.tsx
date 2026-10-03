@@ -6,7 +6,10 @@ import {
   MissingPricesAlert,
   ProductCostTable,
 } from "@/features/finance/components/cost-sections";
-import { SensitivitySimulator, type SimulatorData } from "@/features/finance/components/sensitivity-simulator";
+import {
+  SensitivitySimulator,
+  type SimulatorData,
+} from "@/features/finance/components/sensitivity-simulator";
 import { getCostOverview } from "@/features/finance/service";
 import { todayAR } from "@/lib/dates";
 import { requirePermission } from "@/server/auth/session";
@@ -50,7 +53,7 @@ export default async function CostsPage() {
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <PageHeader
         title="Costo por kg y por bolsa"
         description="Siempre con el último precio de compra sin IVA y el rendimiento real de las producciones (RF-39, Regla 8)."

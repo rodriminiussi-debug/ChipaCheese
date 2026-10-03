@@ -17,13 +17,20 @@ describe("tablero operativo (RF-41)", () => {
     await inRollback("af", async (tx) => {
       const op = await getOperationalDashboard(tx, { today: TODAY, month: "2026-09" });
       // Semana del lunes 28/09 al viernes 02/10 = 5 días hábiles; se produjo el 01/10: 149,3 kg.
-      expect(op.capacity).toMatchObject({ weekFrom: "2026-09-28", workdays: 5, producedKg: 149.3, capacityKg: 150 });
+      expect(op.capacity).toMatchObject({
+        weekFrom: "2026-09-28",
+        workdays: 5,
+        producedKg: 149.3,
+        capacityKg: 150,
+      });
       expect(op.capacity.usagePct).toBe(19.9); // 149,3 ÷ 750
       // Gráfico: 14 días terminando hoy, con el 01/10 como único día con producción.
       expect(op.dailyProduction).toHaveLength(14);
       expect(op.dailyProduction[0]!.date).toBe("2026-09-19");
       expect(op.dailyProduction.at(-1)!.date).toBe(TODAY);
-      expect(op.dailyProduction.filter((d) => d.kg > 0)).toEqual([{ date: "2026-10-01", kg: 149.3, workday: true }]);
+      expect(op.dailyProduction.filter((d) => d.kg > 0)).toEqual([
+        { date: "2026-10-01", kg: 149.3, workday: true },
+      ]);
       expect(op.dailyProduction.find((d) => d.date === "2026-09-26")!.workday).toBe(false); // sábado
     });
   });
@@ -45,7 +52,11 @@ describe("tablero operativo (RF-41)", () => {
       const [late] = await tx.select().from(schema.orders).where(eq(schema.orders.status, "paid")).limit(1);
       await tx
         .update(schema.orders)
-        .set({ deliveredAt: new Date(`2026-09-${String(Number(late!.promisedDate.slice(8)) + 2).padStart(2, "0")}T11:00:00-03:00`) })
+        .set({
+          deliveredAt: new Date(
+            `2026-09-${String(Number(late!.promisedDate.slice(8)) + 2).padStart(2, "0")}T11:00:00-03:00`,
+          ),
+        })
         .where(eq(schema.orders.id, late!.id));
       expect((await getOtif(tx, "2026-09")).pct).toBe(85.7);
     });
@@ -65,7 +76,12 @@ describe("tablero operativo (RF-41)", () => {
       // Pidió 60 tapitas + 60 lengüitas y se despachó sólo una de las dos.
       await tx
         .insert(schema.dispatchItems)
-        .values({ dispatchId: dispatch!.id, productId: reina.items[0]!.productId, finishedLotId: lot.id, qtyUnits: reina.items[0]!.qtyUnits });
+        .values({
+          dispatchId: dispatch!.id,
+          productId: reina.items[0]!.productId,
+          finishedLotId: lot.id,
+          qtyUnits: reina.items[0]!.qtyUnits,
+        });
       expect(await getOtif(tx, "2026-09")).toMatchObject({ pct: 85.7, ok: 6, delivered: 7 });
     });
   });
@@ -91,7 +107,11 @@ describe("tablero financiero y permisos por rol", () => {
       expect(f.costPerBag?.cost).toBe(3194.03);
       // Márgenes: 4.200 contra 3.194,03 = 23,95 % (mayorista, objetivo 25 %); supermercado 3.900 → 18,1 %.
       const byChannel = Object.fromEntries(f.marginByChannel.map((m) => [m.channel, m]));
-      expect(byChannel.reseller).toMatchObject({ avgMarginPct: 24, worstMarginPct: 23.95, targetMarginPct: 25 });
+      expect(byChannel.reseller).toMatchObject({
+        avgMarginPct: 24,
+        worstMarginPct: 23.95,
+        targetMarginPct: 25,
+      });
       expect(byChannel.supermarket!.avgMarginPct).toBe(18.1);
       expect(byChannel.store!.avgMarginPct).toBeGreaterThan(33);
       expect(f.salesByChannel).toEqual([{ channel: "supermarket", net: 386_776.86, documents: 1 }]);
@@ -111,7 +131,14 @@ describe("tablero financiero y permisos por rol", () => {
       expect(d.alerts.some((a) => a.financial)).toBe(false);
       // Ni siquiera en el JSON serializado hay claves de plata.
       const json = JSON.stringify(d);
-      for (const forbidden of ["receivables", "marginByChannel", "withdrawals", "costPerBag", "topCustomers", "missingPrices"])
+      for (const forbidden of [
+        "receivables",
+        "marginByChannel",
+        "withdrawals",
+        "costPerBag",
+        "topCustomers",
+        "missingPrices",
+      ])
         expect(json).not.toContain(forbidden);
     });
   });
@@ -120,14 +147,20 @@ describe("tablero financiero y permisos por rol", () => {
     await inRollback("nahuel", async (tx) => {
       const base = await getDashboard(tx, { today: TODAY, includeFinance: true });
       const ids = (d: typeof base) => d.alerts.map((a) => a.id);
-      expect(ids(base)).toEqual(expect.arrayContaining(["reorder", "missing-prices", "temperature-missing", "corrective"]));
+      expect(ids(base)).toEqual(
+        expect.arrayContaining(["reorder", "missing-prices", "temperature-missing", "corrective"]),
+      );
       expect(base.alerts.find((a) => a.id === "reorder")).toMatchObject({ count: 2, href: "/stock" });
       expect(base.alerts.find((a) => a.id === "missing-prices")!.href).toBe("/costos");
 
       await trigger(tx);
       const d = await getDashboard(tx, { today: TODAY, includeFinance: true });
       const byId = Object.fromEntries(d.alerts.map((a) => [a.id, a]));
-      expect(byId["overdue-orders"]).toMatchObject({ count: 1, severity: "bad", href: "/pedidos?atrasados=1" });
+      expect(byId["overdue-orders"]).toMatchObject({
+        count: 1,
+        severity: "bad",
+        href: "/pedidos?atrasados=1",
+      });
       expect(byId["checks"]).toMatchObject({ count: 1, href: "/cobranzas/cheques", financial: true });
       expect(byId["below-cost"]).toMatchObject({ count: 1, href: "/precios", financial: true });
       expect(byId["temperature"]).toMatchObject({ count: 1, href: "/calidad?vista=temperaturas" });
@@ -157,11 +190,15 @@ async function trigger(tx: Executor) {
   await tx.update(schema.checks).set({ cashDate: "2026-10-05" });
   // Tapitas mayorista a $3.000, bajo el costo directo de $3.194,03.
   const tap = (await tx.query.products.findFirst({ where: eq(schema.products.code, "CH-TAP-500") }))!;
-  const mayorista = (await tx.query.priceLists.findFirst({ where: eq(schema.priceLists.channel, "reseller") }))!;
+  const mayorista = (await tx.query.priceLists.findFirst({
+    where: eq(schema.priceLists.channel, "reseller"),
+  }))!;
   await tx
     .update(schema.priceListItems)
     .set({ unitPrice: 3000 })
-    .where(and(eq(schema.priceListItems.productId, tap.id), eq(schema.priceListItems.priceListId, mayorista.id)));
+    .where(
+      and(eq(schema.priceListItems.productId, tap.id), eq(schema.priceListItems.priceListId, mayorista.id)),
+    );
   // Una cámara con -10 °C fuera de rango hoy.
   const eq1 = (await tx.query.equipment.findFirst({ where: eq(schema.equipment.code, "F3") }))!;
   await tx.insert(schema.temperatureLogs).values({

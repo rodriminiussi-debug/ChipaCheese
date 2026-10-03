@@ -112,7 +112,8 @@ async function assertConceptFree(db: Executor, month: IsoDate, concept: string, 
       ),
     )
     .limit(1);
-  if (dup) throw new UserError(`Ya hay un gasto "${concept}" en ese mes.`, { concept: ["Ya existe en el mes"] });
+  if (dup)
+    throw new UserError(`Ya hay un gasto "${concept}" en ese mes.`, { concept: ["Ya existe en el mes"] });
 }
 
 export async function createFixedExpense(db: Executor, input: FixedExpenseData) {
@@ -192,7 +193,9 @@ export async function getPartnerWithdrawals(db: Executor): Promise<{ amount: num
     .where(eq(schema.appSettings.key, SETTING_WITHDRAWALS))
     .limit(1);
   const n = row ? Number(row.value) : NaN;
-  return Number.isFinite(n) && n >= 0 ? { amount: n, isDefault: false } : { amount: DEFAULT_WITHDRAWALS, isDefault: true };
+  return Number.isFinite(n) && n >= 0
+    ? { amount: n, isDefault: false }
+    : { amount: DEFAULT_WITHDRAWALS, isDefault: true };
 }
 
 /** Upsert del parámetro en app_settings (siempre dentro de action() para que quede auditado). */
@@ -243,9 +246,7 @@ export interface CostOverview {
 export async function getCostOverview(db: Executor, today: IsoDate = todayAR()): Promise<CostOverview> {
   const costs = await getProductCosts(db, today);
   const [ingredients, matrix] = await Promise.all([
-    db
-      .select({ id: schema.ingredients.id, category: schema.ingredients.category })
-      .from(schema.ingredients),
+    db.select({ id: schema.ingredients.id, category: schema.ingredients.category }).from(schema.ingredients),
     getPriceMatrix(db, today, costs),
   ]);
   const categoryByIngredient = Object.fromEntries(ingredients.map((i) => [i.id, i.category]));
@@ -320,12 +321,22 @@ export interface MonthlyResultDetail {
     underpriced: string[];
   };
   labor: { runs: number; perRun: number; total: number };
-  fixed: { total: number; byCategory: FixedExpenses["byCategory"]; missingCategories: FixedExpenses["missingCategories"] };
+  fixed: {
+    total: number;
+    byCategory: FixedExpenses["byCategory"];
+    missingCategories: FixedExpenses["missingCategories"];
+  };
   delivery: DeliveryCostSummary;
   grossMargin: number;
   result: number;
   resultPct: number | null;
-  withdrawals: { amount: number; isDefault: boolean; covers: boolean; difference: number; coveragePct: number | null };
+  withdrawals: {
+    amount: number;
+    isDefault: boolean;
+    covers: boolean;
+    difference: number;
+    coveragePct: number | null;
+  };
   /** Datos que no entran en la cuenta y conviene conocer. */
   notices: {
     /** Pedidos entregados en el mes que no tienen factura (no suman ventas ni costo). */
@@ -428,7 +439,9 @@ async function noticesFor(db: Executor, from: IsoDate, to: IsoDate) {
 }
 
 /** Costo de materiales (ingredientes + envase y componentes) por unidad de cada producto, a precios actuales. */
-export function materialUnitCosts(costs: ProductCosts): Map<string, { name: string; cost: number; complete: boolean }> {
+export function materialUnitCosts(
+  costs: ProductCosts,
+): Map<string, { name: string; cost: number; complete: boolean }> {
   const ingredientsPerKg =
     costs.ingredientsCostPerKg ??
     // Con precios faltantes en la receta: lo que se puede costear (se avisa como subestimado).

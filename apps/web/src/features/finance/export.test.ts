@@ -36,7 +36,9 @@ describe("exportación del resultado mensual", () => {
       expect(wb.getWorksheet("Costo de ventas")!.rowCount).toBe(3); // encabezado + tapitas + lengüitas
       expect(wb.getWorksheet("Gastos fijos")!.rowCount).toBe(8); // encabezado + 7 conceptos
       const notices = wb.getWorksheet("Avisos")!;
-      const text = Array.from({ length: notices.rowCount - 1 }, (_, i) => String(notices.getRow(i + 2).getCell(1).value));
+      const text = Array.from({ length: notices.rowCount - 1 }, (_, i) =>
+        String(notices.getRow(i + 2).getCell(1).value),
+      );
       expect(text.some((t) => t.includes("6 pedido(s) entregados en el mes sin factura"))).toBe(true);
     });
   });

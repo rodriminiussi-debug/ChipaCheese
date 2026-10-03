@@ -58,7 +58,8 @@ export function SensitivitySimulator({ data }: { data: SimulatorData }) {
     const m = new Map<string, { id: string; name: string }>();
     for (const i of data.ingredients) m.set(i.ingredientId, { id: i.ingredientId, name: i.name });
     for (const p of data.products)
-      for (const c of p.components) if (!m.has(c.ingredientId)) m.set(c.ingredientId, { id: c.ingredientId, name: c.name });
+      for (const c of p.components)
+        if (!m.has(c.ingredientId)) m.set(c.ingredientId, { id: c.ingredientId, name: c.name });
     return [...m.values()];
   }, [data]);
 
@@ -76,7 +77,11 @@ export function SensitivitySimulator({ data }: { data: SimulatorData }) {
         recipeLines,
         laborPerRun: data.laborPerRun,
         producedKgPerRun: data.producedKgPerRun,
-        components: p.components.map((c) => ({ ingredientId: c.ingredientId, qty: c.qty, unitPriceNet: c.price ?? 0 })),
+        components: p.components.map((c) => ({
+          ingredientId: c.ingredientId,
+          qty: c.qty,
+          unitPriceNet: c.price ?? 0,
+        })),
         netWeightKg: p.netWeightKg,
       };
       const before = simulateUnitCost({ ...input, changesPct: {} });
@@ -95,12 +100,12 @@ export function SensitivitySimulator({ data }: { data: SimulatorData }) {
       <CardHeader>
         <CardTitle className="text-base">Simulador de sensibilidad</CardTitle>
         <CardDescription>
-          Cambiá el precio de uno o más insumos y mirá cuánto cambian el costo por bolsa y los márgenes de cada
-          lista. Sirve para negociar con proveedores: un 5 % menos en quesos baja cerca de un 2,7 % el costo de
-          ingredientes.
+          Cambiá el precio de uno o más insumos y mirá cuánto cambian el costo por bolsa y los márgenes de
+          cada lista. Sirve para negociar con proveedores: un 5 % menos en quesos baja cerca de un 2,7 % el
+          costo de ingredientes.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-5">
+      <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-5">
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
@@ -132,7 +137,12 @@ export function SensitivitySimulator({ data }: { data: SimulatorData }) {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => applyTo(movable.map((m) => m.id), 10)}
+            onClick={() =>
+              applyTo(
+                movable.map((m) => m.id),
+                10,
+              )
+            }
           >
             Todo +10 %
           </Button>
@@ -141,7 +151,7 @@ export function SensitivitySimulator({ data }: { data: SimulatorData }) {
           </Button>
         </div>
 
-        <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <fieldset className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <legend className="sr-only">Variación de precio por insumo, en porcentaje</legend>
           {movable.map((m) => (
             <Field key={m.id}>
@@ -238,7 +248,11 @@ export function SensitivitySimulator({ data }: { data: SimulatorData }) {
                                 {mb == null || ma == null ? (
                                   <span className="text-muted-foreground">—</span>
                                 ) : (
-                                  <span className={cn(ma < l.targetMarginPct && "text-amber-700 dark:text-amber-400")}>
+                                  <span
+                                    className={cn(
+                                      ma < l.targetMarginPct && "text-amber-700 dark:text-amber-400",
+                                    )}
+                                  >
                                     <Num value={mb} decimals={1} suffix="%" /> →{" "}
                                     <Num value={ma} decimals={1} suffix="%" />
                                   </span>
@@ -258,8 +272,8 @@ export function SensitivitySimulator({ data }: { data: SimulatorData }) {
               </Table>
             </div>
             <p className="text-muted-foreground text-xs">
-              Los márgenes en ámbar quedan por debajo del margen objetivo de la lista. La mano de obra no cambia con
-              los precios.
+              Los márgenes en ámbar quedan por debajo del margen objetivo de la lista. La mano de obra no
+              cambia con los precios.
             </p>
           </>
         )}
@@ -291,7 +305,8 @@ function Summary({
       <div className="text-muted-foreground text-xs tabular-nums">
         {dirty ? (
           <>
-            antes <Money value={before} /> · <span data-testid={`${testId}-delta`}>{signedPct(delta, 2)}</span>
+            antes <Money value={before} /> ·{" "}
+            <span data-testid={`${testId}-delta`}>{signedPct(delta, 2)}</span>
           </>
         ) : (
           "sin cambios"

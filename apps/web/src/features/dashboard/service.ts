@@ -14,7 +14,12 @@ import {
 } from "@chipa/domain";
 import { and, desc, eq, gte, inArray, lt, ne, notInArray, schema, sql, type Executor } from "@chipa/db";
 import { TZ, todayAR } from "@/lib/dates";
-import { getChecksDueSoon, getReceivablesSummary, getSalesByChannel, monthBounds } from "@/features/billing/service";
+import {
+  getChecksDueSoon,
+  getReceivablesSummary,
+  getSalesByChannel,
+  monthBounds,
+} from "@/features/billing/service";
 import { getProductCosts, type ProductCosts } from "@/features/costing/service";
 import { getDeliveryCostSummary } from "@/features/dispatch/service";
 import { getMonthlyResult, type MonthlyResultDetail } from "@/features/finance/service";
@@ -65,10 +70,21 @@ export interface OperationalDashboard {
   coverage: {
     total: number;
     belowReorderPoint: number;
-    items: { ingredientId: string; name: string; coverageDays: number | null; status: string; unit: string }[];
+    items: {
+      ingredientId: string;
+      name: string;
+      coverageDays: number | null;
+      status: string;
+      unit: string;
+    }[];
   };
   bpm: { cleaningCompliancePct: number | null; missingTemperaturesToday: number; outOfRangeLast24h: number };
-  maintenance: { preventiveCompliancePct: number | null; overdue: number; dueSoon: number; openCorrectives: number };
+  maintenance: {
+    preventiveCompliancePct: number | null;
+    overdue: number;
+    dueSoon: number;
+    openCorrectives: number;
+  };
   orders: {
     overdue: number;
     customersToCall: { customerId: string; name: string; daysLate: number; daysSinceLastOrder: number }[];
@@ -79,10 +95,7 @@ export interface OperationalDashboard {
 export interface FinancialDashboard {
   month: string;
   /** Resultado del mes y lo que cubre de los retiros. */
-  result: Pick<
-    MonthlyResultDetail,
-    "result" | "resultPct" | "sales" | "withdrawals" | "hasData" | "notices"
-  >;
+  result: Pick<MonthlyResultDetail, "result" | "resultPct" | "sales" | "withdrawals" | "hasData" | "notices">;
   costPerKg: number | null;
   /** Costo directo de la bolsa de 0,5 kg (la primera con costo completo). */
   costPerBag: { productName: string; cost: number } | null;
@@ -139,7 +152,10 @@ async function readSettings(db: Executor) {
 /** kg pesados por día de producción (producciones no canceladas). */
 async function weighedKgByDay(db: Executor, from: IsoDate, to: IsoDate) {
   const rows = await db
-    .select({ date: schema.productionRuns.date, kg: sql<number>`sum(${schema.productionWeighings.kg})::float8` })
+    .select({
+      date: schema.productionRuns.date,
+      kg: sql<number>`sum(${schema.productionWeighings.kg})::float8`,
+    })
     .from(schema.productionWeighings)
     .innerJoin(schema.productionRuns, eq(schema.productionRuns.id, schema.productionWeighings.runId))
     .where(
@@ -168,7 +184,10 @@ async function averageYield(db: Executor, today: IsoDate) {
     );
   const [weighed, consumed] = await Promise.all([
     db
-      .select({ runId: schema.productionWeighings.runId, kg: sql<number>`sum(${schema.productionWeighings.kg})::float8` })
+      .select({
+        runId: schema.productionWeighings.runId,
+        kg: sql<number>`sum(${schema.productionWeighings.kg})::float8`,
+      })
       .from(schema.productionWeighings)
       .where(inArray(schema.productionWeighings.runId, runs))
       .groupBy(schema.productionWeighings.runId),
@@ -223,7 +242,11 @@ export async function getOtif(db: Executor, month: string) {
   const ids = delivered.map((d) => d.id);
   const [items, dispatched] = await Promise.all([
     db
-      .select({ orderId: schema.orderItems.orderId, productId: schema.orderItems.productId, qty: schema.orderItems.qtyUnits })
+      .select({
+        orderId: schema.orderItems.orderId,
+        productId: schema.orderItems.productId,
+        qty: schema.orderItems.qtyUnits,
+      })
       .from(schema.orderItems)
       .where(inArray(schema.orderItems.orderId, ids)),
     db
@@ -234,7 +257,12 @@ export async function getOtif(db: Executor, month: string) {
       })
       .from(schema.dispatchItems)
       .innerJoin(schema.dispatches, eq(schema.dispatches.id, schema.dispatchItems.dispatchId))
-      .where(and(inArray(schema.dispatches.orderId, ids), notInArray(schema.dispatches.status, ["cancelled", "rejected"])))
+      .where(
+        and(
+          inArray(schema.dispatches.orderId, ids),
+          notInArray(schema.dispatches.status, ["cancelled", "rejected"]),
+        ),
+      )
       .groupBy(schema.dispatches.orderId, schema.dispatchItems.productId),
   ]);
   const dispatchedKey = new Map(dispatched.map((d) => [`${d.orderId}|${d.productId}`, d.qty]));

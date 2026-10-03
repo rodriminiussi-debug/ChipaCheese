@@ -17,7 +17,7 @@ const pctTone = (v: number | null, good: number, warn: number): "default" | "goo
 /** Panel de alertas accionables: cada una lleva a la pantalla donde se resuelve. */
 export function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
   return (
-    <section aria-labelledby="alerts-title" className="grid gap-2">
+    <section aria-labelledby="alerts-title" className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <h2 id="alerts-title" className="text-lg font-semibold">
         Para atender
       </h2>
@@ -27,7 +27,7 @@ export function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
           Todo en orden: no hay alertas para atender.
         </div>
       ) : (
-        <ul className="grid gap-2 md:grid-cols-2" aria-label="Alertas">
+        <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 md:grid-cols-2" aria-label="Alertas">
           {alerts.map((a) => (
             <li key={a.id}>
               <Link
@@ -65,7 +65,7 @@ export function AlertsPanel({ alerts }: { alerts: DashboardAlert[] }) {
 export function OperationalKpis({ op }: { op: OperationalDashboard }) {
   const cap = op.capacity;
   return (
-    <section aria-labelledby="kpi-op-title" className="grid gap-2">
+    <section aria-labelledby="kpi-op-title" className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <h2 id="kpi-op-title" className="text-lg font-semibold">
         Planta y operación
       </h2>
@@ -88,8 +88,8 @@ export function OperationalKpis({ op }: { op: OperationalDashboard }) {
           hint={
             op.yield.runs > 0 ? (
               <>
-                kg pesados ÷ kg de ingredientes · {op.yield.runs} producción(es) de los últimos {op.yield.windowDays}{" "}
-                días
+                kg pesados ÷ kg de ingredientes · {op.yield.runs} producción(es) de los últimos{" "}
+                {op.yield.windowDays} días
               </>
             ) : (
               `Sin producciones con pesadas y consumos en ${op.yield.windowDays} días`
@@ -140,7 +140,7 @@ export function OperationalKpis({ op }: { op: OperationalDashboard }) {
 /** Indicadores con plata. Sólo se renderiza para quien tiene `finance:read`. */
 export function FinancialKpis({ fin }: { fin: FinancialDashboard }) {
   return (
-    <section aria-labelledby="kpi-fin-title" className="grid gap-2">
+    <section aria-labelledby="kpi-fin-title" className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <h2 id="kpi-fin-title" className="text-lg font-semibold">
         Plata
       </h2>
@@ -191,7 +191,11 @@ export function FinancialKpis({ fin }: { fin: FinancialDashboard }) {
           title="Costo de reparto por kg"
           testId="kpi-delivery"
           value={fin.deliveryCostPerKg != null ? <Money value={fin.deliveryCostPerKg} /> : "—"}
-          hint={fin.deliveryCostPerKg != null ? "Rutas del mes ÷ kg entregados" : "Sin rutas con entregas en el mes"}
+          hint={
+            fin.deliveryCostPerKg != null
+              ? "Rutas del mes ÷ kg entregados"
+              : "Sin rutas con entregas en el mes"
+          }
         />
       </div>
     </section>
@@ -202,7 +206,7 @@ export function FinancialKpis({ fin }: { fin: FinancialDashboard }) {
 export function ResultSummary({ fin }: { fin: FinancialDashboard }) {
   const w = fin.result.withdrawals;
   return (
-    <section aria-label="Resultado del mes" className="grid gap-3 md:grid-cols-2">
+    <section aria-label="Resultado del mes" className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2">
       <StatCard
         title={`Resultado de ${monthLabel(fin.month)}`}
         testId="kpi-result"
@@ -252,7 +256,7 @@ export function MarginByChannel({ fin }: { fin: FinancialDashboard }) {
                 <TableHead>Lista</TableHead>
                 <TableHead className="text-right">Margen promedio</TableHead>
                 <TableHead className="text-right">Objetivo</TableHead>
-                <TableHead className="hidden text-right sm:table-cell">Productos bajo objetivo</TableHead>
+                <TableHead className="hidden text-right xl:table-cell">Bajo objetivo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -279,7 +283,7 @@ export function MarginByChannel({ fin }: { fin: FinancialDashboard }) {
                   <TableCell className="text-right">
                     <Num value={m.targetMarginPct} decimals={0} suffix="%" />
                   </TableCell>
-                  <TableCell className="hidden text-right sm:table-cell">
+                  <TableCell className="hidden text-right xl:table-cell">
                     {m.belowCost > 0 ? (
                       <StatusBadge tone="bad">{m.belowCost} bajo costo</StatusBadge>
                     ) : (
@@ -306,7 +310,7 @@ export function TopCustomers({ fin }: { fin: FinancialDashboard }) {
         {fin.topCustomers.length === 0 ? (
           <p className="text-muted-foreground text-sm">Todavía no hay facturas en el mes.</p>
         ) : (
-          <ol aria-label="Mejores clientes" className="grid gap-2">
+          <ol aria-label="Mejores clientes" className="grid grid-cols-[minmax(0,1fr)] gap-2">
             {fin.topCustomers.map((c, i) => (
               <li key={c.customerId} className="flex items-center justify-between gap-3 text-sm">
                 <span className="min-w-0 truncate">

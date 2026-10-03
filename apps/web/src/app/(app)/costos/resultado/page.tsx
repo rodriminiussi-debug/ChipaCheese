@@ -33,7 +33,7 @@ export default async function MonthlyResultPage(props: PageProps<"/costos/result
   const href = (m: string) => `/costos/resultado?mes=${m}` as Route;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <PageHeader
         title={`Resultado · ${monthLabel(month)}`}
         description="¿Cuánto ganamos? Ventas por canal, costo de ventas, mano de obra, gastos fijos y reparto (RF-40)."

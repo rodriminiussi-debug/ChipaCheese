@@ -38,7 +38,12 @@ describe("gastos fijos (RF-42)", () => {
       expect(sep.byCategory.find((c) => c.category === "services")?.amount).toBe(340_000);
       expect(sep.byCategory.find((c) => c.category === "rent")?.amount).toBe(300_000);
       // El seed no trae vehículo, combustible, sueldos ni amortizaciones (ASSAL cuenta como impuestos/tasas).
-      expect(sep.missingCategories.map((m) => m.category)).toEqual(["vehicle", "fuel", "payroll", "depreciation"]);
+      expect(sep.missingCategories.map((m) => m.category)).toEqual([
+        "vehicle",
+        "fuel",
+        "payroll",
+        "depreciation",
+      ]);
       const empty = await listFixedExpenses(tx, "2026-07");
       expect(empty.total).toBe(0);
       expect(empty.missingCategories).toHaveLength(5);
@@ -111,7 +116,9 @@ describe("gastos fijos (RF-42)", () => {
       expect((await listFixedExpenses(tx, "2026-10")).total).toBe(1_090_000);
 
       // Si el mes anterior no tiene nada, avisa.
-      await expect(copyFixedExpensesFromPreviousMonth(tx, "2026-08")).rejects.toThrow(/mes anterior no tiene/);
+      await expect(copyFixedExpensesFromPreviousMonth(tx, "2026-08")).rejects.toThrow(
+        /mes anterior no tiene/,
+      );
     });
   });
 });
@@ -210,7 +217,10 @@ describe("resultado mensual (RF-40) — septiembre 2026 con los datos demo", () 
       });
       const r = await getMonthlyResult(tx, "2026-09", { today: TODAY });
       // Local: 48.000 con IVA 21 % incluido → neto 39.669,42.
-      expect(r.salesByChannel.find((c) => c.channel === "store")).toMatchObject({ net: 39_669.42, total: 48_000 });
+      expect(r.salesByChannel.find((c) => c.channel === "store")).toMatchObject({
+        net: 39_669.42,
+        total: 48_000,
+      });
       expect(r.sales).toBe(426_446.28);
       expect(r.costOfSales.unitsFromStore).toBe(10);
       expect(r.costOfSales.total).toBe(362_980.8); // 335.059,20 + 10 × 2.792,16
@@ -227,7 +237,12 @@ describe("resultado mensual (RF-40) — septiembre 2026 con los datos demo", () 
       if (!sandwich) throw new Error("el seed debería tener el sándwich");
       const [sale] = await tx
         .insert(schema.storeSales)
-        .values({ soldAt: new Date("2026-09-16T12:00:00-03:00"), locationId: local.id, method: "cash", total: 5_000 })
+        .values({
+          soldAt: new Date("2026-09-16T12:00:00-03:00"),
+          locationId: local.id,
+          method: "cash",
+          total: 5_000,
+        })
         .returning();
       await tx
         .insert(schema.storeSaleItems)
@@ -260,7 +275,14 @@ describe("resultado mensual (RF-40) — septiembre 2026 con los datos demo", () 
   it("evolución de 6 meses: abril a septiembre, septiembre coincide con el detalle", async () => {
     await inRollback("nahuel", async (tx) => {
       const h = await getResultHistory(tx, "2026-09", 6, { today: TODAY });
-      expect(h.map((p) => p.month)).toEqual(["2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"]);
+      expect(h.map((p) => p.month)).toEqual([
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09",
+      ]);
       expect(h.slice(0, 4).every((p) => !p.hasData)).toBe(true);
       // Agosto: sólo gastos fijos cargados (sin ventas ni producciones) → −$1.040.000.
       expect(h[4]).toMatchObject({ month: "2026-08", sales: 0, result: -1_040_000, hasData: true });
@@ -316,7 +338,9 @@ describe("costos y simulador (RF-39)", () => {
       expect(before.unitCost).toBe(tap.unitCost); // misma cuenta que getProductCosts
       expect(before.ingredientsCostPerKg).toBe(costs.ingredientsCostPerKg);
 
-      const cheeseIds = costs.ingredients.filter((l) => /queso|reggianito/i.test(l.name)).map((l) => l.ingredientId);
+      const cheeseIds = costs.ingredients
+        .filter((l) => /queso|reggianito/i.test(l.name))
+        .map((l) => l.ingredientId);
       expect(cheeseIds).toHaveLength(2);
       const after = simulateUnitCost({
         ...input,
@@ -341,7 +365,14 @@ describe("permisos de lo financiero", () => {
   it("sólo Dirección lee y escribe finanzas; la jefa de producción tiene tablero pero no finanzas", () => {
     expect(can("admin", "finance:read")).toBe(true);
     expect(can("admin", "finance:write")).toBe(true);
-    for (const role of ["production_manager", "logistics", "operator", "store", "technical_lead", "accountant"] as const) {
+    for (const role of [
+      "production_manager",
+      "logistics",
+      "operator",
+      "store",
+      "technical_lead",
+      "accountant",
+    ] as const) {
       expect(can(role, "finance:read")).toBe(false);
       expect(can(role, "finance:write")).toBe(false);
     }

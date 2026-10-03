@@ -6,7 +6,15 @@ import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { UNIT } from "@/lib/labels";
 import { isCheese } from "../labels";
 import type { CostOverview } from "../service";
@@ -30,7 +38,9 @@ export function CostHeadline({ overview }: { overview: CostOverview }) {
         testId="stat-cost-kg"
       />
       <StatCard
-        title={bag ? `Costo por bolsa de ${bag.netWeightKg.toString().replace(".", ",")} kg` : "Costo por bolsa"}
+        title={
+          bag ? `Costo por bolsa de ${bag.netWeightKg.toString().replace(".", ",")} kg` : "Costo por bolsa"
+        }
         value={bag?.unitCost != null ? <Money value={bag.unitCost} /> : "—"}
         hint="Masa + envase y etiqueta"
         testId="stat-cost-bag"
@@ -41,8 +51,8 @@ export function CostHeadline({ overview }: { overview: CostOverview }) {
         hint={
           y.source === "real" ? (
             <>
-              por producción de {costs.starchKgPerRun} kg de fécula (promedio de {y.runs} producción(es) de los
-              últimos {y.windowDays} días)
+              por producción de {costs.starchKgPerRun} kg de fécula (promedio de {y.runs} producción(es) de
+              los últimos {y.windowDays} días)
             </>
           ) : (
             `por producción, según la receta v${costs.recipe.version} (todavía no hay pesadas en ${y.windowDays} días)`
@@ -54,7 +64,8 @@ export function CostHeadline({ overview }: { overview: CostOverview }) {
         value={<Money value={costs.labor.perKg} />}
         hint={
           <>
-            {costs.labor.workers} personas × {costs.labor.hoursPerRun} h × <Money value={costs.labor.hourlyCost} />
+            {costs.labor.workers} personas × {costs.labor.hoursPerRun} h ×{" "}
+            <Money value={costs.labor.hourlyCost} />
           </>
         }
       />
@@ -91,7 +102,7 @@ export function IngredientBreakdown({ overview }: { overview: CostOverview }) {
   const { costs } = overview;
   const run = costs.starchKgPerRun;
   return (
-    <section aria-labelledby="breakdown-title" className="grid gap-3">
+    <section aria-labelledby="breakdown-title" className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h2 id="breakdown-title" className="text-lg font-semibold">
           Desglose por insumo
@@ -99,8 +110,8 @@ export function IngredientBreakdown({ overview }: { overview: CostOverview }) {
         {overview.dairyPctOfIngredients != null ? (
           <div className="flex flex-wrap gap-2 text-sm">
             <StatusBadge tone="info">
-              Lácteos (quesos, manteca y leche): <Num value={overview.dairyPctOfIngredients} decimals={1} suffix="%" />{" "}
-              de los ingredientes
+              Lácteos (quesos, manteca y leche):{" "}
+              <Num value={overview.dairyPctOfIngredients} decimals={1} suffix="%" /> de los ingredientes
             </StatusBadge>
             <StatusBadge tone="neutral">
               Quesos: <Num value={overview.cheesePctOfIngredients} decimals={1} suffix="%" />
@@ -195,7 +206,7 @@ export function IngredientBreakdown({ overview }: { overview: CostOverview }) {
 export function ProductCostTable({ overview }: { overview: CostOverview }) {
   const { costs } = overview;
   return (
-    <section aria-labelledby="products-title" className="grid gap-3">
+    <section aria-labelledby="products-title" className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <h2 id="products-title" className="text-lg font-semibold">
         Costo por bolsa y por producto
       </h2>
@@ -225,7 +236,11 @@ export function ProductCostTable({ overview }: { overview: CostOverview }) {
                   <Money value={p.componentsCost} />
                   {p.components.some((c) => c.cost == null) ? (
                     <div className="text-xs text-amber-700 dark:text-amber-400">
-                      sin precio: {p.components.filter((c) => c.cost == null).map((c) => c.name).join(", ")}
+                      sin precio:{" "}
+                      {p.components
+                        .filter((c) => c.cost == null)
+                        .map((c) => c.name)
+                        .join(", ")}
                     </div>
                   ) : null}
                 </TableCell>
@@ -258,8 +273,9 @@ export function ExcelNote({ overview }: { overview: CostOverview }) {
       </CardHeader>
       <CardContent className="text-muted-foreground grid gap-2 text-sm">
         <p>
-          El Excel dividía el costo de los ingredientes por <strong className="text-foreground">163,5 kg</strong>, que es la
-          suma de lo que entra a la batidora, no lo que sale pesado. Acá se divide por los{" "}
+          El Excel dividía el costo de los ingredientes por{" "}
+          <strong className="text-foreground">163,5 kg</strong>, que es la suma de lo que entra a la batidora,
+          no lo que sale pesado. Acá se divide por los{" "}
           <strong className="text-foreground">
             <Kg value={excel.realKg} />
           </strong>{" "}
@@ -279,8 +295,9 @@ export function ExcelNote({ overview }: { overview: CostOverview }) {
           </p>
         ) : null}
         <p>
-          También se corrigió: el envase ahora suma al costo de la bolsa, la receta sale de la receta maestra de la
-          planta (no de una pestaña vieja) y el sándwich no asume jamón ni queso en $0: muestra &quot;precio faltante&quot;.
+          También se corrigió: el envase ahora suma al costo de la bolsa, la receta sale de la receta maestra
+          de la planta (no de una pestaña vieja) y el sándwich no asume jamón ni queso en $0: muestra
+          &quot;precio faltante&quot;.
         </p>
       </CardContent>
     </Card>

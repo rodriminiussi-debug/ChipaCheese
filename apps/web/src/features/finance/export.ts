@@ -27,7 +27,11 @@ export async function buildResultWorkbook(db: Executor, month: string): Promise<
     },
     { concept: "Gastos fijos", amount: -r.fixed.total },
     { concept: "Reparto", amount: -r.delivery.cost, note: `${r.delivery.routes} ruta(s)` },
-    { concept: "Resultado", amount: r.result, note: r.resultPct == null ? undefined : `${r.resultPct} % de las ventas` },
+    {
+      concept: "Resultado",
+      amount: r.result,
+      note: r.resultPct == null ? undefined : `${r.resultPct} % de las ventas`,
+    },
     { concept: "Retiros de los socios", amount: -r.withdrawals.amount },
     {
       concept: r.withdrawals.covers ? "Sobra después de los retiros" : "Falta para cubrir los retiros",
@@ -78,7 +82,9 @@ export async function buildResultWorkbook(db: Executor, month: string): Promise<
     {
       name: "Avisos",
       rows: notices(r),
-      columns: cols<{ text: string }>([{ header: "Qué no entra en la cuenta", value: (x) => x.text, width: 110 }]),
+      columns: cols<{ text: string }>([
+        { header: "Qué no entra en la cuenta", value: (x) => x.text, width: 110 },
+      ]),
     },
   ]);
 }
