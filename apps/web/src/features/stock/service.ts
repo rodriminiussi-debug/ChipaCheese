@@ -736,3 +736,31 @@ export async function getStockExportData(db: Executor, today: IsoDate = todayAR(
   ]);
   return { today, coverage, expiries, matrix, lots, rawPositions };
 }
+
+// =============================================================================================
+// RF-11 · Etiqueta del lote de materia prima
+// =============================================================================================
+
+/** Datos para imprimir la etiqueta de un lote de materia prima (el QR lleva el id del lote). */
+export async function getRawLotLabel(db: Executor, rawLotId: string) {
+  const [lot] = await db
+    .select({
+      id: schema.rawLots.id,
+      ingredientId: schema.rawLots.ingredientId,
+      ingredient: schema.ingredients.name,
+      unit: schema.ingredients.unit,
+      supplierLotCode: schema.rawLots.supplierLotCode,
+      supplier: schema.suppliers.legalName,
+      expiryDate: schema.rawLots.expiryDate,
+      receivedQty: schema.rawLots.receivedQty,
+      receivedAt: schema.receptions.receivedAt,
+    })
+    .from(schema.rawLots)
+    .innerJoin(schema.ingredients, eq(schema.ingredients.id, schema.rawLots.ingredientId))
+    .leftJoin(schema.suppliers, eq(schema.suppliers.id, schema.rawLots.supplierId))
+    .leftJoin(schema.receptions, eq(schema.receptions.id, schema.rawLots.receptionId))
+    .where(eq(schema.rawLots.id, rawLotId))
+    .limit(1);
+  return lot ?? null;
+}
+export type RawLotLabel = NonNullable<Awaited<ReturnType<typeof getRawLotLabel>>>;

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Plus, X } from "lucide-react";
-import { checkConsumption, formatDateAR, parseDecimalAR, roundQty } from "@chipa/domain";
+import { checkConsumption, formatDateAR, parseDecimalAR, parseRawLotQr, roundQty } from "@chipa/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/app/native-select";
@@ -14,6 +14,7 @@ import { recordConsumptionsAction } from "../actions";
 import { CONSUMPTION_REASON } from "../labels";
 import { fmtQty, fmtRange, UNIT_SHORT } from "../format";
 import type { ConsumptionSuggestion } from "../service";
+import { LotScanField } from "./lot-scan-field";
 
 type Line = { rawLotId: string; qty: string };
 
@@ -51,6 +52,33 @@ export function ConsumptionForm({
     onSuccess: () => router.refresh(),
   });
 
+  // Insumos cuyo lote ya se eligió escaneando: el siguiente escaneo del mismo insumo agrega otro lote.
+  const [scanned, setScanned] = useState<Set<string>>(() => new Set());
+
+  /** RF-11: selecciona el lote que leyó el lector de QR (el texto es el id del lote). */
+  function scan(text: string): { ok: boolean; message: string } {
+    const rawLotId = parseRawLotQr(text);
+    if (!rawLotId) return { ok: false, message: "No es el QR de un lote de materia prima." };
+    const s = suggestions.find((x) => x.lots.some((l) => l.rawLotId === rawLotId));
+    const lot = s?.lots.find((l) => l.rawLotId === rawLotId);
+    if (!s || !lot)
+      return { ok: false, message: "Ese lote no tiene saldo o no es de un insumo de esta receta." };
+    if ((lines[s.ingredientId] ?? []).some((l) => l.rawLotId === rawLotId))
+      return { ok: true, message: `${s.name}: el lote ${lot.code} ya estaba seleccionado.` };
+    setLines((all) => {
+      const rows = all[s.ingredientId] ?? [];
+      return {
+        ...all,
+        [s.ingredientId]:
+          rows.length && !scanned.has(s.ingredientId)
+            ? rows.map((l, j) => (j === 0 ? { ...l, rawLotId } : l))
+            : [...rows, { rawLotId, qty: "" }],
+      };
+    });
+    setScanned((prev) => new Set(prev).add(s.ingredientId));
+    return { ok: true, message: `${s.name}: lote ${lot.code} seleccionado.` };
+  }
+
   const update = (id: string, i: number, patch: Partial<Line>) =>
     setLines((all) => ({ ...all, [id]: all[id]!.map((l, j) => (j === i ? { ...l, ...patch } : l)) }));
 
@@ -69,6 +97,7 @@ export function ConsumptionForm({
 
   return (
     <div className="grid gap-3">
+      {!plant ? <LotScanField onScan={scan} /> : null}
       {suggestions.map((s) => {
         const unit = UNIT_SHORT[s.unit] ?? "";
         const rows = lines[s.ingredientId] ?? [];

@@ -9,6 +9,7 @@ import {
   getIngredientCoverage,
   getIngredientStockDetail,
   getProductStockMatrix,
+  getRawLotLabel,
   getReorderAlerts,
   listMovements,
   nextExpiryByIngredient,
@@ -495,6 +496,30 @@ describe("simulador (RF-17)", () => {
         .set({ status: "archived" })
         .where(and(eq(schema.recipes.status, "active")));
       expect(await simulateProductionFromStock(tx, { mode: "starch_kg", kg: 100 })).toBeNull();
+    });
+  });
+});
+
+describe("etiqueta del lote de materia prima (RF-11)", () => {
+  it("devuelve insumo, lote y vencimiento del proveedor, cantidad y recepción para imprimir el QR con el id", async () => {
+    await inRollback("af", async (tx) => {
+      const leche = await ingredientByName(tx, "Leche");
+      const lot = (await tx.query.rawLots.findFirst({ where: eq(schema.rawLots.ingredientId, leche.id) }))!;
+      const label = (await getRawLotLabel(tx, lot.id))!;
+      expect(label).toMatchObject({
+        id: lot.id,
+        ingredient: "Leche",
+        supplierLotCode: lot.supplierLotCode,
+        receivedQty: lot.receivedQty,
+      });
+      expect(label.supplier).toBeTruthy();
+      expect(label.expiryDate).toBe(lot.expiryDate);
+    });
+  });
+
+  it("devuelve null si el lote no existe", async () => {
+    await inRollback("af", async (tx) => {
+      expect(await getRawLotLabel(tx, "00000000-0000-4000-8000-000000000000")).toBeNull();
     });
   });
 });

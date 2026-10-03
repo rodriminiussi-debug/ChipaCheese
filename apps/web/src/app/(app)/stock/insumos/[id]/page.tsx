@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, QrCode } from "lucide-react";
 import { DateText, Num } from "@/components/app/format";
+import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,6 +125,7 @@ export default async function IngredientStockPage(props: PageProps<"/stock/insum
                     <TableHead>Ubicación</TableHead>
                     <TableHead>Vencimiento</TableHead>
                     <TableHead className="text-right">Saldo</TableHead>
+                    <TableHead className="text-right">Etiqueta</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -146,6 +148,18 @@ export default async function IngredientStockPage(props: PageProps<"/stock/insum
                       </TableCell>
                       <TableCell className="text-right">
                         <Num value={p.qty} decimals={decimals} suffix={unit} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {p.rawLotId ? (
+                          <Button asChild variant="ghost" size="sm">
+                            <Link
+                              href={`/etiquetas/lote-mp/${p.rawLotId}`}
+                              aria-label={`Etiqueta del lote ${p.supplierLotCode ?? "sin código"}`}
+                            >
+                              <QrCode /> Etiqueta
+                            </Link>
+                          </Button>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   ))}
