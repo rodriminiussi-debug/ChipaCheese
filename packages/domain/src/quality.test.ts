@@ -98,7 +98,13 @@ describe("limpieza según frecuencia (RF-34)", () => {
   });
 
   it("esperados diarios: días hábiles anteriores a hoy (agosto con solo 3 y 4 marcados)", () => {
-    const exp = cleaningExpectations("daily", ["2026-08-03", "2026-08-04"], "2026-08-01", "2026-08-31", "2026-10-02");
+    const exp = cleaningExpectations(
+      "daily",
+      ["2026-08-03", "2026-08-04"],
+      "2026-08-01",
+      "2026-08-31",
+      "2026-10-02",
+    );
     expect(exp).toHaveLength(21); // agosto 2026 tiene 21 días hábiles
     expect(exp.filter((e) => e.done).map((e) => e.date)).toEqual(["2026-08-03", "2026-08-04"]);
   });
