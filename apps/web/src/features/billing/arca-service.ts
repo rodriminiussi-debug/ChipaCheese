@@ -17,13 +17,7 @@ export const ARCA_MAX_BYTES = 8 * 1024 * 1024;
 const AMOUNT_TOLERANCE = 1;
 
 export type ArcaRowStatus =
-  | "new"
-  | "duplicate"
-  | "no_customer"
-  | "unsupported"
-  | "found"
-  | "missing"
-  | "difference";
+  "new" | "duplicate" | "no_customer" | "unsupported" | "found" | "missing" | "difference";
 
 export interface ArcaPreviewRow {
   line: number;
@@ -94,14 +88,19 @@ function toPreviewRow(
   };
 }
 
-function finish(kind: ArcaKind, parsed: ReturnType<typeof parseArcaCsv>, rows: ArcaPreviewRow[]): ArcaPreview {
+function finish(
+  kind: ArcaKind,
+  parsed: ReturnType<typeof parseArcaCsv>,
+  rows: ArcaPreviewRow[],
+): ArcaPreview {
   const summary = emptySummary();
   summary.total = rows.length;
   summary.invalid = parsed.errors.length;
   for (const r of rows) summary[r.status]++;
   const unmatched = new Map<string, { docNumber: string; name: string; count: number; total: number }>();
   for (const r of rows) {
-    if (r.status !== "no_customer" && !(kind === "received" && r.status === "missing" && !r.partyName)) continue;
+    if (r.status !== "no_customer" && !(kind === "received" && r.status === "missing" && !r.partyName))
+      continue;
     const cur = unmatched.get(r.docNumber) ?? { docNumber: r.docNumber, name: r.name, count: 0, total: 0 };
     cur.count++;
     cur.total = roundMoney(cur.total + r.total);
@@ -168,7 +167,9 @@ async function reconcileReceived(db: Executor, parsed: ReturnType<typeof parseAr
     }
     const supplier = byCuit.get(r.docNumber);
     if (!supplier) {
-      rows.push(toPreviewRow(r, "missing", "Falta cargar: el proveedor no está registrado (CUIT sin match)", null));
+      rows.push(
+        toPreviewRow(r, "missing", "Falta cargar: el proveedor no está registrado (CUIT sin match)", null),
+      );
       continue;
     }
     const found = loaded.get(`${supplier.id}|${invoiceKey(r.type, r.pointOfSale, r.number)}`);

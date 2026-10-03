@@ -36,12 +36,31 @@ describe("importación de comprobantes emitidos (RF-32)", () => {
     await inRollback("nahuel", async (tx) => {
       await withCustomers(tx);
       const prev = await previewArca(tx, "issued", EMITIDOS);
-      expect(prev.summary).toMatchObject({ total: 6, new: 3, duplicate: 1, no_customer: 1, unsupported: 1, invalid: 0 });
+      expect(prev.summary).toMatchObject({
+        total: 6,
+        new: 3,
+        duplicate: 1,
+        no_customer: 1,
+        unsupported: 1,
+        invalid: 0,
+      });
       const by = Object.fromEntries(prev.rows.map((r) => [r.label, r]));
-      expect(by["Factura A 0002-00001301"]).toMatchObject({ status: "new", partyName: "La Esperanza", total: 121000 });
-      expect(by["Factura A 0002-00001234"]).toMatchObject({ status: "duplicate", partyName: "Supermercado La Reina" });
-      expect(by["Factura A 0002-00001303"]).toMatchObject({ status: "no_customer", docNumber: "30714444448" });
-      expect(prev.unmatched).toEqual([{ docNumber: "30714444448", name: "Kiosco Desconocido SRL", count: 1, total: 36300 }]);
+      expect(by["Factura A 0002-00001301"]).toMatchObject({
+        status: "new",
+        partyName: "La Esperanza",
+        total: 121000,
+      });
+      expect(by["Factura A 0002-00001234"]).toMatchObject({
+        status: "duplicate",
+        partyName: "Supermercado La Reina",
+      });
+      expect(by["Factura A 0002-00001303"]).toMatchObject({
+        status: "no_customer",
+        docNumber: "30714444448",
+      });
+      expect(prev.unmatched).toEqual([
+        { docNumber: "30714444448", name: "Kiosco Desconocido SRL", count: 1, total: 36300 },
+      ]);
       // No escribió nada.
       const count = await tx.select().from(schema.salesInvoices);
       expect(count).toHaveLength(1);
@@ -53,7 +72,10 @@ describe("importación de comprobantes emitidos (RF-32)", () => {
       await withCustomers(tx);
       const res = await importArca(tx, "issued", EMITIDOS);
       expect(res.imported).toBe(3);
-      const rows = await tx.select().from(schema.salesInvoices).where(eq(schema.salesInvoices.source, "arca_import"));
+      const rows = await tx
+        .select()
+        .from(schema.salesInvoices)
+        .where(eq(schema.salesInvoices.source, "arca_import"));
       expect(rows.map((r) => `${r.invoiceType} ${r.pointOfSale}-${r.number}`).sort()).toEqual([
         "A 0002-00001301",
         "A 0002-00001302",
@@ -70,7 +92,9 @@ describe("importación de comprobantes emitidos (RF-32)", () => {
         status: "confirmed",
       });
       // La nota de crédito resta en la cuenta corriente de La Esperanza.
-      const esperanza = (await tx.query.customers.findFirst({ where: eq(schema.customers.legalName, "La Esperanza") }))!;
+      const esperanza = (await tx.query.customers.findFirst({
+        where: eq(schema.customers.legalName, "La Esperanza"),
+      }))!;
       expect((await getCustomerAccount(tx, esperanza.id, "2026-10-02"))!.balance).toBe(121000 - 12100);
     });
   });
@@ -89,7 +113,9 @@ describe("importación de comprobantes emitidos (RF-32)", () => {
   it("reconoce como duplicada una factura cargada a mano con otro relleno de ceros", async () => {
     await inRollback("nahuel", async (tx) => {
       await withCustomers(tx);
-      const esperanza = (await tx.query.customers.findFirst({ where: eq(schema.customers.legalName, "La Esperanza") }))!;
+      const esperanza = (await tx.query.customers.findFirst({
+        where: eq(schema.customers.legalName, "La Esperanza"),
+      }))!;
       await tx.insert(schema.salesInvoices).values({
         customerId: esperanza.id,
         invoiceType: "A",
@@ -108,7 +134,12 @@ describe("importación de comprobantes emitidos (RF-32)", () => {
     await inRollback("nahuel", async (tx) => {
       const prev = await previewArca(tx, "issued", EMITIDOS);
       expect(prev.summary).toMatchObject({ new: 0, no_customer: 5, unsupported: 1 });
-      expect(prev.unmatched.map((u) => u.docNumber).sort()).toEqual(["30711111111", "30712222227", "30713333332", "30714444448"]);
+      expect(prev.unmatched.map((u) => u.docNumber).sort()).toEqual([
+        "30711111111",
+        "30712222227",
+        "30713333332",
+        "30714444448",
+      ]);
     });
   });
 
@@ -142,12 +173,34 @@ describe("conciliación de comprobantes recibidos (RF-32)", () => {
   it("separa encontradas, faltantes y diferencias de importe sin crear compras", async () => {
     await inRollback("nahuel", async (tx) => {
       await setSupplierCuit(tx, "Leo Pelle", CUIT.leopelle);
-      const leo = (await tx.query.suppliers.findFirst({ where: eq(schema.suppliers.legalName, "Leo Pelle") }))!;
+      const leo = (await tx.query.suppliers.findFirst({
+        where: eq(schema.suppliers.legalName, "Leo Pelle"),
+      }))!;
       await tx.insert(schema.purchaseInvoices).values([
         // coincide (cargada sin ceros)
-        { supplierId: leo.id, invoiceType: "A", pointOfSale: "5", number: "4521", issueDate: "2026-09-10", total: 605000, netTotal: 500000, vatTotal: 105000, status: "confirmed" },
+        {
+          supplierId: leo.id,
+          invoiceType: "A",
+          pointOfSale: "5",
+          number: "4521",
+          issueDate: "2026-09-10",
+          total: 605000,
+          netTotal: 500000,
+          vatTotal: 105000,
+          status: "confirmed",
+        },
         // el importe cargado difiere del de ARCA
-        { supplierId: leo.id, invoiceType: "A", pointOfSale: "0005", number: "00004602", issueDate: "2026-09-15", total: 240000, netTotal: 200000, vatTotal: 40000, status: "confirmed" },
+        {
+          supplierId: leo.id,
+          invoiceType: "A",
+          pointOfSale: "0005",
+          number: "00004602",
+          issueDate: "2026-09-15",
+          total: 240000,
+          netTotal: 200000,
+          vatTotal: 40000,
+          status: "confirmed",
+        },
       ]);
       const before = await tx.select().from(schema.purchaseInvoices);
       const res = await importArca(tx, "received", RECIBIDOS);
@@ -155,10 +208,15 @@ describe("conciliación de comprobantes recibidos (RF-32)", () => {
       expect(res.summary).toMatchObject({ total: 3, found: 1, difference: 1, missing: 1 });
       const by = Object.fromEntries(res.rows.map((r) => [r.label, r]));
       expect(by["Factura A 0005-00004521"]!.status).toBe("found");
-      expect(by["Factura A 0005-00004602"]).toMatchObject({ status: "difference", detail: expect.stringContaining("242.000") });
+      expect(by["Factura A 0005-00004602"]).toMatchObject({
+        status: "difference",
+        detail: expect.stringContaining("242.000"),
+      });
       // Mancinelli no tiene CUIT cargado: falta cargar y se reporta como proveedor sin match.
       expect(by["Factura A 0003-00000880"]).toMatchObject({ status: "missing", partyName: null });
-      expect(res.unmatched).toEqual([{ docNumber: CUIT.mancinelli, name: "Mancinelli SRL", count: 1, total: 121000 }]);
+      expect(res.unmatched).toEqual([
+        { docNumber: CUIT.mancinelli, name: "Mancinelli SRL", count: 1, total: 121000 },
+      ]);
       // No toca las compras ni las ventas.
       expect(await tx.select().from(schema.purchaseInvoices)).toHaveLength(before.length);
       expect(await tx.select().from(schema.salesInvoices)).toHaveLength(1);
@@ -166,7 +224,11 @@ describe("conciliación de comprobantes recibidos (RF-32)", () => {
       // Con el proveedor registrado, la tercera factura es una factura que falta cargar.
       await setSupplierCuit(tx, "Mancinelli", CUIT.mancinelli);
       const res2 = await previewArca(tx, "received", RECIBIDOS);
-      expect(res2.rows.find((r) => r.label.endsWith("0003-00000880"))).toMatchObject({ status: "missing", partyName: "Mancinelli", detail: expect.stringContaining("Falta cargar") });
+      expect(res2.rows.find((r) => r.label.endsWith("0003-00000880"))).toMatchObject({
+        status: "missing",
+        partyName: "Mancinelli",
+        detail: expect.stringContaining("Falta cargar"),
+      });
       expect(res2.unmatched).toEqual([]);
     });
   });

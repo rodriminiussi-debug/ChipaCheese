@@ -119,9 +119,11 @@ const SPEC: ColumnSpec = {
   date: (h) => h.startsWith("fecha"),
   type: (h) => h === "tipo" || h.startsWith("tipo de comprobante") || h === "tipo comprobante",
   pointOfSale: (h) => h.startsWith("punto de venta") || h === "pto vta" || h === "pv",
-  number: (h) => h === "numero desde" || h === "numero" || h === "nro comprobante" || h === "numero comprobante",
+  number: (h) =>
+    h === "numero desde" || h === "numero" || h === "nro comprobante" || h === "numero comprobante",
   cae: (h) => h.startsWith("cod autorizacion") || h === "cae" || h.startsWith("codigo de autorizacion"),
-  doc: (h) => /^nro doc (receptor|emisor)/.test(h) || h === "nro doc" || h === "cuit" || h === "nro documento",
+  doc: (h) =>
+    /^nro doc (receptor|emisor)/.test(h) || h === "nro doc" || h === "cuit" || h === "nro documento",
   name: (h) => h.startsWith("denominacion") || h === "razon social",
   net: (h) => h === "imp neto gravado" || h === "neto gravado" || h === "importe neto gravado",
   vat: (h) => h === "iva" || h === "total iva" || h === "importe iva",
@@ -210,11 +212,10 @@ export function parseArcaCsv(text: string, kind: ArcaKind): ArcaParse {
   }
   const missing = REQUIRED.filter(([k]) => idx[k] === undefined).map(([, label]) => label);
   if (missing.length > 0)
-    throw new UserError(
-      `No parece un CSV de "Mis Comprobantes": faltan las columnas ${missing.join(", ")}.`,
-    );
+    throw new UserError(`No parece un CSV de "Mis Comprobantes": faltan las columnas ${missing.join(", ")}.`);
 
-  const get = (rec: string[], k: keyof ColumnSpec) => (idx[k] === undefined ? "" : (rec[idx[k]!] ?? "").trim());
+  const get = (rec: string[], k: keyof ColumnSpec) =>
+    idx[k] === undefined ? "" : (rec[idx[k]!] ?? "").trim();
   const rows: ArcaRow[] = [];
   const errors: ArcaParse["errors"] = [];
 
@@ -228,8 +229,10 @@ export function parseArcaCsv(text: string, kind: ArcaKind): ArcaParse {
 
     const pv = get(rec, "pointOfSale").replace(/\D/g, "");
     const number = get(rec, "number").replace(/\D/g, "");
-    if (!pv || pv.length > 5) return void errors.push({ line, message: `Punto de venta inválido ("${get(rec, "pointOfSale")}")` });
-    if (!number || number.length > 8) return void errors.push({ line, message: `Número inválido ("${get(rec, "number")}")` });
+    if (!pv || pv.length > 5)
+      return void errors.push({ line, message: `Punto de venta inválido ("${get(rec, "pointOfSale")}")` });
+    if (!number || number.length > 8)
+      return void errors.push({ line, message: `Número inválido ("${get(rec, "number")}")` });
 
     const net = parseAmount(get(rec, "net"));
     const vat = parseAmount(get(rec, "vat"));
@@ -244,7 +247,10 @@ export function parseArcaCsv(text: string, kind: ArcaKind): ArcaParse {
 
     const isCredit = type?.startsWith("NC_") ?? false;
     if (!unsupportedReason && !isCredit && total < 0)
-      return void errors.push({ line, message: "Importe total negativo en un comprobante que no es nota de crédito" });
+      return void errors.push({
+        line,
+        message: "Importe total negativo en un comprobante que no es nota de crédito",
+      });
     // Las notas de crédito pueden venir con signo negativo: se guardan en positivo.
     const absTotal = Math.abs(total);
     if (!unsupportedReason && !(absTotal > 0))

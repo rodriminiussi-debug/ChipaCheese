@@ -50,7 +50,7 @@ export const checkInput = z.object({
   amount: decimal({ min: 0.01, message: "Ingresá el importe" }),
   issueDate: optIsoDate(),
   /** Fecha a partir de la cual se puede cobrar. */
-  cashDate: isoDate(),
+  cashDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Ingresá la fecha de cobro"),
 });
 export type CheckInput = z.input<typeof checkInput>;
 export type CheckData = z.output<typeof checkInput>;
@@ -75,7 +75,11 @@ export const paymentInput = z
         ctx.addIssue({ code: "custom", path: ["checks"], message: "Cargá al menos un cheque" });
     } else {
       if (v.checks.length > 0)
-        ctx.addIssue({ code: "custom", path: ["checks"], message: "Solo los cobros con cheque llevan cheques" });
+        ctx.addIssue({
+          code: "custom",
+          path: ["checks"],
+          message: "Solo los cobros con cheque llevan cheques",
+        });
       if (v.amount == null || !(v.amount > 0))
         ctx.addIssue({ code: "custom", path: ["amount"], message: "Ingresá el importe" });
     }

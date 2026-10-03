@@ -94,7 +94,10 @@ describe("parser de Mis Comprobantes (RF-32)", () => {
     expect(parseArcaType("3 - Nota de Crédito A").type).toBe("NC_A");
     expect(parseArcaType("Nota de Crédito C").type).toBe("NC_C");
     expect(parseArcaType("Factura B").type).toBe("B");
-    expect(parseArcaType("7 - Nota de Débito B")).toEqual({ type: null, unsupported: expect.stringContaining("débito") });
+    expect(parseArcaType("7 - Nota de Débito B")).toEqual({
+      type: null,
+      unsupported: expect.stringContaining("débito"),
+    });
     expect(parseArcaType("51 - Factura M").type).toBeNull();
   });
 
@@ -110,8 +113,14 @@ describe("parser de Mis Comprobantes (RF-32)", () => {
   });
 
   it("marca como no soportada la moneda extranjera", () => {
-    const csv = ["Fecha;Tipo;Punto de Venta;Número Desde;Moneda;Imp. Total", "01/09/2026;1;2;1;DOL;100,00"].join("\n");
-    expect(parseArcaCsv(csv, "issued").rows[0]).toMatchObject({ type: null, unsupported: expect.stringContaining("Moneda") });
+    const csv = [
+      "Fecha;Tipo;Punto de Venta;Número Desde;Moneda;Imp. Total",
+      "01/09/2026;1;2;1;DOL;100,00",
+    ].join("\n");
+    expect(parseArcaCsv(csv, "issued").rows[0]).toMatchObject({
+      type: null,
+      unsupported: expect.stringContaining("Moneda"),
+    });
   });
 
   it("splitCsv respeta delimitadores y saltos de línea entre comillas", () => {

@@ -107,16 +107,54 @@ describe("cuenta corriente (RF-30)", () => {
     await inRollback("nahuel", async (tx) => {
       const c = await customer(tx, "La Esperanza"); // contado
       // Hoy 02/10: vencidas hace 52, 22 y a vencer en 8 días.
-      await createInvoice(tx, null, invoice(c.id, { number: "100", issueDate: "2026-08-11", total: 100000, netTotal: 82644.63, vatTotal: 17355.37 }), TODAY);
-      await createInvoice(tx, null, invoice(c.id, { number: "101", issueDate: "2026-09-10", total: 50000, netTotal: 41322.31, vatTotal: 8677.69 }), TODAY);
-      await createInvoice(tx, null, invoice(c.id, { number: "102", issueDate: "2026-09-25", dueDate: "2026-10-10", total: 30000, netTotal: 24793.39, vatTotal: 5206.61 }), TODAY);
+      await createInvoice(
+        tx,
+        null,
+        invoice(c.id, {
+          number: "100",
+          issueDate: "2026-08-11",
+          total: 100000,
+          netTotal: 82644.63,
+          vatTotal: 17355.37,
+        }),
+        TODAY,
+      );
+      await createInvoice(
+        tx,
+        null,
+        invoice(c.id, {
+          number: "101",
+          issueDate: "2026-09-10",
+          total: 50000,
+          netTotal: 41322.31,
+          vatTotal: 8677.69,
+        }),
+        TODAY,
+      );
+      await createInvoice(
+        tx,
+        null,
+        invoice(c.id, {
+          number: "102",
+          issueDate: "2026-09-25",
+          dueDate: "2026-10-10",
+          total: 30000,
+          netTotal: 24793.39,
+          vatTotal: 5206.61,
+        }),
+        TODAY,
+      );
       await registerPayment(tx, null, cashPayment(c.id, 120000), TODAY);
 
       const acc = (await getCustomerAccount(tx, c.id, TODAY))!;
       expect(acc.balance).toBe(60000);
       const byNumber = Object.fromEntries(acc.invoices.map((i) => [i.label, i]));
       expect(byNumber["Factura A 0002-00000100"]).toMatchObject({ paid: 100000, open: 0, state: "paid" });
-      expect(byNumber["Factura A 0002-00000101"]).toMatchObject({ paid: 20000, open: 30000, state: "overdue" });
+      expect(byNumber["Factura A 0002-00000101"]).toMatchObject({
+        paid: 20000,
+        open: 30000,
+        state: "overdue",
+      });
       expect(byNumber["Factura A 0002-00000102"]).toMatchObject({ paid: 0, open: 30000, state: "current" });
       expect(acc.buckets).toMatchObject({ current: 30000, d1_30: 30000, total: 60000 });
       expect(acc.overdue).toBe(30000);
@@ -133,7 +171,12 @@ describe("cuenta corriente (RF-30)", () => {
   it("los pagos de más quedan como saldo a favor y las notas de crédito restan deuda", async () => {
     await inRollback("nahuel", async (tx) => {
       const c = await customer(tx, "Vía Dolce");
-      await createInvoice(tx, null, invoice(c.id, { number: "200", total: 10000, netTotal: 8264.46, vatTotal: 1735.54 }), TODAY);
+      await createInvoice(
+        tx,
+        null,
+        invoice(c.id, { number: "200", total: 10000, netTotal: 8264.46, vatTotal: 1735.54 }),
+        TODAY,
+      );
       await createInvoice(
         tx,
         null,
@@ -145,14 +188,27 @@ describe("cuenta corriente (RF-30)", () => {
       const acc = (await getCustomerAccount(tx, c.id, TODAY))!;
       expect(acc.balance).toBe(-1500);
       expect(acc.buckets.total).toBe(0);
-      expect((await getReceivablesSummary(tx, TODAY)).topDebtors.map((d) => d.name)).not.toContain("Vía Dolce");
+      expect((await getReceivablesSummary(tx, TODAY)).topDebtors.map((d) => d.name)).not.toContain(
+        "Vía Dolce",
+      );
     });
   });
 
   it("getReceivablesSummary devuelve total, vencido, antigüedad y principales deudores", async () => {
     await inRollback("nahuel", async (tx) => {
       const c = await customer(tx, "Club Náutico");
-      await createInvoice(tx, null, invoice(c.id, { number: "300", issueDate: "2026-07-01", total: 90000, netTotal: 74380.99, vatTotal: 15619.01 }), TODAY);
+      await createInvoice(
+        tx,
+        null,
+        invoice(c.id, {
+          number: "300",
+          issueDate: "2026-07-01",
+          total: 90000,
+          netTotal: 74380.99,
+          vatTotal: 15619.01,
+        }),
+        TODAY,
+      );
       const s = await getReceivablesSummary(tx, TODAY);
       // Náutico: 7 días de plazo → vence el 08/07, 86 días de mora (61–90).
       expect(s.total).toBe(358000);
@@ -170,10 +226,25 @@ describe("alta de facturas", () => {
   it("el vencimiento por defecto es la emisión más el plazo del cliente", async () => {
     await inRollback("nahuel", async (tx) => {
       const nautico = await customer(tx, "Club Náutico"); // 7 días
-      const { invoice: inv } = await createInvoice(tx, null, invoice(nautico.id, { issueDate: "2026-09-20" }), TODAY);
+      const { invoice: inv } = await createInvoice(
+        tx,
+        null,
+        invoice(nautico.id, { issueDate: "2026-09-20" }),
+        TODAY,
+      );
       expect(inv.dueDate).toBe("2026-09-27");
-      expect(inv).toMatchObject({ pointOfSale: "0002", number: "00009001", source: "manual", vatTotal: 21000 });
-      const explicit = await createInvoice(tx, null, invoice(nautico.id, { number: "9002", dueDate: "2026-12-01" }), TODAY);
+      expect(inv).toMatchObject({
+        pointOfSale: "0002",
+        number: "00009001",
+        source: "manual",
+        vatTotal: 21000,
+      });
+      const explicit = await createInvoice(
+        tx,
+        null,
+        invoice(nautico.id, { number: "9002", dueDate: "2026-12-01" }),
+        TODAY,
+      );
       expect(explicit.invoice.dueDate).toBe("2026-12-01");
     });
   });
@@ -184,12 +255,21 @@ describe("alta de facturas", () => {
       const other = await customer(tx, "Vía Dolce");
       await createInvoice(tx, null, invoice(c.id), TODAY);
       await expect(createInvoice(tx, null, invoice(c.id), TODAY)).rejects.toThrow(/Ya existe la factura/);
-      await expect(createInvoice(tx, null, invoice(c.id, { number: "9003", issueDate: "2026-10-05" }), TODAY)).rejects.toThrow(/futura/);
+      await expect(
+        createInvoice(tx, null, invoice(c.id, { number: "9003", issueDate: "2026-10-05" }), TODAY),
+      ).rejects.toThrow(/futura/);
       const order = await deliveredOrder(tx, other.id, 121000);
-      await expect(createInvoice(tx, null, invoice(c.id, { number: "9004", orderId: order.id }), TODAY)).rejects.toThrow(/otro cliente/);
+      await expect(
+        createInvoice(tx, null, invoice(c.id, { number: "9004", orderId: order.id }), TODAY),
+      ).rejects.toThrow(/otro cliente/);
       const pending = await tx.query.orders.findFirst({ where: eq(schema.orders.status, "received") });
       await expect(
-        createInvoice(tx, null, invoice(pending!.customerId, { number: "9005", orderId: pending!.id }), TODAY),
+        createInvoice(
+          tx,
+          null,
+          invoice(pending!.customerId, { number: "9005", orderId: pending!.id }),
+          TODAY,
+        ),
       ).rejects.toThrow(/entregado/);
     });
   });
@@ -198,8 +278,14 @@ describe("alta de facturas", () => {
     await inRollback("nahuel", async (tx) => {
       const c = await customer(tx, "Vía Dolce");
       const order = await deliveredOrder(tx, c.id, 121000);
-      await createInvoice(tx, null, invoice(c.id, { number: "400", orderId: order.id, issueDate: "2026-10-01" }), TODAY);
-      const status = async () => (await tx.query.orders.findFirst({ where: eq(schema.orders.id, order.id) }))!.status;
+      await createInvoice(
+        tx,
+        null,
+        invoice(c.id, { number: "400", orderId: order.id, issueDate: "2026-10-01" }),
+        TODAY,
+      );
+      const status = async () =>
+        (await tx.query.orders.findFirst({ where: eq(schema.orders.id, order.id) }))!.status;
       expect(await status()).toBe("invoiced");
       const events = await tx.query.orderEvents.findMany({ where: eq(schema.orderEvents.orderId, order.id) });
       expect(events.map((e) => e.status)).toContain("invoiced");
@@ -218,10 +304,16 @@ describe("alta de facturas", () => {
   it("pagar el saldo de La Reina deja el pedido del seed como cobrado", async () => {
     await inRollback("nahuel", async (tx) => {
       const reina = await customer(tx, "Supermercado La Reina");
-      const seeded = await tx.query.salesInvoices.findFirst({ where: eq(schema.salesInvoices.customerId, reina.id) });
-      expect((await tx.query.orders.findFirst({ where: eq(schema.orders.id, seeded!.orderId!) }))!.status).toBe("invoiced");
+      const seeded = await tx.query.salesInvoices.findFirst({
+        where: eq(schema.salesInvoices.customerId, reina.id),
+      });
+      expect(
+        (await tx.query.orders.findFirst({ where: eq(schema.orders.id, seeded!.orderId!) }))!.status,
+      ).toBe("invoiced");
       await registerPayment(tx, null, cashPayment(reina.id, 268000), TODAY);
-      expect((await tx.query.orders.findFirst({ where: eq(schema.orders.id, seeded!.orderId!) }))!.status).toBe("paid");
+      expect(
+        (await tx.query.orders.findFirst({ where: eq(schema.orders.id, seeded!.orderId!) }))!.status,
+      ).toBe("paid");
       expect((await getCustomerAccount(tx, reina.id, TODAY))!.balance).toBe(0);
     });
   });
@@ -235,7 +327,13 @@ describe("cobros y cheques (RF-31)", () => {
         customerId: c.id,
         method: "check",
         checks: [
-          { bank: "Banco Nación", number: "1001", amount: 40000, cashDate: "2026-10-05", issuer: "Arcoiris SA" },
+          {
+            bank: "Banco Nación",
+            number: "1001",
+            amount: 40000,
+            cashDate: "2026-10-05",
+            issuer: "Arcoiris SA",
+          },
           { bank: "Banco Nación", number: "1002", amount: 60000, cashDate: "2026-11-05" },
         ],
       });
@@ -253,7 +351,11 @@ describe("cobros y cheques (RF-31)", () => {
         registerPayment(
           tx,
           null,
-          paymentInput.parse({ customerId: c.id, method: "check", checks: [{ bank: "banco nación", number: "1001", amount: 1, cashDate: "2026-10-05" }] }),
+          paymentInput.parse({
+            customerId: c.id,
+            method: "check",
+            checks: [{ bank: "banco nación", number: "1001", amount: 1, cashDate: "2026-10-05" }],
+          }),
           TODAY,
         ),
       ).rejects.toThrow(/ya está cargado/);
@@ -298,7 +400,12 @@ describe("cobros y cheques (RF-31)", () => {
       expect(byNum.A1).toMatchObject({ dueSoon: true, daysToCash: 2 });
       expect(byNum.A0).toMatchObject({ dueSoon: false, readyToDeposit: true });
       expect(byNum["45879632"]!.dueSoon).toBe(false); // 10/10 = +8 días
-      expect(pf.totals).toMatchObject({ dueSoon: 10000, dueSoonCount: 1, readyToDeposit: 5000, inPortfolio: 245000 });
+      expect(pf.totals).toMatchObject({
+        dueSoon: 10000,
+        dueSoonCount: 1,
+        readyToDeposit: 5000,
+        inPortfolio: 245000,
+      });
       expect((await getChecksDueSoon(tx, TODAY)).map((x) => x.number)).toEqual(["A1"]);
       expect((await getChecksDueSoon(tx, "2026-10-05")).map((x) => x.number)).toEqual(["45879632"]);
 
@@ -306,7 +413,9 @@ describe("cobros y cheques (RF-31)", () => {
       const a1 = byNum.A1!;
       await setCheckStatus(tx, { checkId: a1.id, status: "deposited", notes: null });
       await setCheckStatus(tx, { checkId: a1.id, status: "cashed", notes: null });
-      expect((await listChecks(tx, { scope: "active" }, TODAY)).rows.map((r) => r.number)).not.toContain("A1");
+      expect((await listChecks(tx, { scope: "active" }, TODAY)).rows.map((r) => r.number)).not.toContain(
+        "A1",
+      );
       expect((await listChecks(tx, { scope: "cashed" }, TODAY)).rows.map((r) => r.number)).toEqual(["A1"]);
       expect((await listChecks(tx, { scope: "all" }, TODAY)).rows).toHaveLength(4);
     });
@@ -350,11 +459,23 @@ describe("ventas por canal (para el tablero)", () => {
       expect(sept.byChannel.supermarket!.net).toBeCloseTo(386776.86, 2);
 
       const esperanza = await customer(tx, "La Esperanza");
-      await createInvoice(tx, null, invoice(esperanza.id, { number: "700", issueDate: "2026-09-15", total: 121000 }), TODAY);
       await createInvoice(
         tx,
         null,
-        invoice(esperanza.id, { invoiceType: "NC_A", number: "7", issueDate: "2026-09-16", total: 12100, netTotal: 10000, vatTotal: 2100 }),
+        invoice(esperanza.id, { number: "700", issueDate: "2026-09-15", total: 121000 }),
+        TODAY,
+      );
+      await createInvoice(
+        tx,
+        null,
+        invoice(esperanza.id, {
+          invoiceType: "NC_A",
+          number: "7",
+          issueDate: "2026-09-16",
+          total: 12100,
+          netTotal: 10000,
+          vatTotal: 2100,
+        }),
         TODAY,
       );
       const after = await getSalesByChannel(tx, "2026-09");

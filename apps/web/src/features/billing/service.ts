@@ -66,7 +66,8 @@ async function loadLedgers(db: Executor, customerIds?: string[]): Promise<Map<st
     }),
   ]);
   const out = new Map<string, Ledger>();
-  const get = (id: string) => out.get(id) ?? out.set(id, { customerId: id, invoices: [], payments: [] }).get(id)!;
+  const get = (id: string) =>
+    out.get(id) ?? out.set(id, { customerId: id, invoices: [], payments: [] }).get(id)!;
   for (const i of invoices) get(i.customerId).invoices.push(i);
   for (const p of payments) get(p.customerId).payments.push(p);
   for (const id of customerIds ?? []) get(id);
@@ -101,7 +102,14 @@ function computeAccount(l: Ledger, today: IsoDate) {
     fifo.map((f) => ({ dueDate: f.dueDate, open: f.open })),
     today,
   );
-  return { charges, credits, fifo, buckets, balance: accountBalance(charges, credits), overdue: overdueOf(buckets) };
+  return {
+    charges,
+    credits,
+    fifo,
+    buckets,
+    balance: accountBalance(charges, credits),
+    overdue: overdueOf(buckets),
+  };
 }
 
 const ZERO_BUCKETS: AgingBuckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0 };
@@ -158,7 +166,11 @@ export async function getReceivables(db: Executor, today: IsoDate = todayAR()) {
       overdue: acc.overdue,
       buckets: acc.buckets,
       oldestDueDate: open[0]?.dueDate ?? null,
-      lastPaymentDate: ledger.payments.map((p) => p.date).sort().at(-1) ?? null,
+      lastPaymentDate:
+        ledger.payments
+          .map((p) => p.date)
+          .sort()
+          .at(-1) ?? null,
     });
   }
   rows.sort((a, b) => b.overdue - a.overdue || b.balance - a.balance);
@@ -229,7 +241,10 @@ export async function getCustomerAccount(db: Executor, customerId: string, today
 
   const orderIds = ledger.invoices.map((i) => i.orderId).filter((x): x is string => !!x);
   const orders = orderIds.length
-    ? await db.select({ id: schema.orders.id, number: schema.orders.number }).from(schema.orders).where(inArray(schema.orders.id, orderIds))
+    ? await db
+        .select({ id: schema.orders.id, number: schema.orders.number })
+        .from(schema.orders)
+        .where(inArray(schema.orders.id, orderIds))
     : [];
   const orderNumber = new Map(orders.map((o) => [o.id, o.number]));
 
@@ -304,13 +319,19 @@ export type CustomerAccount = NonNullable<Awaited<ReturnType<typeof getCustomerA
 // Alta de facturas
 // ------------------------------------------------------------------------------------------------
 
-/** Pedidos entregados de un cliente aún sin facturar (para ligar la factura). */
-export async function deliveredOrdersToInvoice(db: Executor, customerId: string) {
+/** Pedidos entregados aún sin facturar (de un cliente o de todos) para ligar la factura. */
+export async function deliveredOrdersToInvoice(db: Executor, customerId?: string) {
   const o = schema.orders;
   return db
-    .select({ id: o.id, number: o.number, total: o.total, promisedDate: o.promisedDate })
+    .select({
+      id: o.id,
+      number: o.number,
+      total: o.total,
+      promisedDate: o.promisedDate,
+      customerId: o.customerId,
+    })
     .from(o)
-    .where(and(eq(o.customerId, customerId), eq(o.status, "delivered")))
+    .where(and(eq(o.status, "delivered"), customerId ? eq(o.customerId, customerId) : undefined))
     .orderBy(desc(o.promisedDate));
 }
 
@@ -327,11 +348,17 @@ export async function createInvoice(
     throw new UserError("La fecha de emisión no puede ser futura.", { issueDate: ["Fecha futura"] });
   const dueDate = input.dueDate ?? addDays(input.issueDate, customer.paymentTermsDays);
   if (dueDate < input.issueDate)
-    throw new UserError("El vencimiento no puede ser anterior a la emisión.", { dueDate: ["Anterior a la emisión"] });
+    throw new UserError("El vencimiento no puede ser anterior a la emisión.", {
+      dueDate: ["Anterior a la emisión"],
+    });
 
   const si = schema.salesInvoices;
   const dup = await db.query.salesInvoices.findFirst({
-    where: and(eq(si.invoiceType, input.invoiceType), eq(si.pointOfSale, input.pointOfSale), eq(si.number, input.number)),
+    where: and(
+      eq(si.invoiceType, input.invoiceType),
+      eq(si.pointOfSale, input.pointOfSale),
+      eq(si.number, input.number),
+    ),
   });
   if (dup)
     throw new UserError(`Ya existe la factura ${input.invoiceType} ${input.pointOfSale}-${input.number}.`, {
@@ -344,7 +371,9 @@ export async function createInvoice(
     if (!order) throw new UserError("El pedido no existe.");
     if (order.customerId !== customer.id) throw new UserError("El pedido es de otro cliente.");
     if (order.status !== "delivered")
-      throw new UserError("Solo se puede facturar un pedido entregado.", { orderId: ["El pedido no está entregado"] });
+      throw new UserError("Solo se puede facturar un pedido entregado.", {
+        orderId: ["El pedido no está entregado"],
+      });
     orderId = order.id;
   }
 
@@ -393,13 +422,18 @@ export async function settleInvoicedOrders(
   const { fifo } = computeAccount(ledger, today);
   const open = new Map(fifo.map((f) => [f.chargeId, f.open]));
   const byOrder = new Map<string, InvoiceRow[]>();
-  for (const i of withOrder) (byOrder.get(i.orderId!) ?? byOrder.set(i.orderId!, []).get(i.orderId!)!).push(i);
+  for (const i of withOrder)
+    (byOrder.get(i.orderId!) ?? byOrder.set(i.orderId!, []).get(i.orderId!)!).push(i);
   const settled: number[] = [];
   for (const [orderId, invoices] of byOrder) {
     if (!invoices.every((i) => (open.get(i.id) ?? 1) <= 0)) continue;
     const order = await db.query.orders.findFirst({ where: eq(schema.orders.id, orderId) });
     if (!order || order.status !== "invoiced") continue;
-    await changeOrderStatus(db, userId, { id: orderId, to: "paid", note: "Facturas cobradas en su totalidad" });
+    await changeOrderStatus(db, userId, {
+      id: orderId,
+      to: "paid",
+      note: "Facturas cobradas en su totalidad",
+    });
     settled.push(order.number);
   }
   return settled;
@@ -418,7 +452,8 @@ export async function registerPayment(
   const customer = await db.query.customers.findFirst({ where: eq(schema.customers.id, input.customerId) });
   if (!customer) throw new UserError("El cliente no existe.");
   const date = input.date ?? today;
-  if (date > today) throw new UserError("La fecha del cobro no puede ser futura.", { date: ["Fecha futura"] });
+  if (date > today)
+    throw new UserError("La fecha del cobro no puede ser futura.", { date: ["Fecha futura"] });
 
   if (input.routeId) {
     const route = await db.query.routes.findFirst({ where: eq(schema.routes.id, input.routeId) });
@@ -436,9 +471,15 @@ export async function registerPayment(
       if (numbers.has(key)) throw new UserError(`El cheque ${c.number} está repetido en este cobro.`);
       numbers.add(key);
       const dup = await db.query.checks.findFirst({
-        where: and(eq(schema.checks.number, c.number), sql`lower(${schema.checks.bank}) = ${c.bank.toLowerCase()}`),
+        where: and(
+          eq(schema.checks.number, c.number),
+          sql`lower(${schema.checks.bank}) = ${c.bank.toLowerCase()}`,
+        ),
       });
-      if (dup) throw new UserError(`El cheque ${c.number} de ${c.bank} ya está cargado.`, { checks: ["Cheque duplicado"] });
+      if (dup)
+        throw new UserError(`El cheque ${c.number} de ${c.bank} ya está cargado.`, {
+          checks: ["Cheque duplicado"],
+        });
     }
   }
 
@@ -553,7 +594,9 @@ export async function listChecks(
     const inPortfolio = r.status === "in_portfolio";
     return {
       ...r,
-      daysToCash: Math.round((Date.parse(`${r.cashDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000),
+      daysToCash: Math.round(
+        (Date.parse(`${r.cashDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000,
+      ),
       dueSoon: inPortfolio && r.cashDate >= today && r.cashDate <= limit,
       readyToDeposit: inPortfolio && r.cashDate < today,
     };
@@ -579,7 +622,9 @@ export async function getChecksDueSoon(db: Executor, today: IsoDate = todayAR(),
   return db
     .select({ id: c.id, number: c.number, bank: c.bank, amount: c.amount, cashDate: c.cashDate })
     .from(c)
-    .where(and(eq(c.status, "in_portfolio"), gte(c.cashDate, today), lt(c.cashDate, addDays(today, days + 1))))
+    .where(
+      and(eq(c.status, "in_portfolio"), gte(c.cashDate, today), lt(c.cashDate, addDays(today, days + 1))),
+    )
     .orderBy(asc(c.cashDate));
 }
 
@@ -591,7 +636,10 @@ export async function getChecksDueSoon(db: Executor, today: IsoDate = todayAR(),
 export async function getRouteCollections(db: Executor, routeId: string, today: IsoDate = todayAR()) {
   const route = await db.query.routes.findFirst({
     where: eq(schema.routes.id, routeId),
-    with: { driver: true, stops: { with: { order: true, customer: true }, orderBy: asc(schema.routeStops.seq) } },
+    with: {
+      driver: true,
+      stops: { with: { order: true, customer: true }, orderBy: asc(schema.routeStops.seq) },
+    },
   });
   if (!route) return null;
 
@@ -624,7 +672,9 @@ export async function getRouteCollections(db: Executor, routeId: string, today: 
         done: stopCustomers.get(id)!.done,
         balance: acc.balance,
         overdue: acc.overdue,
-        collectedOnRoute: roundMoney(payments.filter((p) => p.customerId === id).reduce((a, p) => a + p.amount, 0)),
+        collectedOnRoute: roundMoney(
+          payments.filter((p) => p.customerId === id).reduce((a, p) => a + p.amount, 0),
+        ),
       };
     })
     .sort((a, b) => a.seq - b.seq);
@@ -689,7 +739,10 @@ export async function getSalesByChannel(db: Executor, month: string) {
     .where(and(ne(si.status, "voided"), gte(si.issueDate, from), lt(si.issueDate, to)));
 
   const storeSales = await db
-    .select({ total: sql<number>`coalesce(sum(${schema.storeSales.total}), 0)::float8`, n: sql<number>`count(*)::int` })
+    .select({
+      total: sql<number>`coalesce(sum(${schema.storeSales.total}), 0)::float8`,
+      n: sql<number>`count(*)::int`,
+    })
     .from(schema.storeSales)
     .where(
       and(
