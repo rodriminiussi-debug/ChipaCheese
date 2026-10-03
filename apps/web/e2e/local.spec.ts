@@ -1,32 +1,16 @@
-import postgres from "postgres";
-import { TEST_DATABASE_URL } from "../playwright.config";
+import type postgres from "postgres";
 import { test, expect, asRole, expectToast } from "./fixtures";
 
 /**
- * M6 · Ventas del local y cierre de caja (RF-33). Comparten base con el resto de los specs:
- * todo lo que crean (ventas, cierres, movimientos de stock) se limpia en afterAll.
+ * M6 · Ventas del local y cierre de caja (RF-33). El archivo arranca de la base demo intacta
+ * (aislamiento por archivo, e2e/fixtures.ts).
  */
 test.describe.configure({ mode: "serial" });
 
+// Solo marca de tiempo (no toca la base): filtra lo creado por este archivo.
 let startedAt: Date;
-const admin = () => postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
-
-test.beforeAll(async () => {
-  const sql = admin();
-  [{ now: startedAt }] = (await sql`select now() as now`) as unknown as [{ now: Date }];
-  await sql.end();
-});
-
-test.afterAll(async () => {
-  const sql = admin();
-  try {
-    await sql`delete from store_sale_items where sale_id in (select id from store_sales where created_at >= ${startedAt})`;
-    await sql`delete from store_sales where created_at >= ${startedAt}`;
-    await sql`delete from cash_closings where created_at >= ${startedAt}`;
-    await sql`delete from stock_movements where created_at >= ${startedAt}`;
-  } finally {
-    await sql.end();
-  }
+test.beforeAll(() => {
+  startedAt = new Date(Date.now() - 1000);
 });
 
 /** Transferencia F3/F4 → LOCAL del lote más viejo de un producto (como lo hace la pantalla de stock). */

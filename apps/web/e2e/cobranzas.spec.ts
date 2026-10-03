@@ -1,49 +1,16 @@
 import { resolve } from "node:path";
 import ExcelJS from "exceljs";
-import postgres from "postgres";
-import { TEST_DATABASE_URL } from "../playwright.config";
+import type postgres from "postgres";
 import { test, expect, asRole, expectToast } from "./fixtures";
 
 /**
  * M6 · Precios, cuentas corrientes, cobros, cheques, importación ARCA y exportación (RF-29 a RF-32).
- * Comparten base con el resto de los specs: todo lo que crean se limpia en afterAll.
+ * El archivo arranca de la base demo intacta (aislamiento por archivo, e2e/fixtures.ts).
  * El servidor corre con APP_TODAY=2026-10-02 y el navegador con page.clock en ese día.
  */
 test.describe.configure({ mode: "serial" });
 
 const FIXTURES = resolve(import.meta.dirname, "fixtures");
-let startedAt: Date;
-let previousHourlyCost: unknown;
-const admin = () => postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
-
-test.beforeAll(async () => {
-  const sql = admin();
-  [{ now: startedAt }] = (await sql`select now() as now`) as unknown as [{ now: Date }];
-  // Otros specs (admin) editan el costo hora: los márgenes de este spec asumen el valor del relevamiento.
-  [{ value: previousHourlyCost }] = await sql`select value from app_settings where key = 'labor.hourly_cost'`;
-  await sql`update app_settings set value = ${sql.json(5000)} where key = 'labor.hourly_cost'`;
-  await sql.end();
-});
-
-test.afterAll(async () => {
-  const sql = admin();
-  try {
-    await sql`update app_settings set value = ${sql.json(previousHourlyCost as never)} where key = 'labor.hourly_cost'`;
-    await sql`delete from price_list_items where valid_from >= '2026-10-01'`;
-    await sql`delete from checks where created_at >= ${startedAt}`;
-    await sql`delete from customer_payments where created_at >= ${startedAt}`;
-    await sql`delete from sales_invoices where created_at >= ${startedAt}`;
-    await sql`delete from route_stops where created_at >= ${startedAt}`;
-    await sql`delete from routes where created_at >= ${startedAt}`;
-    await sql`delete from order_events where order_id in (select id from orders where notes = 'E2E cobranzas')`;
-    await sql`delete from orders where notes = 'E2E cobranzas'`;
-    await sql`delete from purchase_invoices where created_at >= ${startedAt}`;
-    await sql`update customers set cuit = null where cuit in ('30711111111','30712222227','30713333332')`;
-    await sql`update suppliers set cuit = null where cuit in ('30715555553','30716666669')`;
-  } finally {
-    await sql.end();
-  }
-});
 
 test.describe("Listas de precios (RF-29)", () => {
   test.use({ storageState: asRole("admin") });
