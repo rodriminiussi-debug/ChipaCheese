@@ -52,3 +52,43 @@ export function routeHours(startedAt: Date, endedAt: Date): number {
 export function zoneDeliversOn(weekdays: readonly number[], date: IsoDate): boolean {
   return weekdays.length === 0 || weekdays.includes(isoWeekday(date));
 }
+
+export type CostGap = "vehicle_cost_per_km" | "driver_hourly_cost";
+
+/**
+ * RF-27: datos que faltan para que el costo de una ruta sea completo ("costo parcial"):
+ * - costo por km del vehículo, si recorrió km y no se cargó el gasto real de combustible (que lo reemplaza);
+ * - costo hora del chofer, si la salida tuvo horas.
+ */
+export function missingCostInputs(input: {
+  km: number;
+  hours: number;
+  costPerKm: number | null;
+  hasRealFuelCost: boolean;
+  driverHourlyCost: number | null;
+}): CostGap[] {
+  const gaps: CostGap[] = [];
+  if (input.km > 0 && !input.hasRealFuelCost && !((input.costPerKm ?? 0) > 0))
+    gaps.push("vehicle_cost_per_km");
+  if (input.hours > 0 && !((input.driverHourlyCost ?? 0) > 0)) gaps.push("driver_hourly_cost");
+  return gaps;
+}
+
+/**
+ * RF-27: reparte el costo de una ruta entre sus paradas (o zonas) en proporción a los kg entregados.
+ * La suma da exactamente `total` (el redondeo sobrante va a la mayor parte). Sin kg no se reparte nada.
+ */
+export function allocateCostByKg(
+  total: number,
+  parts: { key: string; kg: number }[],
+): { key: string; kg: number; cost: number }[] {
+  const kgTotal = parts.reduce((a, p) => a + Math.max(0, p.kg), 0);
+  if (!(kgTotal > 0)) return parts.map((p) => ({ ...p, cost: 0 }));
+  const out = parts.map((p) => ({ ...p, cost: roundMoney((total * Math.max(0, p.kg)) / kgTotal) }));
+  const diff = roundMoney(total - out.reduce((a, p) => a + p.cost, 0));
+  if (diff !== 0) {
+    const biggest = out.reduce((m, p) => (p.kg > m.kg ? p : m), out[0]!);
+    biggest.cost = roundMoney(biggest.cost + diff);
+  }
+  return out;
+}

@@ -5,6 +5,8 @@ import {
   createDispatch,
   createRoute,
   changeDispatchLot,
+  costByMonth,
+  costByZone,
   createRouteDispatches,
   deliverDispatch,
   finishRoute,
@@ -807,6 +809,103 @@ describe("costo por ruta y por kg (RF-27)", () => {
       expect(s).toEqual({ routes: 2, km: 170, hours: 7, kg: 90, cost: 76250, costPerKg: 847.22 });
       expect(await getDeliveryCostSummary(tx, "2026-09")).toMatchObject({ routes: 0, costPerKg: null });
       await expect(getDeliveryCostSummary(tx, "2026-13")).rejects.toThrow(/Mes inválido/);
+    });
+  });
+});
+
+describe("costo de reparto por zona y por mes, y costo parcial (RF-27)", () => {
+  /** Ruta cerrada del DAY con entregas en Rosario (Arcoiris) y Funes (La Esperanza). */
+  async function twoZoneRoute(tx: Tx, userId: string, rosarioUnits: number, funesUnits: number) {
+    const a = await makeOrder(tx, "Supermercado Arcoiris", "ready", [[TAP, rosarioUnits]]);
+    const f = await makeOrder(tx, "La Esperanza", "ready", [[TAP, funesUnits]]);
+    const route = await createRoute(tx, { ...routeInput([a.id, f.id]), vehicleId: await vehicleId(tx) });
+    for (const o of [a, f]) {
+      const d = await createDispatch(tx, userId, { orderId: o.id, routeId: route.id }, NOW);
+      await deliverDispatch(tx, userId, { dispatchId: d.id, receivedByName: "Recibe" }, NOW);
+    }
+    await startRoute(tx, { id: route.id, kmStart: 12000 }, NOW);
+    await finishRoute(
+      tx,
+      userId,
+      finishRouteInput.parse({ id: route.id, kmEnd: "12085", coldUnitTempC: "-20" }),
+      LATER,
+    );
+    return route;
+  }
+
+  it("reparte el costo de la ruta entre las zonas según los kg entregados en cada una", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      await twoZoneRoute(tx, userId, 60, 20); // 30 kg Rosario + 10 kg Funes = 40 kg, $38.750
+      const { zones, unallocatedRoutes } = await costByZone(tx, "2026-10");
+      expect(unallocatedRoutes).toBe(0);
+      expect(zones.map((z) => z.zone)).toEqual(["Funes", "Rosario"]);
+      const [funes, rosario] = zones;
+      expect(rosario).toMatchObject({ routes: 1, deliveries: 1, kg: 30, cost: 29062.5, costPerKg: 968.75 });
+      expect(funes).toMatchObject({ routes: 1, deliveries: 1, kg: 10, cost: 9687.5, costPerKg: 968.75 });
+      expect(rosario!.cost + funes!.cost).toBe(38750);
+      expect(zones.every((z) => !z.partial)).toBe(true);
+      expect((await costByZone(tx, "2026-09")).zones).toEqual([]);
+    });
+  });
+
+  it("una ruta sin entregas no se reparte entre zonas y queda informada aparte", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      const o = await makeOrder(tx, "Supermercado Arcoiris", "ready", [[TAP, 10]]);
+      const route = await createRoute(tx, { ...routeInput([o.id]), vehicleId: await vehicleId(tx) });
+      const d = await createDispatch(tx, userId, { orderId: o.id, routeId: route.id }, NOW);
+      await rejectDispatch(tx, userId, { dispatchId: d.id, reason: "No quiso recibir" }, NOW);
+      await startRoute(tx, { id: route.id, kmStart: 12000 }, NOW);
+      await finishRoute(
+        tx,
+        userId,
+        finishRouteInput.parse({ id: route.id, kmEnd: "12085", coldUnitTempC: "-20" }),
+        LATER,
+      );
+      const res = await costByZone(tx, "2026-10");
+      expect(res.zones).toEqual([]);
+      expect(res).toMatchObject({ unallocatedRoutes: 1, unallocatedCost: 38750 });
+    });
+  });
+
+  it("marca costo parcial cuando el vehículo no tiene costo por km (y no se cargó el combustible real)", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      await tx.update(schema.vehicles).set({ costPerKm: 0 });
+      const route = await twoZoneRoute(tx, userId, 20, 20);
+      const [row] = await listRouteCosts(tx, { from: DAY, to: DAY });
+      expect(row).toMatchObject({ id: route.id, partial: true, missing: ["vehicle_cost_per_km"], fuel: 0 });
+      // La mano de obra sí se estima: 3,5 h × $5.000.
+      expect(row!.cost).toBe(17500);
+      expect((await costByZone(tx, "2026-10")).zones.every((z) => z.partial)).toBe(true);
+      expect((await costByMonth(tx, "2026-10", 1))[0]).toMatchObject({ month: "2026-10", partialRoutes: 1 });
+    });
+  });
+
+  it("con el gasto real de combustible cargado el costo por km no hace falta", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      await tx.update(schema.vehicles).set({ costPerKm: 0 });
+      const o = await makeOrder(tx, "Supermercado Arcoiris", "ready", [[TAP, 20]]);
+      const route = await createRoute(tx, { ...routeInput([o.id]), vehicleId: await vehicleId(tx) });
+      const d = await createDispatch(tx, userId, { orderId: o.id, routeId: route.id }, NOW);
+      await deliverDispatch(tx, userId, { dispatchId: d.id, receivedByName: "Recibe" }, NOW);
+      await startRoute(tx, { id: route.id, kmStart: 12000 }, NOW);
+      await finishRoute(
+        tx,
+        userId,
+        finishRouteInput.parse({ id: route.id, kmEnd: "12085", coldUnitTempC: "-20", fuelCost: "18000" }),
+        LATER,
+      );
+      const [row] = await listRouteCosts(tx, { from: DAY, to: DAY });
+      expect(row).toMatchObject({ partial: false, missing: [], fuel: 18000 });
+    });
+  });
+
+  it("serie mensual: los últimos meses del más viejo al más nuevo, con ceros donde no hubo rutas", async () => {
+    await inRollback("logistica", async (tx, userId) => {
+      await twoZoneRoute(tx, userId, 60, 20);
+      const months = await costByMonth(tx, "2026-10", 3);
+      expect(months.map((m) => m.month)).toEqual(["2026-08", "2026-09", "2026-10"]);
+      expect(months[0]).toMatchObject({ routes: 0, cost: 0, costPerKg: null, partialRoutes: 0 });
+      expect(months[2]).toMatchObject({ routes: 1, km: 85, kg: 40, cost: 38750, costPerKg: 968.75 });
     });
   });
 });

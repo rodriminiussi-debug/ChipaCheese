@@ -3,7 +3,9 @@ import {
   addMonths,
   canTransition,
   costPerKgDelivered,
+  allocateCostByKg,
   isSmallRoute,
+  missingCostInputs,
   isoWeekday,
   orderKg,
   roundMoney,
@@ -12,6 +14,7 @@ import {
   routeHours,
   temperatureStatus,
   zoneDeliversOn,
+  type CostGap,
   type IsoDate,
 } from "@chipa/domain";
 import { and, asc, desc, eq, gte, inArray, lte, schema, sql, type Executor } from "@chipa/db";
@@ -26,7 +29,7 @@ import {
   locationByCode,
   recordProductMovements,
 } from "@/features/stock/ledger";
-import { formatDispatchNumber } from "./labels";
+import { formatDispatchNumber, monthOf } from "./labels";
 import {
   ROUTE_ORDER_STATUSES,
   type CreateRouteData,
@@ -1334,6 +1337,9 @@ export interface RouteCostRow {
   costPerKg: number | null;
   /** Ruta chica: menos de 50 kg entregados. */
   small: boolean;
+  /** RF-27: costo parcial, falta el costo por km del vehículo o el costo hora del chofer. */
+  partial: boolean;
+  missing: CostGap[];
 }
 
 /** Costo de las rutas cerradas entre dos fechas: km, horas, kg entregados, costo y costo/kg. */
@@ -1366,7 +1372,9 @@ export async function listRouteCosts(
     .where(and(inArray(schema.dispatches.routeId, ids), eq(schema.dispatches.status, "delivered")))
     .groupBy(schema.dispatches.routeId);
   const byRoute = new Map(delivered.map((d) => [d.routeId, d]));
-  const driverHourlyCost = await getSetting<number>("delivery.driver_hourly_cost", 5000);
+  // Sin costo hora configurado la mano de obra no se estima (cuenta 0) y la ruta queda como costo parcial.
+  const configuredHourly = await getSetting<number | null>("delivery.driver_hourly_cost", null);
+  const driverHourlyCost = configuredHourly != null && configuredHourly > 0 ? configuredHourly : 0;
 
   return routes.map((r) => {
     const kmStart = r.kmStart ?? 0;
@@ -1400,9 +1408,20 @@ export async function listRouteCosts(
       cost: total,
       costPerKg: costPerKgDelivered(total, kg),
       small: isSmallRoute(kg),
+      ...costGaps(
+        missingCostInputs({
+          km,
+          hours,
+          costPerKm: r.vehicle?.costPerKm ?? null,
+          hasRealFuelCost: r.fuelCost != null,
+          driverHourlyCost: configuredHourly,
+        }),
+      ),
     };
   });
 }
+
+const costGaps = (missing: CostGap[]) => ({ partial: missing.length > 0, missing });
 
 export interface DeliveryCostSummary {
   routes: number;
@@ -1544,4 +1563,115 @@ export async function readyOrdersWithoutRoute(db: Executor) {
     .from(schema.orders)
     .where(and(eq(schema.orders.status, "ready"), notInOpenRoute));
   return row?.n ?? 0;
+}
+
+// ------------------------------------------------------------------------------------------------
+// RF-27: costo de reparto por zona y por mes
+// ------------------------------------------------------------------------------------------------
+
+export interface ZoneCostRow {
+  zoneId: string | null;
+  zone: string;
+  routes: number;
+  deliveries: number;
+  kg: number;
+  /** Costo de las rutas repartido por los kg entregados en la zona. */
+  cost: number;
+  costPerKg: number | null;
+  /** Alguna de las rutas que reparten en la zona tiene costo parcial. */
+  partial: boolean;
+}
+
+/**
+ * Costo de reparto por zona de un mes: el costo de cada ruta cerrada se reparte entre las zonas de sus
+ * entregas en proporción a los kg entregados (una ruta que visita Rosario y Funes carga a cada zona su parte).
+ * Las rutas sin entregas no se pueden repartir y se informan aparte.
+ */
+export async function costByZone(db: Executor, month: string) {
+  const rows = await listRouteCosts(db, monthRange(month));
+  const empty = { zones: [] as ZoneCostRow[], unallocatedCost: 0, unallocatedRoutes: 0 };
+  if (!rows.length) return empty;
+  const perZone = await db
+    .select({
+      routeId: schema.dispatches.routeId,
+      zoneId: schema.customers.zoneId,
+      zone: schema.zones.name,
+      kg: sql<number>`coalesce(sum(coalesce(${schema.dispatchItems.qtyDelivered}, ${schema.dispatchItems.qtyUnits}) * ${schema.products.netWeightKg}), 0)`.mapWith(
+        Number,
+      ),
+      deliveries: sql<number>`count(distinct ${schema.dispatches.id})::int`,
+    })
+    .from(schema.dispatchItems)
+    .innerJoin(schema.dispatches, eq(schema.dispatches.id, schema.dispatchItems.dispatchId))
+    .innerJoin(schema.products, eq(schema.products.id, schema.dispatchItems.productId))
+    .innerJoin(schema.customers, eq(schema.customers.id, schema.dispatches.customerId))
+    .leftJoin(schema.zones, eq(schema.zones.id, schema.customers.zoneId))
+    .where(
+      and(
+        inArray(
+          schema.dispatches.routeId,
+          rows.map((r) => r.id),
+        ),
+        eq(schema.dispatches.status, "delivered"),
+      ),
+    )
+    .groupBy(schema.dispatches.routeId, schema.customers.zoneId, schema.zones.name);
+
+  const acc = new Map<string, ZoneCostRow>();
+  let unallocatedCost = 0;
+  let unallocatedRoutes = 0;
+  for (const r of rows) {
+    const parts = perZone.filter((z) => z.routeId === r.id && z.kg > 0);
+    if (!parts.length) {
+      unallocatedCost += r.cost;
+      unallocatedRoutes += 1;
+      continue;
+    }
+    const shares = allocateCostByKg(
+      r.cost,
+      parts.map((z) => ({ key: z.zoneId ?? "none", kg: z.kg })),
+    );
+    for (const z of parts) {
+      const key = z.zoneId ?? "none";
+      const share = shares.find((x) => x.key === key)!;
+      const cur = acc.get(key) ?? {
+        zoneId: z.zoneId,
+        zone: z.zone ?? "Sin zona",
+        routes: 0,
+        deliveries: 0,
+        kg: 0,
+        cost: 0,
+        costPerKg: null,
+        partial: false,
+      };
+      cur.routes += 1;
+      cur.deliveries += z.deliveries;
+      cur.kg = roundQty(cur.kg + z.kg);
+      cur.cost = roundMoney(cur.cost + share.cost);
+      cur.partial = cur.partial || r.partial;
+      acc.set(key, cur);
+    }
+  }
+  const zones = [...acc.values()]
+    .map((z) => ({ ...z, costPerKg: costPerKgDelivered(z.cost, z.kg) }))
+    .sort((a, b) => (a.zoneId === null ? 1 : b.zoneId === null ? -1 : a.zone.localeCompare(b.zone, "es")));
+  return { zones, unallocatedCost: roundMoney(unallocatedCost), unallocatedRoutes };
+}
+
+export interface MonthCostRow extends DeliveryCostSummary {
+  month: string;
+  /** Rutas del mes con costo parcial (falta el costo por km del vehículo o el costo hora del chofer). */
+  partialRoutes: number;
+}
+
+/** Costo de reparto por mes: los `months` meses que terminan en `endMonth` ("YYYY-MM"), del más viejo al más nuevo. */
+export async function costByMonth(db: Executor, endMonth: string, months = 6): Promise<MonthCostRow[]> {
+  const keys = Array.from({ length: months }, (_, i) =>
+    monthOf(addMonths(`${endMonth}-01`, i - (months - 1))),
+  );
+  const rows = await listRouteCosts(db, { from: `${keys[0]}-01`, to: monthRange(endMonth).to });
+  return keys.map((month) => {
+    const ofMonth = rows.filter((r) => r.date.startsWith(month));
+    return { month, ...summarizeCosts(ofMonth), partialRoutes: ofMonth.filter((r) => r.partial).length };
+  });
 }

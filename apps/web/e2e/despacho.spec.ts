@@ -228,6 +228,15 @@ test.describe("Despacho y reparto (logística)", () => {
     await expect(row).toContainText("Ruta chica"); // menos de 50 kg
     await expect(row).toHaveAttribute("data-small", "true");
     await expect(page.getByRole("status").filter({ hasText: "menos de 50 kg" })).toBeVisible();
+    await expect(page.getByTestId("partial-warning")).toHaveCount(0); // costo completo
+    // Por zona: toda la ruta fue a Rosario. Por mes: octubre suma lo mismo.
+    const zonas = page.getByRole("table", { name: "Costo de reparto por zona" });
+    await expect(zonas.getByRole("row", { name: /Rosario/ })).toContainText("40 kg");
+    await expect(zonas.getByRole("row", { name: /Rosario/ })).toContainText("$ 35.500");
+    await expect(zonas.getByRole("row", { name: /Rosario/ })).toContainText("$ 887,50");
+    const meses = page.getByRole("table", { name: "Costo de reparto por mes" });
+    await expect(meses.getByRole("row")).toHaveCount(7); // encabezado + 6 meses
+    await expect(meses.getByRole("row").nth(1)).toContainText("$ 35.500");
 
     // --- RF-28: registro de despacho BPM ---------------------------------------------------------
     // Los remitos se generan con la hora real del servidor: se llevan al día congelado de los tests.
@@ -500,6 +509,37 @@ test.describe("Despacho y reparto (logística)", () => {
     await expect(sheet.getByRole("columnheader", { name: "Entregado (u.)" })).toBeVisible();
     await expect(sheet.getByRole("row", { name: /Chipá tapitas/ })).toContainText("3");
     await expect(sheet.getByRole("button", { name: /Cambiar el lote/ })).toHaveCount(0);
+  });
+
+  test("RF-27: la ruta queda como costo parcial si falta el costo hora del chofer o el costo por km del vehículo", async ({
+    page,
+    sql,
+  }) => {
+    const [setting] = await sql`select value from app_settings where key = 'delivery.driver_hourly_cost'`;
+    try {
+      // Sin costo hora del chofer: la mano de obra no se estima y la ruta se marca.
+      await sql`delete from app_settings where key = 'delivery.driver_hourly_cost'`;
+      await page.goto("/despacho/costos?mes=2026-10");
+      await expect(page.getByTestId("partial-warning")).toContainText("costo parcial");
+      const row = page.getByTestId("cost-row");
+      await expect(row).toContainText("Costo parcial");
+      await expect(row.locator("span[title]")).toHaveAttribute("title", /costo hora del chofer/);
+      await expect(page.getByTestId("sum-cost")).toContainText("$ 18.000"); // solo el combustible real
+      await expect(
+        page.getByRole("table", { name: "Costo de reparto por zona" }).getByRole("row", { name: /Rosario/ }),
+      ).toContainText("Costo parcial");
+
+      // Con el costo hora cargado, y sin costo por km (el combustible real lo reemplaza): completo.
+      await sql`insert into app_settings (key, value, description)
+        values ('delivery.driver_hourly_cost', ${setting!.value}::jsonb, 'Costo hora chofer')`;
+      await sql`update vehicles set cost_per_km = 0`;
+      await page.reload();
+      await expect(page.getByTestId("partial-warning")).toHaveCount(0);
+    } finally {
+      await sql`insert into app_settings (key, value, description)
+        values ('delivery.driver_hourly_cost', ${setting!.value}::jsonb, 'Costo hora chofer')
+        on conflict (key) do nothing`;
+    }
   });
 });
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  allocateCostByKg,
   costPerKgDelivered,
+  missingCostInputs,
   isSmallRoute,
   routeCost,
   routeHours,
@@ -60,5 +62,49 @@ describe("costPerKgDelivered", () => {
   });
   it("sin kg entregados → null", () => {
     expect(costPerKgDelivered(37500, 0)).toBeNull();
+  });
+});
+
+describe("costo parcial y reparto por zona (RF-27)", () => {
+  const ok = { km: 85, hours: 3.5, costPerKm: 250, hasRealFuelCost: false, driverHourlyCost: 5000 };
+  it("sin faltantes el costo es completo", () => {
+    expect(missingCostInputs(ok)).toEqual([]);
+  });
+  it("falta el costo por km del vehículo (o no hay vehículo) si no hay combustible real", () => {
+    expect(missingCostInputs({ ...ok, costPerKm: 0 })).toEqual(["vehicle_cost_per_km"]);
+    expect(missingCostInputs({ ...ok, costPerKm: null })).toEqual(["vehicle_cost_per_km"]);
+    // El gasto real de combustible lo reemplaza; sin km no hace falta.
+    expect(missingCostInputs({ ...ok, costPerKm: 0, hasRealFuelCost: true })).toEqual([]);
+    expect(missingCostInputs({ ...ok, costPerKm: 0, km: 0 })).toEqual([]);
+  });
+  it("falta el costo hora del chofer si la salida tuvo horas", () => {
+    expect(missingCostInputs({ ...ok, driverHourlyCost: null })).toEqual(["driver_hourly_cost"]);
+    expect(missingCostInputs({ ...ok, driverHourlyCost: 0 })).toEqual(["driver_hourly_cost"]);
+    expect(missingCostInputs({ ...ok, driverHourlyCost: 0, hours: 0 })).toEqual([]);
+  });
+  it("pueden faltar los dos", () => {
+    expect(missingCostInputs({ ...ok, costPerKm: 0, driverHourlyCost: null })).toEqual([
+      "vehicle_cost_per_km",
+      "driver_hourly_cost",
+    ]);
+  });
+  it("reparte el costo por kg entregado y la suma da el total exacto", () => {
+    const r = allocateCostByKg(1000, [
+      { key: "a", kg: 10 },
+      { key: "b", kg: 10 },
+      { key: "c", kg: 10 },
+    ]);
+    expect(r.map((x) => x.cost)).toEqual([333.34, 333.33, 333.33]);
+    expect(r.reduce((a, x) => a + x.cost, 0)).toBeCloseTo(1000, 2);
+    expect(
+      allocateCostByKg(900, [
+        { key: "a", kg: 25 },
+        { key: "b", kg: 75 },
+      ]).map((x) => x.cost),
+    ).toEqual([225, 675]);
+  });
+  it("sin kg entregados no reparte nada", () => {
+    expect(allocateCostByKg(500, [{ key: "a", kg: 0 }]).map((x) => x.cost)).toEqual([0]);
+    expect(allocateCostByKg(500, [])).toEqual([]);
   });
 });
