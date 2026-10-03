@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  allocateBacklogKg,
   averageOrderIntervalDays,
   canTransition,
+  currentUnitPrice,
   daysSinceLastOrder,
   estimateBigOrderDate,
   isCustomerOverdue,
+  isOrderEditable,
+  isOrderOverdue,
+  nextDeliveryDate,
   nextStatuses,
   ORDER_STATUSES,
   orderKg,
+  orderTotal,
   type OrderStatus,
 } from "./orders";
 import { bagsEquivalent } from "./units";
@@ -201,5 +207,107 @@ describe("estimateBigOrderDate (Regla 10 / RF-05)", () => {
 
   it("con 60 días por defecto un pedido enorme da null", () => {
     expect(estimateBigOrderDate({ orderKg: 100000, finishedStockKg: 0, today: monday }).date).toBeNull();
+  });
+});
+
+describe("edición y atraso del pedido (RF-03)", () => {
+  it("solo se editan ítems en recibido o confirmado", () => {
+    expect(isOrderEditable("received")).toBe(true);
+    expect(isOrderEditable("confirmed")).toBe(true);
+    for (const s of [
+      "in_production",
+      "ready",
+      "dispatched",
+      "delivered",
+      "invoiced",
+      "paid",
+      "cancelled",
+    ] as const) {
+      expect(isOrderEditable(s)).toBe(false);
+    }
+  });
+  it("atrasado = fecha comprometida < hoy y no entregado", () => {
+    const base = { promisedDate: "2026-10-01", today: "2026-10-02" };
+    expect(isOrderOverdue({ ...base, status: "confirmed" })).toBe(true);
+    expect(isOrderOverdue({ ...base, status: "dispatched" })).toBe(true);
+    expect(isOrderOverdue({ ...base, status: "delivered" })).toBe(false);
+    expect(isOrderOverdue({ ...base, status: "paid" })).toBe(false);
+    expect(isOrderOverdue({ ...base, status: "cancelled" })).toBe(false);
+    // la fecha de hoy todavía no está atrasada
+    expect(isOrderOverdue({ promisedDate: "2026-10-02", today: "2026-10-02", status: "received" })).toBe(
+      false,
+    );
+  });
+});
+
+describe("fecha de entrega por defecto (RF-02)", () => {
+  // 2026-10-02 es viernes
+  it("sin días definidos → mañana", () => {
+    expect(nextDeliveryDate({ today: "2026-10-02", weekdays: [] })).toBe("2026-10-03");
+  });
+  it("primer día de entrega desde mañana (nunca hoy)", () => {
+    // lun-mié-vie: pedido el viernes → lunes 05/10
+    expect(nextDeliveryDate({ today: "2026-10-02", weekdays: [1, 3, 5] })).toBe("2026-10-05");
+    // solo viernes: hoy es viernes → el viernes siguiente
+    expect(nextDeliveryDate({ today: "2026-10-02", weekdays: [5] })).toBe("2026-10-09");
+    // solo martes
+    expect(nextDeliveryDate({ today: "2026-10-02", weekdays: [2] })).toBe("2026-10-06");
+    // sábado y domingo
+    expect(nextDeliveryDate({ today: "2026-10-02", weekdays: [7] })).toBe("2026-10-04");
+  });
+  it("ignora días inválidos", () => {
+    expect(nextDeliveryDate({ today: "2026-10-02", weekdays: [0, 9] })).toBe("2026-10-03");
+  });
+});
+
+describe("precio vigente y total (RF-02)", () => {
+  const prices = [
+    { validFrom: "2026-09-01", unitPrice: 4200 },
+    { validFrom: "2026-10-01", unitPrice: 4500 },
+    { validFrom: "2026-11-01", unitPrice: 5000 },
+  ];
+  it("toma el último validFrom que no sea futuro", () => {
+    expect(currentUnitPrice(prices, "2026-09-15")).toBe(4200);
+    expect(currentUnitPrice(prices, "2026-10-01")).toBe(4500);
+    expect(currentUnitPrice(prices, "2026-10-02")).toBe(4500);
+    expect(currentUnitPrice(prices, "2026-12-01")).toBe(5000);
+  });
+  it("sin precio vigente → null", () => {
+    expect(currentUnitPrice(prices, "2026-08-31")).toBeNull();
+    expect(currentUnitPrice([], "2026-10-01")).toBeNull();
+  });
+  it("total del pedido", () => {
+    expect(
+      orderTotal([
+        { qtyUnits: 20, unitPrice: 4200 },
+        { qtyUnits: 10, unitPrice: 4200.5 },
+      ]),
+    ).toBe(126005);
+    expect(orderTotal([])).toBe(0);
+  });
+});
+
+describe("allocateBacklogKg (RF-05)", () => {
+  it("reparte la deuda de producción en los primeros días hábiles con capacidad", () => {
+    // jueves 01/10: 100 kg el jueves, 150 el viernes, 50 el lunes
+    const r = allocateBacklogKg({
+      backlogKg: 300,
+      today: "2026-10-01",
+      committedKgByDate: { "2026-10-01": 50 },
+    });
+    expect(r).toEqual({ "2026-10-01": 150, "2026-10-02": 150, "2026-10-05": 50 });
+  });
+  it("sin deuda devuelve lo comprometido tal cual", () => {
+    expect(allocateBacklogKg({ backlogKg: 0, today: "2026-10-01" })).toEqual({});
+  });
+  it("respeta capacidad y días hábiles configurados, y descarta lo que no entra", () => {
+    const r = allocateBacklogKg({
+      backlogKg: 1000,
+      today: "2026-10-02",
+      capacityKg: 100,
+      workdays: [5],
+      maxDays: 10,
+    });
+    expect(r).toEqual({ "2026-10-02": 100, "2026-10-09": 100 });
   });
 });

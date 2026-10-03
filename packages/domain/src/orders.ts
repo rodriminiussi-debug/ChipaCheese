@@ -1,6 +1,6 @@
 import { DAILY_CAPACITY_KG } from "./constants";
-import { addDays, diffDays, isWorkday, type IsoDate } from "./dates";
-import { roundQty, roundTo } from "./units";
+import { addDays, diffDays, isoWeekday, isWorkday, type IsoDate } from "./dates";
+import { roundMoney, roundQty, roundTo } from "./units";
 
 /** RF-03: estados del pedido, en orden de avance. */
 export const ORDER_STATUSES = [
@@ -123,4 +123,95 @@ export function estimateBigOrderDate(input: {
     if (remaining <= 0) return { date: addDays(day, freezeDays), schedule };
   }
   return { date: null, schedule };
+}
+
+/** Estados en los que el pedido todavía necesita producto terminado (no salió del depósito). */
+export const OPEN_ORDER_STATUSES: readonly OrderStatus[] = [
+  "received",
+  "confirmed",
+  "in_production",
+  "ready",
+];
+
+/** Estados en los que se pueden editar los ítems del pedido (RF-03). */
+export const EDITABLE_ORDER_STATUSES: readonly OrderStatus[] = ["received", "confirmed"];
+
+/** Estados que ya cumplieron la entrega (o la cancelaron): un pedido así nunca está "atrasado". */
+const DELIVERY_DONE: readonly OrderStatus[] = ["delivered", "invoiced", "paid", "cancelled"];
+
+/** RF-03: ¿se pueden modificar los ítems del pedido? Solo recibido o confirmado. */
+export function isOrderEditable(status: OrderStatus): boolean {
+  return EDITABLE_ORDER_STATUSES.includes(status);
+}
+
+/** RF-03: pedido atrasado = fecha comprometida anterior a hoy y todavía no entregado (ni cancelado). */
+export function isOrderOverdue(input: {
+  promisedDate: IsoDate;
+  status: OrderStatus;
+  today: IsoDate;
+}): boolean {
+  return !DELIVERY_DONE.includes(input.status) && input.promisedDate < input.today;
+}
+
+/**
+ * RF-02: fecha de entrega por defecto = el primer día de entrega (1 = lunes … 7 = domingo) desde
+ * mañana. Sin días de entrega definidos devuelve mañana.
+ */
+export function nextDeliveryDate(input: { today: IsoDate; weekdays: number[] }): IsoDate {
+  const tomorrow = addDays(input.today, 1);
+  const valid = input.weekdays.filter((d) => d >= 1 && d <= 7);
+  if (valid.length === 0) return tomorrow;
+  const weekdayOfTomorrow = isoWeekday(tomorrow);
+  const offset = Math.min(...valid.map((d) => (d - weekdayOfTomorrow + 7) % 7));
+  return addDays(tomorrow, offset);
+}
+
+/**
+ * RF-02: precio vigente = el de `validFrom` más reciente que no sea posterior a `today`.
+ * Los precios con vigencia futura no se usan. Devuelve null si ninguno rige todavía.
+ */
+export function currentUnitPrice(
+  prices: { validFrom: IsoDate; unitPrice: number }[],
+  today: IsoDate,
+): number | null {
+  let best: { validFrom: IsoDate; unitPrice: number } | null = null;
+  for (const p of prices) {
+    if (p.validFrom <= today && (!best || p.validFrom > best.validFrom)) best = p;
+  }
+  return best ? best.unitPrice : null;
+}
+
+/** Total de un pedido en ARS = Σ unidades × precio unitario congelado. */
+export function orderTotal(items: { qtyUnits: number; unitPrice: number }[]): number {
+  return roundMoney(items.reduce((acc, i) => acc + i.qtyUnits * i.unitPrice, 0));
+}
+
+/**
+ * RF-05: reparte `backlogKg` (producción ya debida a otros pedidos abiertos) en los primeros días
+ * hábiles con capacidad libre desde `today`, y devuelve los kg comprometidos por fecha resultantes.
+ * Lo que no entra en `maxDays` se descarta (el estimador devolverá fecha nula de todos modos).
+ */
+export function allocateBacklogKg(input: {
+  backlogKg: number;
+  today: IsoDate;
+  capacityKg?: number;
+  committedKgByDate?: Record<IsoDate, number>;
+  workdays?: number[];
+  maxDays?: number;
+}): Record<IsoDate, number> {
+  const capacity = input.capacityKg ?? DAILY_CAPACITY_KG;
+  const workdays = input.workdays ?? [1, 2, 3, 4, 5];
+  const maxDays = input.maxDays ?? 60;
+  const result: Record<IsoDate, number> = { ...(input.committedKgByDate ?? {}) };
+  let remaining = roundQty(input.backlogKg);
+  for (let offset = 0; offset < maxDays && remaining > 0; offset++) {
+    const day = addDays(input.today, offset);
+    if (!isWorkday(day, workdays)) continue;
+    const free = roundQty(capacity - (result[day] ?? 0));
+    if (free <= 0) continue;
+    const kg = Math.min(free, remaining);
+    result[day] = roundQty((result[day] ?? 0) + kg);
+    remaining = roundQty(remaining - kg);
+  }
+  return result;
 }

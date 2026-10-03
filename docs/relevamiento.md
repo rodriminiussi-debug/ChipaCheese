@@ -21,14 +21,14 @@ Chipa Cheese (Pacon SRL) tiene una planta con capacidad para crecer, pero opera 
 
 El relevamiento se hizo el 30/09/2026 en la planta, con entrevistas, observación directa y fotos de los registros. Su objetivo es dar la base funcional para diseñar el sistema de gestión.
 
-| Fuente | Qué aportó | Confianza |
-| --- | --- | --- |
-| Entrevista con Nahuel y la familia | Canales, clientes, precios, roles, cobranzas, expansión | Media: muchas respuestas son estimaciones ("más o menos", "no lo saben") |
-| Observación de planta | Flujo de elaboración, envasado, pizarrón de tareas | Alta |
-| Registro de elaboración (26/08 y 01/09) | Receta real, lotes de materia prima, pesadas por forma | Media: letra manuscrita |
-| Registros BPM (despacho, limpieza, reclamos, mantenimiento) | Campos, frecuencia de uso, huecos | Media |
-| Archivo GASTOS general.ods (fotos de pantalla) | Compras de insumos, costeo 07/04 y 29/09, gastos fijos | Media: números leídos de fotos del monitor |
-| Pizarrón de producción | Asignación de tareas, stock de producto terminado | Alta para tareas, baja para cifras |
+| Fuente                                                      | Qué aportó                                              | Confianza                                                                |
+| ----------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Entrevista con Nahuel y la familia                          | Canales, clientes, precios, roles, cobranzas, expansión | Media: muchas respuestas son estimaciones ("más o menos", "no lo saben") |
+| Observación de planta                                       | Flujo de elaboración, envasado, pizarrón de tareas      | Alta                                                                     |
+| Registro de elaboración (26/08 y 01/09)                     | Receta real, lotes de materia prima, pesadas por forma  | Media: letra manuscrita                                                  |
+| Registros BPM (despacho, limpieza, reclamos, mantenimiento) | Campos, frecuencia de uso, huecos                       | Media                                                                    |
+| Archivo GASTOS general.ods (fotos de pantalla)              | Compras de insumos, costeo 07/04 y 29/09, gastos fijos  | Media: números leídos de fotos del monitor                               |
+| Pizarrón de producción                                      | Asignación de tareas, stock de producto terminado       | Alta para tareas, baja para cifras                                       |
 
 **Límites.** No hay registros de ventas por cliente, cobranzas ni costos de reparto: esos datos no existen hoy en ningún soporte. Las cifras económicas de este informe son órdenes de magnitud y se validan con los datos pendientes de la última sección.
 
@@ -38,22 +38,22 @@ Pacon SRL produce chipá crudo congelado bajo la marca Chipa Cheese: \~100 kg po
 
 ### Productos
 
-| Producto | Presentación | Canal principal | Notas |
-| --- | --- | --- | --- |
-| Chipá (tapitas, aritos, lengüitas) | Bolsa 0,5 kg, surtida o de una forma | Kioscos, dietéticas, supermercados, local | Producto principal |
-| Chipá granel | Bolsa 5 kg por forma | Bares, clubes, restaurantes; supermercados que fraccionan | Se pide por forma ("5 kg de tapitas") |
-| Sándwich de chipá JyQ ("Chisanwich") | Pack | Minoristas | \~180 g de masa por pack; costeo incompleto |
-| Pizzetas | Subproducto | Sin dato | Se hacen con el recorte de masa del formado |
+| Producto                             | Presentación                         | Canal principal                                           | Notas                                       |
+| ------------------------------------ | ------------------------------------ | --------------------------------------------------------- | ------------------------------------------- |
+| Chipá (tapitas, aritos, lengüitas)   | Bolsa 0,5 kg, surtida o de una forma | Kioscos, dietéticas, supermercados, local                 | Producto principal                          |
+| Chipá granel                         | Bolsa 5 kg por forma                 | Bares, clubes, restaurantes; supermercados que fraccionan | Se pide por forma ("5 kg de tapitas")       |
+| Sándwich de chipá JyQ ("Chisanwich") | Pack                                 | Minoristas                                                | \~180 g de masa por pack; costeo incompleto |
+| Pizzetas                             | Subproducto                          | Sin dato                                                  | Se hacen con el recorte de masa del formado |
 
 El pizarrón usa códigos de stock (SW, C500, SWG, C granel) que hay que confirmar y convertir en SKUs.
 
 ### Canales, precios y cobro
 
-| Canal | Clientes de ejemplo | Precio por bolsa 0,5 kg | Cobro |
-| --- | --- | --- | --- |
-| Supermercados | Arcoiris, La Reina | Más bajo que revendedor (sin dato) | Cheque a 30 días (La Reina) |
-| Revendedores (kioscos, dietéticas, bares, clubes) | La Esperanza, Club Náutico, Vía Dolce y otros | \~$4.200 mayorista | Efectivo, transferencia, plazos anotados a mano |
-| Local propio (2 empleadas) | Público | \~$4.800 minorista | Efectivo, transferencia |
+| Canal                                             | Clientes de ejemplo                           | Precio por bolsa 0,5 kg            | Cobro                                           |
+| ------------------------------------------------- | --------------------------------------------- | ---------------------------------- | ----------------------------------------------- |
+| Supermercados                                     | Arcoiris, La Reina                            | Más bajo que revendedor (sin dato) | Cheque a 30 días (La Reina)                     |
+| Revendedores (kioscos, dietéticas, bares, clubes) | La Esperanza, Club Náutico, Vía Dolce y otros | \~$4.200 mayorista                 | Efectivo, transferencia, plazos anotados a mano |
+| Local propio (2 empleadas)                        | Público                                       | \~$4.800 minorista                 | Efectivo, transferencia                         |
 
 Los nombres de clientes surgen de los registros de despacho y reclamos, con legibilidad parcial.
 
@@ -75,59 +75,59 @@ Los nombres de clientes surgen de los registros de despacho y reclamos, con legi
 
 ### Equipamiento
 
-| Equipo | Uso |
-| --- | --- |
-| Batidora | Batido de huevos, manteca y lácteos |
-| Amasadora | Amasado en dos tandas |
-| Formadora de chipá (Biscomatic) | Formado de tapitas, aritos y lengüitas |
-| Freezers verticales F1 y F2 | Abatidor, congelado nocturno |
-| Freezers horizontales F3 y F4 | Almacenamiento de producto terminado |
-| Heladera vertical | Materia prima refrigerada |
-| Selladora neumática y balanza | Envasado con control de peso |
-| Rallador de queso | Preparado de reggianito |
-| Vehículo con equipo de frío | Reparto a −20 °C y retiro de insumos |
-| PC con OpenOffice Calc | Costeo y compras |
-| Pizarrón | Asignación de tareas y stock de producto terminado |
+| Equipo                          | Uso                                                |
+| ------------------------------- | -------------------------------------------------- |
+| Batidora                        | Batido de huevos, manteca y lácteos                |
+| Amasadora                       | Amasado en dos tandas                              |
+| Formadora de chipá (Biscomatic) | Formado de tapitas, aritos y lengüitas             |
+| Freezers verticales F1 y F2     | Abatidor, congelado nocturno                       |
+| Freezers horizontales F3 y F4   | Almacenamiento de producto terminado               |
+| Heladera vertical               | Materia prima refrigerada                          |
+| Selladora neumática y balanza   | Envasado con control de peso                       |
+| Rallador de queso               | Preparado de reggianito                            |
+| Vehículo con equipo de frío     | Reparto a −20 °C y retiro de insumos               |
+| PC con OpenOffice Calc          | Costeo y compras                                   |
+| Pizarrón                        | Asignación de tareas y stock de producto terminado |
 
 ## Organización y roles
 
 La empresa la llevan tres socios de una familia, con 4 operarios de planta, 2 empleadas en el local y apoyo externo. No hay organigrama, descripciones de puesto ni reemplazos definidos.
 
-| Rol | Persona | Qué hace hoy | Si falta |
-| --- | --- | --- | --- |
-| Dueño, comercial y administración | Nahuel | Llama a clientes para ver su stock, fija precios, lleva el Excel, hace contactos comerciales | "No pasa tanto" |
-| Jefa de producción | Madre (firma A.F. en los registros, a validar) | Asigna tareas, sigue la receta, dosifica leche y sal, maneja la batidora, recibe pedidos por WhatsApp, decide compras, conoce el stock | La planta se desordena |
-| Logística | Padre | Único chofer, arma la ruta por zona, retira insumos en proveedores | Sin reparto |
-| Operarios de planta | J.T., S.G., E.A., S.R. | Preproducción, máquinas, embolsado, limpieza | Según la tarea (ver matriz) |
-| Envasado | 1 persona | Pesa y sella con selladora neumática | Sin dato |
-| Local | 2 empleadas | Venta al público y mayorista, anotan ventas | Sin dato |
-| Supervisor de registros | N.R. (a validar) | Firma todos los registros BPM | Sin dato |
-| Externos | Responsable técnico, contadora | BPM y habilitaciones; impuestos | — |
+| Rol                               | Persona                                        | Qué hace hoy                                                                                                                           | Si falta                    |
+| --------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Dueño, comercial y administración | Nahuel                                         | Llama a clientes para ver su stock, fija precios, lleva el Excel, hace contactos comerciales                                           | "No pasa tanto"             |
+| Jefa de producción                | Madre (firma A.F. en los registros, a validar) | Asigna tareas, sigue la receta, dosifica leche y sal, maneja la batidora, recibe pedidos por WhatsApp, decide compras, conoce el stock | La planta se desordena      |
+| Logística                         | Padre                                          | Único chofer, arma la ruta por zona, retira insumos en proveedores                                                                     | Sin reparto                 |
+| Operarios de planta               | J.T., S.G., E.A., S.R.                         | Preproducción, máquinas, embolsado, limpieza                                                                                           | Según la tarea (ver matriz) |
+| Envasado                          | 1 persona                                      | Pesa y sella con selladora neumática                                                                                                   | Sin dato                    |
+| Local                             | 2 empleadas                                    | Venta al público y mayorista, anotan ventas                                                                                            | Sin dato                    |
+| Supervisor de registros           | N.R. (a validar)                               | Firma todos los registros BPM                                                                                                          | Sin dato                    |
+| Externos                          | Responsable técnico, contadora                 | BPM y habilitaciones; impuestos                                                                                                        | —                           |
 
 ### Matriz de tareas del pizarrón
 
-| Etapa | Tarea | Responsables |
-| --- | --- | --- |
-| Preproducción | Cortado y rallado de queso reggianito | J.T. |
-| Preproducción | Huevos | S.G. / E.A. |
-| Preproducción | Cortado de queso barra | S.G. / S.R. |
-| Preproducción | Manteca | S.G. / S.R. / E.A. |
-| Preproducción | Leche | A.F. |
-| Preproducción | Sal | A.F. |
-| Preproducción | Mandioca (fécula) | J.T. / E.A. |
-| Máquinas | Batidora | A.F. |
-| Máquinas | Amasadora | E.A. |
-| Máquinas | Biscomatic: manejo | E.A. |
-| Máquinas | Biscomatic: recepción | S.G. / S.R. |
-| Máquinas | Biscomatic: acomodo en bandejas | J.T. |
-| Terminación | Retiro y embolsado a granel | S.G. / S.R. |
-| Terminación | Sellado y loteado | A.F. / E.A. / S.G. / S.R. |
-| Terminación | Acopio en freezer | J.T. |
-| Limpieza | Moldes y útiles; batidora; bandejas | J.T. |
-| Limpieza | Amasadora y sector | E.A. |
-| Limpieza | Biscomatic | S.R. |
-| Limpieza | F1 y F2 (turnos semanales) | J.T. / E.A. |
-| Limpieza | Pisos (turnos diarios) | Rotativo |
+| Etapa         | Tarea                                 | Responsables              |
+| ------------- | ------------------------------------- | ------------------------- |
+| Preproducción | Cortado y rallado de queso reggianito | J.T.                      |
+| Preproducción | Huevos                                | S.G. / E.A.               |
+| Preproducción | Cortado de queso barra                | S.G. / S.R.               |
+| Preproducción | Manteca                               | S.G. / S.R. / E.A.        |
+| Preproducción | Leche                                 | A.F.                      |
+| Preproducción | Sal                                   | A.F.                      |
+| Preproducción | Mandioca (fécula)                     | J.T. / E.A.               |
+| Máquinas      | Batidora                              | A.F.                      |
+| Máquinas      | Amasadora                             | E.A.                      |
+| Máquinas      | Biscomatic: manejo                    | E.A.                      |
+| Máquinas      | Biscomatic: recepción                 | S.G. / S.R.               |
+| Máquinas      | Biscomatic: acomodo en bandejas       | J.T.                      |
+| Terminación   | Retiro y embolsado a granel           | S.G. / S.R.               |
+| Terminación   | Sellado y loteado                     | A.F. / E.A. / S.G. / S.R. |
+| Terminación   | Acopio en freezer                     | J.T.                      |
+| Limpieza      | Moldes y útiles; batidora; bandejas   | J.T.                      |
+| Limpieza      | Amasadora y sector                    | E.A.                      |
+| Limpieza      | Biscomatic                            | S.R.                      |
+| Limpieza      | F1 y F2 (turnos semanales)            | J.T. / E.A.               |
+| Limpieza      | Pisos (turnos diarios)                | Rotativo                  |
 
 ### Dependencias críticas
 
@@ -217,18 +217,18 @@ Los procesos físicos funcionan; lo que falla es la información entre ellos. Ca
 
 Hay 10 soportes de información y ninguno está conectado con otro. Sus campos son la base del modelo de datos: el sistema los reemplaza uno a uno sin cambiar lo que ASSAL ya conoce.
 
-| Registro | Soporte | Campos | Uso real | Qué reemplaza en el sistema |
-| --- | --- | --- | --- | --- |
-| Registro de elaboración | Papel, 1 por día | Producto, lote/vencimiento, turno, responsable, supervisor, fecha, cantidad elaborada, materia prima (cantidad, lote, vencimiento), pesadas por forma (tapitas, aritos, lengüitas) | Completo; el campo "cantidad" a veces lleva el número de lote | Módulo Producción y lotes |
-| Registro de despacho (BPM) | Papel | Producto, lote, fecha de despacho, cantidad, destino, transporte/patente, responsable | Se completa después del despacho | Módulo Despacho |
-| Control de limpieza | Papel, mensual | Sector y elemento × día del mes; marca de limpieza correcta o a profundizar | Agosto: solo días 3 y 4 marcados | Módulo BPM |
-| Reclamos y devoluciones | Papel, versión 2022 | Fecha, cliente, cantidad, lote, vencimiento, motivo, acción sobre cliente, acción sobre producto, supervisor | \~10 reclamos entre 2023 y 2025 | Módulo BPM |
-| Trabajos de mantenimiento | Papel, versión 2022 | Área, equipo, preventivo/correctivo, actividad, fecha, responsable, supervisor | Desde 2023, sin frecuencias | Módulo Mantenimiento |
-| Temperaturas | Papel | Sin relevar | Sin relevar | Módulo BPM |
-| Hoja de pedidos del día | Hoja manuscrita | Cliente, cantidad, presentación, forma | Guía para envasado | Módulo Pedidos |
-| Cuaderno de pedidos | Cuaderno | Pedidos pasados desde WhatsApp | Sin relevar | Módulo Pedidos |
-| Pizarrón de producción | Pizarrón | Tareas por persona, turnos de limpieza, stock de producto terminado | Diario; el stock se borra | Planificación y stock |
-| GASTOS general.ods | OpenOffice Calc, 47 pestañas | Servicios, gastos varios, insumos, resúmenes, una pestaña de costeo por fecha desde 2022 | Costeo cada 2–3 meses; sin backup | Compras, costeo y tablero |
+| Registro                   | Soporte                      | Campos                                                                                                                                                                             | Uso real                                                      | Qué reemplaza en el sistema |
+| -------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------- |
+| Registro de elaboración    | Papel, 1 por día             | Producto, lote/vencimiento, turno, responsable, supervisor, fecha, cantidad elaborada, materia prima (cantidad, lote, vencimiento), pesadas por forma (tapitas, aritos, lengüitas) | Completo; el campo "cantidad" a veces lleva el número de lote | Módulo Producción y lotes   |
+| Registro de despacho (BPM) | Papel                        | Producto, lote, fecha de despacho, cantidad, destino, transporte/patente, responsable                                                                                              | Se completa después del despacho                              | Módulo Despacho             |
+| Control de limpieza        | Papel, mensual               | Sector y elemento × día del mes; marca de limpieza correcta o a profundizar                                                                                                        | Agosto: solo días 3 y 4 marcados                              | Módulo BPM                  |
+| Reclamos y devoluciones    | Papel, versión 2022          | Fecha, cliente, cantidad, lote, vencimiento, motivo, acción sobre cliente, acción sobre producto, supervisor                                                                       | \~10 reclamos entre 2023 y 2025                               | Módulo BPM                  |
+| Trabajos de mantenimiento  | Papel, versión 2022          | Área, equipo, preventivo/correctivo, actividad, fecha, responsable, supervisor                                                                                                     | Desde 2023, sin frecuencias                                   | Módulo Mantenimiento        |
+| Temperaturas               | Papel                        | Sin relevar                                                                                                                                                                        | Sin relevar                                                   | Módulo BPM                  |
+| Hoja de pedidos del día    | Hoja manuscrita              | Cliente, cantidad, presentación, forma                                                                                                                                             | Guía para envasado                                            | Módulo Pedidos              |
+| Cuaderno de pedidos        | Cuaderno                     | Pedidos pasados desde WhatsApp                                                                                                                                                     | Sin relevar                                                   | Módulo Pedidos              |
+| Pizarrón de producción     | Pizarrón                     | Tareas por persona, turnos de limpieza, stock de producto terminado                                                                                                                | Diario; el stock se borra                                     | Planificación y stock       |
+| GASTOS general.ods         | OpenOffice Calc, 47 pestañas | Servicios, gastos varios, insumos, resúmenes, una pestaña de costeo por fecha desde 2022                                                                                           | Costeo cada 2–3 meses; sin backup                             | Compras, costeo y tablero   |
 
 **Qué se conserva.** Los formularios BPM tienen los campos correctos. El sistema tiene que respetarlos y poder imprimirlos en el mismo formato para la inspección.
 
@@ -238,33 +238,33 @@ Una bolsa de 0,5 kg cuesta \~$3.210 y los lácteos son el 76% de los ingrediente
 
 ### Receta y costo de una producción (pestaña 29/09/2026)
 
-| Ingrediente | Receta por kg de fécula | Excel 29/09 | Registro 26/08 | Registro 01/09 | Precio 29/09 | Costo por producción | % del costo |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Queso barra (Tybo/Maki) | 300 g | 22,5 kg | 22 kg | 22 kg | $9.880/kg | $222.292 | 28,1% |
-| Queso reggianito | 200 g | 15 kg | 15 kg | 15 kg | $13.431/kg | $201.465 | 25,4% |
-| Manteca | 200 g | 15 kg | 10 kg | 15 kg | $9.800/kg | $147.000 | 18,6% |
-| Fécula de mandioca | 1.000 g | 75 kg | 75 kg | 75 kg | $1.728/kg | $129.597 | 16,4% |
-| Huevo | 240 g | 18 kg | 18 kg | 18 kg | $3.222/kg | $58.000 | 7,3% |
-| Leche | 400 g | 30 L | 28 L | 18 L | $1.066/L | $31.983 | 4,0% |
-| Sal | 30 g | 2,25 kg | 1,9 kg | 1,9 kg | $708/kg | $1.593 | 0,2% |
-| **Total** |  | **163,5 kg** |  |  |  | **$791.930** | **100%** |
+| Ingrediente             | Receta por kg de fécula | Excel 29/09  | Registro 26/08 | Registro 01/09 | Precio 29/09 | Costo por producción | % del costo |
+| ----------------------- | ----------------------- | ------------ | -------------- | -------------- | ------------ | -------------------- | ----------- |
+| Queso barra (Tybo/Maki) | 300 g                   | 22,5 kg      | 22 kg          | 22 kg          | $9.880/kg    | $222.292             | 28,1%       |
+| Queso reggianito        | 200 g                   | 15 kg        | 15 kg          | 15 kg          | $13.431/kg   | $201.465             | 25,4%       |
+| Manteca                 | 200 g                   | 15 kg        | 10 kg          | 15 kg          | $9.800/kg    | $147.000             | 18,6%       |
+| Fécula de mandioca      | 1.000 g                 | 75 kg        | 75 kg          | 75 kg          | $1.728/kg    | $129.597             | 16,4%       |
+| Huevo                   | 240 g                   | 18 kg        | 18 kg          | 18 kg          | $3.222/kg    | $58.000              | 7,3%        |
+| Leche                   | 400 g                   | 30 L         | 28 L           | 18 L           | $1.066/L     | $31.983              | 4,0%        |
+| Sal                     | 30 g                    | 2,25 kg      | 1,9 kg         | 1,9 kg         | $708/kg      | $1.593               | 0,2%        |
+| **Total**               |                         | **163,5 kg** |                |                |              | **$791.930**         | **100%**    |
 
 La receta real no coincide con la costeada en leche, manteca y sal. La receta maestra del sistema tiene que salir de la planta, no del Excel.
 
 ### Costo por bolsa de 0,5 kg
 
-| Concepto | Por producción (\~297 bolsas) | Por bolsa |
-| --- | --- | --- |
-| Ingredientes | $791.930 | $2.666 |
-| Envase (bolsa + etiqueta) | — | $140 |
-| Mano de obra (4 personas × 6 h × $5.000) | $120.000 | $404 |
-| **Costo directo** |  | **$3.210** |
+| Concepto                                 | Por producción (\~297 bolsas) | Por bolsa  |
+| ---------------------------------------- | ----------------------------- | ---------- |
+| Ingredientes                             | $791.930                      | $2.666     |
+| Envase (bolsa + etiqueta)                | —                             | $140       |
+| Mano de obra (4 personas × 6 h × $5.000) | $120.000                      | $404       |
+| **Costo directo**                        |                               | **$3.210** |
 
-| Precio de venta | Margen por bolsa | Margen % |
-| --- | --- | --- |
-| $4.200 (mayorista) | $990 | 24% |
-| $4.500 (usado en el Excel) | $1.290 | 29% |
-| $4.800 (minorista en el local) | $1.590 | 33% |
+| Precio de venta                | Margen por bolsa | Margen % |
+| ------------------------------ | ---------------- | -------- |
+| $4.200 (mayorista)             | $990             | 24%      |
+| $4.500 (usado en el Excel)     | $1.290           | 29%      |
+| $4.800 (minorista en el local) | $1.590           | 33%      |
 
 El precio a supermercados es más bajo que $4.200 y no se relevó; su margen puede ser muy chico.
 
@@ -285,12 +285,12 @@ El precio a supermercados es más bajo que $4.200 y no se relevó; su margen pue
 
 Supuestos: 100 kg/día, 22 días, 4.400 bolsas equivalentes y precio promedio de $4.300.
 
-| Concepto | $/mes |
-| --- | --- |
-| Ventas | 18.900.000 |
-| Ingredientes y envase | −12.350.000 |
-| Mano de obra de planta | −2.640.000 |
-| Gastos fijos del Excel | −1.040.000 |
+| Concepto                                                   | $/mes           |
+| ---------------------------------------------------------- | --------------- |
+| Ventas                                                     | 18.900.000      |
+| Ingredientes y envase                                      | −12.350.000     |
+| Mano de obra de planta                                     | −2.640.000      |
+| Gastos fijos del Excel                                     | −1.040.000      |
 | **Resultado antes de reparto, local, impuestos y retiros** | **\~2.900.000** |
 
 Los socios estiman retirar \~$3M cada uno, \~$9M en total. Hay tres explicaciones posibles: venden más volumen del que creen, el costo real es menor o no ganan lo que piensan. El primer entregable del proyecto es un resultado mensual real que responda esto.
@@ -299,22 +299,22 @@ Los socios estiman retirar \~$3M cada uno, \~$9M en total. Hay tres explicacione
 
 Las tres prioridades son saber si el negocio gana, bajar la dependencia de la madre y ordenar pedidos y stock. Sin esas bases, crecer hacia Buenos Aires o exportar multiplica el desorden.
 
-| # | Problema | Consecuencia | Mejora | Fase |
-| --- | --- | --- | --- | --- |
-| 1 | No se conoce la rentabilidad | Decisiones de precio, clientes y retiros a ciegas | Resultado mensual y costeo actualizado | 1 |
-| 2 | Precios sin costo al día ni margen por canal | Se perdieron clientes sin saber si convenían; posible venta bajo costo a supermercados | Lista de precios por canal con margen objetivo | 1 |
-| 3 | La receta y la dosificación dependen de la madre | Si falta, la planta se desordena; variabilidad de producto | Receta maestra con rangos, kits de pesado, matriz de polivalencia | 1 |
-| 4 | Pedidos dispersos en WhatsApp personal y cuaderno | Entregas sin fecha, comunicación cruzada | WhatsApp Business único y módulo de pedidos | 1–2 |
-| 5 | El costo del reparto es desconocido | Rutas de 25 kg que quizá pierden plata | Días fijos por zona, pedido mínimo, registro de km y horas | 1–2 |
-| 6 | Stock de materia prima desconocido y compras reactivas | Faltantes, compras urgentes, capital mal usado | Stock con cobertura en días y punto de pedido | 2 |
-| 7 | Carga manual de facturas con IVA a mano | Horas de Nahuel, errores, datos atrasados | Lectura de facturas por IA desde una foto | 2 |
-| 8 | Cobranzas sin control | No se sabe cuánto deben; riesgo de incobrables | Cuentas corrientes y cheques en cartera | 2 |
-| 9 | Registros BPM a destiempo; trazabilidad de más de 15 minutos | Riesgo en inspecciones y ante un retiro de producto | Registros digitales con usuario y hora; trazabilidad por QR | 2 |
-| 10 | Mantenimiento correctivo | Paradas de la Biscomatic, riesgo en el frío | Plan preventivo por equipo con avisos | 2 |
-| 11 | Local sin control de ventas ni stock | No se sabe qué deja el local | Ventas y stock del local en el sistema | 2 |
-| 12 | Pedidos grandes desordenan la producción | Atrasos y estrés en la planta | Producción nivelada a 150 kg/día y stock de seguridad de los productos que más salen | 3 |
-| 13 | Supermercados le compran granel a un competidor de La Plata | Facturación perdida | Oferta de granel para supermercados con precio calculado | 3 |
-| 14 | Expansión a Buenos Aires y exportación sin base | Negociar sin conocer el costo | Piloto con distribuidor después de la fase 2; estudio de mercado en Madrid | 3 |
+| #   | Problema                                                     | Consecuencia                                                                           | Mejora                                                                               | Fase |
+| --- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ---- |
+| 1   | No se conoce la rentabilidad                                 | Decisiones de precio, clientes y retiros a ciegas                                      | Resultado mensual y costeo actualizado                                               | 1    |
+| 2   | Precios sin costo al día ni margen por canal                 | Se perdieron clientes sin saber si convenían; posible venta bajo costo a supermercados | Lista de precios por canal con margen objetivo                                       | 1    |
+| 3   | La receta y la dosificación dependen de la madre             | Si falta, la planta se desordena; variabilidad de producto                             | Receta maestra con rangos, kits de pesado, matriz de polivalencia                    | 1    |
+| 4   | Pedidos dispersos en WhatsApp personal y cuaderno            | Entregas sin fecha, comunicación cruzada                                               | WhatsApp Business único y módulo de pedidos                                          | 1–2  |
+| 5   | El costo del reparto es desconocido                          | Rutas de 25 kg que quizá pierden plata                                                 | Días fijos por zona, pedido mínimo, registro de km y horas                           | 1–2  |
+| 6   | Stock de materia prima desconocido y compras reactivas       | Faltantes, compras urgentes, capital mal usado                                         | Stock con cobertura en días y punto de pedido                                        | 2    |
+| 7   | Carga manual de facturas con IVA a mano                      | Horas de Nahuel, errores, datos atrasados                                              | Lectura de facturas por IA desde una foto                                            | 2    |
+| 8   | Cobranzas sin control                                        | No se sabe cuánto deben; riesgo de incobrables                                         | Cuentas corrientes y cheques en cartera                                              | 2    |
+| 9   | Registros BPM a destiempo; trazabilidad de más de 15 minutos | Riesgo en inspecciones y ante un retiro de producto                                    | Registros digitales con usuario y hora; trazabilidad por QR                          | 2    |
+| 10  | Mantenimiento correctivo                                     | Paradas de la Biscomatic, riesgo en el frío                                            | Plan preventivo por equipo con avisos                                                | 2    |
+| 11  | Local sin control de ventas ni stock                         | No se sabe qué deja el local                                                           | Ventas y stock del local en el sistema                                               | 2    |
+| 12  | Pedidos grandes desordenan la producción                     | Atrasos y estrés en la planta                                                          | Producción nivelada a 150 kg/día y stock de seguridad de los productos que más salen | 3    |
+| 13  | Supermercados le compran granel a un competidor de La Plata  | Facturación perdida                                                                    | Oferta de granel para supermercados con precio calculado                             | 3    |
+| 14  | Expansión a Buenos Aires y exportación sin base              | Negociar sin conocer el costo                                                          | Piloto con distribuidor después de la fase 2; estudio de mercado en Madrid           | 3    |
 
 ### Oportunidades que no están viendo
 
@@ -334,15 +334,15 @@ Un pedido entra por M1, se produce en M4 consumiendo el stock de M3 (que aliment
 
 ### Usuarios y permisos
 
-| Rol | Quién | Dispositivo | Qué hace en el sistema | Acceso |
-| --- | --- | --- | --- | --- |
-| Dirección | Nahuel | PC y celular | Tablero, precios, clientes, cobranzas, compras | Todo |
-| Jefa de producción | Madre | Tablet y celular | Pedidos, plan, producciones, stock, compras de insumos | Todo menos finanzas |
-| Logística | Padre | Celular | Hoja de ruta, remitos, cobros en ruta, km y horas | Despacho y cobros |
-| Operario | J.T., S.G., E.A., S.R. | Tablet de planta | Pesadas, envasado, limpieza, temperaturas | Solo carga de su tarea |
-| Local | 2 empleadas | Celular o PC | Ventas y stock del local | Local |
-| Responsable técnico | Externo | PC | Consulta y exportación de registros BPM | Lectura |
-| Contadora | Externa | PC | Exportación de compras y ventas | Lectura |
+| Rol                 | Quién                  | Dispositivo      | Qué hace en el sistema                                 | Acceso                 |
+| ------------------- | ---------------------- | ---------------- | ------------------------------------------------------ | ---------------------- |
+| Dirección           | Nahuel                 | PC y celular     | Tablero, precios, clientes, cobranzas, compras         | Todo                   |
+| Jefa de producción  | Madre                  | Tablet y celular | Pedidos, plan, producciones, stock, compras de insumos | Todo menos finanzas    |
+| Logística           | Padre                  | Celular          | Hoja de ruta, remitos, cobros en ruta, km y horas      | Despacho y cobros      |
+| Operario            | J.T., S.G., E.A., S.R. | Tablet de planta | Pesadas, envasado, limpieza, temperaturas              | Solo carga de su tarea |
+| Local               | 2 empleadas            | Celular o PC     | Ventas y stock del local                               | Local                  |
+| Responsable técnico | Externo                | PC               | Consulta y exportación de registros BPM                | Lectura                |
+| Contadora           | Externa                | PC               | Exportación de compras y ventas                        | Lectura                |
 
 ### Módulos y requerimientos funcionales
 
@@ -428,28 +428,28 @@ Un pedido entra por M1, se produce en M4 consumiendo el stock de M3 (que aliment
 
 ### Modelo de datos
 
-| Entidad | Campos clave | Se relaciona con |
-| --- | --- | --- |
-| Cliente | Razón social, CUIT, canal, zona, lista de precios, condición de pago | Pedido, Factura, Cobro, Reclamo |
-| Proveedor | Razón social, CUIT, plazo de entrega, condición de pago | Insumo, Compra |
-| Insumo | Nombre, unidad, stock mínimo, precio vigente | Receta, Lote de materia prima |
-| Producto | Código, forma, presentación, peso | Receta, Lote terminado, Pedido |
-| Receta e ítems | Versión, insumo, cantidad por kg de fécula, rango | Producto, Producción |
-| Compra e ítems | Factura, fecha, insumo, cantidad, precio neto, IVA | Proveedor, Lote de materia prima |
-| Lote de materia prima | Lote del proveedor, vencimiento, cantidad recibida | Compra, Consumo |
-| Producción | Fecha, turno, responsables, kg de fécula | Consumo, Pesada, Lote terminado |
-| Consumo | Lote de materia prima, cantidad real, cantidad teórica | Producción |
-| Pesada | Forma, kg | Producción |
-| Lote terminado | Identificador, vencimiento, bolsas por producto | Producción, Despacho |
-| Movimiento de stock | Tipo, ítem, lote, ubicación, cantidad, origen | Todo lo que mueve stock |
-| Pedido e ítems | Fecha comprometida, estado, producto, cantidad | Cliente, Despacho |
-| Ruta | Fecha, chofer, km, horas, costo | Despacho |
-| Despacho e ítems | Remito, lote, cantidad, conformidad | Pedido, Ruta, Lote terminado |
-| Factura y cobro | Número, importe, vencimiento, medio, cheque | Cliente, Despacho |
-| Equipo y mantenimiento | Equipo, frecuencia, tarea, tipo, fecha, costo | Persona |
-| Registros BPM | Tipo (limpieza, temperatura, reclamo), valor, usuario, hora | Equipo, Sector, Lote |
-| Persona y tarea | Rol, habilidades, tarea asignada por día | Producción, Registros |
-| Gasto fijo | Concepto, mes, importe | Tablero |
+| Entidad                | Campos clave                                                         | Se relaciona con                 |
+| ---------------------- | -------------------------------------------------------------------- | -------------------------------- |
+| Cliente                | Razón social, CUIT, canal, zona, lista de precios, condición de pago | Pedido, Factura, Cobro, Reclamo  |
+| Proveedor              | Razón social, CUIT, plazo de entrega, condición de pago              | Insumo, Compra                   |
+| Insumo                 | Nombre, unidad, stock mínimo, precio vigente                         | Receta, Lote de materia prima    |
+| Producto               | Código, forma, presentación, peso                                    | Receta, Lote terminado, Pedido   |
+| Receta e ítems         | Versión, insumo, cantidad por kg de fécula, rango                    | Producto, Producción             |
+| Compra e ítems         | Factura, fecha, insumo, cantidad, precio neto, IVA                   | Proveedor, Lote de materia prima |
+| Lote de materia prima  | Lote del proveedor, vencimiento, cantidad recibida                   | Compra, Consumo                  |
+| Producción             | Fecha, turno, responsables, kg de fécula                             | Consumo, Pesada, Lote terminado  |
+| Consumo                | Lote de materia prima, cantidad real, cantidad teórica               | Producción                       |
+| Pesada                 | Forma, kg                                                            | Producción                       |
+| Lote terminado         | Identificador, vencimiento, bolsas por producto                      | Producción, Despacho             |
+| Movimiento de stock    | Tipo, ítem, lote, ubicación, cantidad, origen                        | Todo lo que mueve stock          |
+| Pedido e ítems         | Fecha comprometida, estado, producto, cantidad                       | Cliente, Despacho                |
+| Ruta                   | Fecha, chofer, km, horas, costo                                      | Despacho                         |
+| Despacho e ítems       | Remito, lote, cantidad, conformidad                                  | Pedido, Ruta, Lote terminado     |
+| Factura y cobro        | Número, importe, vencimiento, medio, cheque                          | Cliente, Despacho                |
+| Equipo y mantenimiento | Equipo, frecuencia, tarea, tipo, fecha, costo                        | Persona                          |
+| Registros BPM          | Tipo (limpieza, temperatura, reclamo), valor, usuario, hora          | Equipo, Sector, Lote             |
+| Persona y tarea        | Rol, habilidades, tarea asignada por día                             | Producción, Registros            |
+| Gasto fijo             | Concepto, mes, importe                                               | Tablero                          |
 
 ### Integraciones
 
@@ -521,20 +521,20 @@ La tablet queda fija en planta. Durante el primer mes se mantiene el papel en pa
 
 ### Indicadores
 
-| Indicador | Cómo se calcula | Frecuencia | Meta inicial |
-| --- | --- | --- | --- |
-| Uso de capacidad | kg producidos ÷ 150 kg | Semanal | Subir desde \~67% |
-| Rendimiento | kg pesados ÷ kg de ingredientes | Por producción | Medir la base en fase 1 |
-| Costo por bolsa | Regla de negocio 8 | Mensual | Siempre actualizado |
-| Margen por canal | (precio − costo) ÷ precio | Mensual | Definir por canal |
-| Ventas por canal y cliente | Suma de pedidos entregados | Semanal | Medir la base |
-| Entregas a tiempo y completas | Pedidos OK ÷ pedidos entregados | Semanal | Medir la base |
-| Cobertura de materia prima | Regla de negocio 6 | Diaria | Ningún insumo bajo el punto de pedido |
-| Deuda de clientes | Saldo total y por antigüedad | Semanal | Medir la base |
-| Costo de reparto por kg | Costo de la ruta ÷ kg entregados | Mensual | Medir la base |
-| Tiempo de trazabilidad | Simulacro | Trimestral | Menos de 1 minuto |
-| Registros BPM al día | Registros cargados a tiempo ÷ esperados | Semanal | 100% |
-| Preventivos cumplidos | Hechos ÷ programados | Mensual | 100% |
+| Indicador                     | Cómo se calcula                         | Frecuencia     | Meta inicial                          |
+| ----------------------------- | --------------------------------------- | -------------- | ------------------------------------- |
+| Uso de capacidad              | kg producidos ÷ 150 kg                  | Semanal        | Subir desde \~67%                     |
+| Rendimiento                   | kg pesados ÷ kg de ingredientes         | Por producción | Medir la base en fase 1               |
+| Costo por bolsa               | Regla de negocio 8                      | Mensual        | Siempre actualizado                   |
+| Margen por canal              | (precio − costo) ÷ precio               | Mensual        | Definir por canal                     |
+| Ventas por canal y cliente    | Suma de pedidos entregados              | Semanal        | Medir la base                         |
+| Entregas a tiempo y completas | Pedidos OK ÷ pedidos entregados         | Semanal        | Medir la base                         |
+| Cobertura de materia prima    | Regla de negocio 6                      | Diaria         | Ningún insumo bajo el punto de pedido |
+| Deuda de clientes             | Saldo total y por antigüedad            | Semanal        | Medir la base                         |
+| Costo de reparto por kg       | Costo de la ruta ÷ kg entregados        | Mensual        | Medir la base                         |
+| Tiempo de trazabilidad        | Simulacro                               | Trimestral     | Menos de 1 minuto                     |
+| Registros BPM al día          | Registros cargados a tiempo ÷ esperados | Semanal        | 100%                                  |
+| Preventivos cumplidos         | Hechos ÷ programados                    | Mensual        | 100%                                  |
 
 ### Manual de procesos
 
