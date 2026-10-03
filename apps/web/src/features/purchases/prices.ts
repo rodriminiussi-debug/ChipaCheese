@@ -93,6 +93,60 @@ export async function ingredientPriceHistory(db: Executor, ingredientId: string)
 }
 export type IngredientPriceHistory = NonNullable<Awaited<ReturnType<typeof ingredientPriceHistory>>>;
 
+export interface PriceHistoryRow {
+  ingredient: string;
+  unit: "kg" | "l" | "unit";
+  supplier: string;
+  date: string;
+  unitPriceNet: number;
+  /** Variación contra la compra anterior del mismo insumo y proveedor (null en la primera). */
+  variationPct: number | null;
+  invoiceNumber: string | null;
+}
+
+/**
+ * RF-09: todas las compras (precio neto) de un insumo, o de todos si no se indica, ordenadas por insumo,
+ * proveedor y fecha, con la variación contra la compra anterior de la misma serie. Alimenta el Excel.
+ */
+export async function priceHistoryRows(db: Executor, ingredientId?: string): Promise<PriceHistoryRow[]> {
+  const p = schema.ingredientPrices;
+  const rows = await db
+    .select({
+      ingredientId: p.ingredientId,
+      ingredient: schema.ingredients.name,
+      unit: schema.ingredients.unit,
+      supplierId: p.supplierId,
+      supplier: schema.suppliers.legalName,
+      date: p.date,
+      unitPriceNet: p.unitPriceNet,
+      pointOfSale: schema.purchaseInvoices.pointOfSale,
+      number: schema.purchaseInvoices.number,
+    })
+    .from(p)
+    .innerJoin(schema.ingredients, eq(schema.ingredients.id, p.ingredientId))
+    .leftJoin(schema.suppliers, eq(schema.suppliers.id, p.supplierId))
+    .leftJoin(schema.purchaseInvoiceItems, eq(schema.purchaseInvoiceItems.id, p.invoiceItemId))
+    .leftJoin(schema.purchaseInvoices, eq(schema.purchaseInvoices.id, schema.purchaseInvoiceItems.invoiceId))
+    .where(ingredientId ? eq(p.ingredientId, ingredientId) : undefined)
+    .orderBy(asc(schema.ingredients.name), asc(schema.suppliers.legalName), asc(p.date), asc(p.createdAt));
+  const out: PriceHistoryRow[] = [];
+  let prev: (typeof rows)[number] | undefined;
+  for (const r of rows) {
+    const sameSeries = prev && prev.ingredientId === r.ingredientId && prev.supplierId === r.supplierId;
+    out.push({
+      ingredient: r.ingredient,
+      unit: r.unit,
+      supplier: r.supplier ?? "Sin proveedor",
+      date: r.date,
+      unitPriceNet: r.unitPriceNet,
+      variationPct: sameSeries ? priceVariationPct(prev!.unitPriceNet, r.unitPriceNet) : null,
+      invoiceNumber: r.number ? `${r.pointOfSale ?? ""}-${r.number}`.replace(/^-/, "") : null,
+    });
+    prev = r;
+  }
+  return out;
+}
+
 /** Resumen por insumo: último precio, variación vs la compra anterior y cantidad de proveedores. */
 export async function priceOverview(db: Executor) {
   const [ingredients, prices] = await Promise.all([

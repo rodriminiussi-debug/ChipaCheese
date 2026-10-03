@@ -124,3 +124,33 @@ export function cleaningExpectations(
   }
   return out;
 }
+
+/** RF-35: objetivo de trazabilidad, del lote terminado a proveedores y clientes en menos de 1 minuto. */
+export const TRACE_TARGET_MS = 60_000;
+
+export interface TraceTimeSummary {
+  count: number;
+  avgMs: number;
+  maxMs: number;
+  /** Percentil 90 (método del rango más cercano). */
+  p90Ms: number;
+  /** % de consultas resueltas dentro del objetivo. */
+  withinTargetPct: number;
+}
+
+/** RF-35: indicador trimestral "tiempo de trazabilidad" a partir de las duraciones registradas (ms). */
+export function summarizeTraceTimes(
+  durationsMs: number[],
+  targetMs: number = TRACE_TARGET_MS,
+): TraceTimeSummary {
+  if (!durationsMs.length) return { count: 0, avgMs: 0, maxMs: 0, p90Ms: 0, withinTargetPct: 0 };
+  const sorted = [...durationsMs].sort((a, b) => a - b);
+  const sum = sorted.reduce((a, b) => a + b, 0);
+  return {
+    count: sorted.length,
+    avgMs: Math.round(sum / sorted.length),
+    maxMs: sorted[sorted.length - 1]!,
+    p90Ms: sorted[Math.max(0, Math.ceil(sorted.length * 0.9) - 1)]!,
+    withinTargetPct: roundTo((sorted.filter((d) => d < targetMs).length / sorted.length) * 100, 1),
+  };
+}

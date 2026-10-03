@@ -6,6 +6,7 @@ import {
   isLateEntry,
   monthBounds,
   startOfIsoWeek,
+  summarizeTraceTimes,
   maintenanceStatus,
   nextMaintenanceDue,
   temperatureStatus,
@@ -126,5 +127,18 @@ describe("limpieza según frecuencia (RF-34)", () => {
     const exp = cleaningExpectations("monthly", ["2026-08-10"], "2026-08-01", "2026-08-31", "2026-10-02");
     expect(exp).toEqual([{ date: "2026-08-31", done: true }]);
     expect(cleaningExpectations("monthly", [], "2026-10-01", "2026-10-31", "2026-10-02")).toEqual([]);
+  });
+});
+
+describe("tiempo de trazabilidad (RF-35)", () => {
+  it("resume las duraciones: promedio, máximo, percentil 90 y % dentro del minuto", () => {
+    const r = summarizeTraceTimes([120, 80, 200, 60_000, 40, 90, 100, 110, 130, 70]);
+    expect(r).toEqual({ count: 10, avgMs: 6094, maxMs: 60_000, p90Ms: 200, withinTargetPct: 90 });
+  });
+  it("sin consultas devuelve ceros", () => {
+    expect(summarizeTraceTimes([])).toEqual({ count: 0, avgMs: 0, maxMs: 0, p90Ms: 0, withinTargetPct: 0 });
+  });
+  it("respeta un objetivo distinto", () => {
+    expect(summarizeTraceTimes([100, 900, 2_000], 1_000).withinTargetPct).toBe(66.7);
   });
 });
