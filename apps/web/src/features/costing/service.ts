@@ -132,7 +132,9 @@ export async function realYield(db: Executor, today: IsoDate = todayAR()) {
     })
     .from(r)
     .innerJoin(w, eq(w.runId, r.id))
-    .where(and(gte(r.date, addDays(today, -YIELD_WINDOW_DAYS)), lte(r.date, today), ne(r.status, "cancelled")))
+    .where(
+      and(gte(r.date, addDays(today, -YIELD_WINDOW_DAYS)), lte(r.date, today), ne(r.status, "cancelled")),
+    )
     .groupBy(r.id, r.starchKg);
   const valid = rows.filter((x) => Number(x.weighedKg) > 0 && x.starchKg > 0);
   const weighedKg = valid.reduce((a, x) => a + Number(x.weighedKg), 0);
@@ -179,7 +181,11 @@ export async function getProductCosts(db: Executor, today: IsoDate = todayAR()):
     const price = prices.get(it.ingredientId);
     if (price == null) missing.push(it.ingredient.name);
     else
-      priced.push({ ingredientId: it.ingredientId, qty: it.qtyPerKgStarch * starchKgPerRun, unitPriceNet: price });
+      priced.push({
+        ingredientId: it.ingredientId,
+        qty: it.qtyPerKgStarch * starchKgPerRun,
+        unitPriceNet: price,
+      });
   }
   const complete = missing.length === 0;
   const perKg = complete

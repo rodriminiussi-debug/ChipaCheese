@@ -20,7 +20,10 @@ describe("costeo base (Regla 8)", () => {
   it("con rendimiento de receta de 148,5 kg la bolsa de 0,5 kg cuesta ~$3.210 (relevamiento)", async () => {
     await inRollback("nahuel", async (tx) => {
       // 148,5 kg ÷ 75 kg de fécula = 1,98 kg de producto por kg de fécula.
-      await tx.update(schema.recipes).set({ expectedYieldPerKgStarch: 1.98 }).where(eq(schema.recipes.status, "active"));
+      await tx
+        .update(schema.recipes)
+        .set({ expectedYieldPerKgStarch: 1.98 })
+        .where(eq(schema.recipes.status, "active"));
       const c = await getProductCosts(tx, FAR_FUTURE);
       expect(c.yield.source).toBe("recipe");
       expect(c.producedKgPerRun).toBeCloseTo(148.5, 3);
@@ -133,7 +136,10 @@ describe("costeo base (Regla 8)", () => {
         date: "2026-10-01",
         unitPriceNet: 12000,
       });
-      await tx.update(schema.appSettings).set({ value: 8000 }).where(eq(schema.appSettings.key, "labor.hourly_cost"));
+      await tx
+        .update(schema.appSettings)
+        .set({ value: 8000 })
+        .where(eq(schema.appSettings.key, "labor.hourly_cost"));
       const after = await getProductCosts(tx, TODAY);
       const manteca = after.ingredients.find((l) => l.name === "Manteca")!;
       expect(manteca.unitPriceNet).toBe(12000);
