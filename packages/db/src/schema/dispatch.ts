@@ -26,6 +26,9 @@ export const routes = pgTable(
     /** Temperatura del equipo de frío medida en el trayecto. */
     coldUnitTempC: pct(),
     notes: text(),
+    /** Idempotencia offline (RF-26): uuid del celular del chofer para el inicio y para el cierre de la salida. */
+    startClientId: uuid().unique(),
+    finishClientId: uuid().unique(),
     ...timestamps(),
   },
   (t) => [index("routes_date_idx").on(t.date)],
