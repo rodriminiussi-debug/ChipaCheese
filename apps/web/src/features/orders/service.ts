@@ -223,14 +223,38 @@ export async function orderFormData(db: Executor, today: IsoDate = todayAR()) {
 }
 export type OrderFormData = Awaited<ReturnType<typeof orderFormData>>;
 
-/** RF-02: crea el pedido con precios congelados de la lista del cliente, total y evento "recibido". */
+/**
+ * RF-02: crea el pedido con precios congelados de la lista del cliente, total y evento "recibido".
+ *
+ * Carga desde el celular sin señal: con `opts.clientId` es idempotente (el reenvío desde la cola devuelve el
+ * pedido ya creado en vez de cargar otro) y `opts.recordedAt` es el momento real en que se tomó el pedido:
+ * fija `received_at` y el día contra el que se valida la fecha comprometida y se toman los precios.
+ */
 export async function createOrder(
   db: Executor,
   userId: string | null,
   input: CreateOrderData,
-  opts: { today?: IsoDate } = {},
+  opts: { today?: IsoDate; clientId?: string | null; recordedAt?: Date } = {},
 ) {
-  const today = opts.today ?? todayAR();
+  const today = opts.today ?? (opts.recordedAt ? toIsoDateAR(opts.recordedAt) : todayAR());
+  const existing = async () => {
+    if (!opts.clientId) return null;
+    const order = await db.query.orders.findFirst({
+      where: eq(schema.orders.clientId, opts.clientId),
+      with: { items: { with: { product: true } } },
+    });
+    if (!order) return null;
+    return {
+      id: order.id,
+      number: order.number,
+      total: order.total,
+      kg: order.items.reduce((a, l) => a + l.qtyUnits * l.product.netWeightKg, 0),
+      duplicate: true as const,
+    };
+  };
+  const dup = await existing();
+  if (dup) return dup;
+
   const customer = await db.query.customers.findFirst({ where: eq(schema.customers.id, input.customerId) });
   if (!customer) throw new UserError("El cliente no existe.", { customerId: ["Elegí un cliente"] });
   if (!customer.active)
@@ -259,11 +283,27 @@ export async function createOrder(
       total,
       notes: input.notes,
       createdById: userId,
+      clientId: opts.clientId ?? null,
+      ...(opts.recordedAt ? { receivedAt: opts.recordedAt } : {}),
     })
+    .onConflictDoNothing({ target: schema.orders.clientId })
     .returning();
-  await db.insert(schema.orderItems).values(lines.map((l) => ({ orderId: order!.id, ...l })));
-  await db.insert(schema.orderEvents).values({ orderId: order!.id, status: "received", byId: userId });
-  return { id: order!.id, number: order!.number, total, kg: lines.reduce((a, l) => a + l.kg, 0) };
+  // Carrera con otro envío del mismo pedido (dos pestañas vaciando la cola): ganó el otro.
+  if (!order) return (await existing())!;
+  await db.insert(schema.orderItems).values(lines.map((l) => ({ orderId: order.id, ...l })));
+  await db.insert(schema.orderEvents).values({
+    orderId: order.id,
+    status: "received",
+    byId: userId,
+    ...(opts.recordedAt ? { at: opts.recordedAt } : {}),
+  });
+  return {
+    id: order.id,
+    number: order.number,
+    total,
+    kg: lines.reduce((a, l) => a + l.kg, 0),
+    duplicate: false as const,
+  };
 }
 
 /** Valida productos y arma las líneas con el precio vigente de la lista. */

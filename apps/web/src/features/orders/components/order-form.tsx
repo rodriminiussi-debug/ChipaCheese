@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronsUpDown, Minus, Plus, Repeat } from "lucide-react";
+import { ChevronsUpDown, CloudOff, Minus, Plus, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/command";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Money, Kg } from "@/components/app/format";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
 import { useAction } from "@/hooks/use-action";
+import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { cn } from "@/lib/utils";
 import { orderKg, orderTotal, roundQty } from "@chipa/domain";
 import {
@@ -27,6 +29,7 @@ import {
   updateOrderInput,
   type CreateOrderData,
   type CreateOrderInput,
+  type CreateOrderPayload,
   type UpdateOrderData,
   type UpdateOrderInput,
 } from "../schemas";
@@ -86,10 +89,16 @@ export function OrderForm({
   const customer = data.customers.find((c) => c.id === customerId);
   const priceListId = initial?.priceListId ?? customer?.priceListId ?? null;
 
-  const create = useAction(createOrderAction, {
+  // Sin señal el pedido queda en la cola del celular (pendiente de enviar) y se crea una sola vez al volver la
+  // conexión: el clientId evita duplicarlo si el reenvío se repite.
+  const create = useOfflineAction(OFFLINE_ACTION.orderCreate, createOrderAction, {
     success: (o) => `Pedido #${o.number} cargado`,
-    onSuccess: (o) => router.push(`/pedidos/${o.id}`),
+    onSuccess: (o, queued) => {
+      if (o && !queued) return router.push(`/pedidos/${o.id}`);
+      form.reset({ customerId: "", promisedDate: "", source: "whatsapp", notes: "", items: [] });
+    },
   });
+  const queuedOrders = useQueuedItems<CreateOrderPayload>(OFFLINE_ACTION.orderCreate);
   const update = useAction(updateOrderAction, {
     success: "Pedido actualizado",
     onSuccess: (o) => router.push(`/pedidos/${o.id}`),
@@ -138,11 +147,15 @@ export function OrderForm({
     if (!exceedsStock) return;
     let cancelled = false;
     const t = setTimeout(async () => {
-      const res = await estimateOrderDateAction({
-        items: lines.map((l) => ({ productId: l.productId, qtyUnits: l.qtyUnits })),
-        excludeOrderId: initial?.orderId ?? null,
-      });
-      if (!cancelled && res.ok) setEstimated({ key: itemsKey, value: res.data });
+      try {
+        const res = await estimateOrderDateAction({
+          items: lines.map((l) => ({ productId: l.productId, qtyUnits: l.qtyUnits })),
+          excludeOrderId: initial?.orderId ?? null,
+        });
+        if (!cancelled && res.ok) setEstimated({ key: itemsKey, value: res.data });
+      } catch {
+        // Sin señal no hay estimación de fecha posible: el pedido se puede cargar igual (queda en cola).
+      }
     }, 400);
     return () => {
       cancelled = true;
@@ -166,7 +179,11 @@ export function OrderForm({
           notes: values.notes ?? null,
           items: values.items,
         })
-      : create.run(values as CreateOrderData),
+      : create.run({
+          ...(values as CreateOrderData),
+          clientId: crypto.randomUUID(),
+          recordedAt: new Date().toISOString(),
+        }),
   );
 
   const err = (name: string) =>
@@ -174,6 +191,27 @@ export function OrderForm({
 
   return (
     <form onSubmit={onSubmit} className="mx-auto grid max-w-2xl gap-5 pb-2" noValidate>
+      {!editing && queuedOrders.length > 0 ? (
+        <section
+          aria-label="Pedidos pendientes de enviar"
+          className="rounded-lg border border-amber-500 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+          data-testid="pending-orders"
+        >
+          <p className="flex items-center gap-2 font-semibold">
+            <CloudOff className="size-4" /> Pendiente de enviar ({queuedOrders.length})
+          </p>
+          <ul className="mt-1 grid gap-0.5">
+            {queuedOrders.map((q) => (
+              <li key={q.id}>
+                {data.customers.find((c) => c.id === q.payload.customerId)?.name ?? "Cliente"} ·{" "}
+                {q.payload.items.reduce((a, i) => a + Number(i.qtyUnits), 0)} u. · entrega{" "}
+                {weekdayDate(q.payload.promisedDate)}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs">Se cargan solos al volver la señal.</p>
+        </section>
+      ) : null}
       {/* 1. Cliente */}
       <Field data-invalid={!!err("customerId")}>
         <FieldLabel>Cliente</FieldLabel>

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ORDER_STATUSES } from "@chipa/domain";
-import { int, isoDate, optText, optUuid } from "@/lib/zod";
+import { clientIdField, int, isoDate, optText, optUuid, recordedAtField } from "@/lib/zod";
 
 export const ORDER_SOURCES = ["whatsapp", "phone", "store", "visit", "other"] as const;
 
@@ -20,6 +20,16 @@ export const createOrderInput = z.object({
 });
 export type CreateOrderInput = z.input<typeof createOrderInput>;
 export type CreateOrderData = z.output<typeof createOrderInput>;
+
+/**
+ * Pedido cargado desde el celular, encolable sin señal: `clientId` (uuid del celular; idempotencia al reenviar
+ * desde la cola) y `recordedAt` (momento real en que se tomó el pedido). Ver `src/lib/offline-queue.ts`.
+ */
+export const createOrderPayload = createOrderInput.extend({
+  clientId: clientIdField(),
+  recordedAt: recordedAtField(),
+});
+export type CreateOrderPayload = z.input<typeof createOrderPayload>;
 
 /** RF-03: edición de ítems (solo recibido/confirmado). */
 export const updateOrderInput = z.object({
