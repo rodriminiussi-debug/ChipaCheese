@@ -31,6 +31,21 @@ pnpm dev        # http://localhost:3000
 
 Solo existen en desarrollo y tests; en producción se crean usuarios reales.
 
+## Datos de presentación
+
+Para mostrar el sistema con una operación realista (no los datos mínimos de los tests):
+
+```bash
+pnpm db:showcase                 # recrea la base de desarrollo con ~3 meses simulados
+APP_TODAY=2026-10-02 pnpm dev    # la app "vive" el 02/10/2026, último día del seed
+```
+
+Simula julio–septiembre de 2026 y los primeros días de octubre: ~100 kg/día de producción con consumos por lote,
+compras semanales con inflación de precios, ~240 pedidos con remitos, rutas y facturas, cobros (con deuda vencida
+y un cheque rechazado), ventas diarias del local, registros BPM, mantenimiento y gastos fijos completos.
+Es determinista (misma semilla, mismos datos). Septiembre da ventas por ~$18,3M y un resultado de ~$0,6M,
+coherente con la tesis del relevamiento: el negocio no cubre los ~$9M de retiros estimados.
+
 ## Calidad
 
 ```bash

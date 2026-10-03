@@ -19,6 +19,7 @@
     "db:migrate": "pnpm --filter @chipa/db migrate",
     "db:seed": "pnpm --filter @chipa/db seed",
     "db:reset": "pnpm --filter @chipa/db reset",
+    "db:showcase": "pnpm --filter @chipa/db showcase",
     "db:studio": "pnpm --filter @chipa/db studio",
     "setup": "pnpm install && pnpm db:up && pnpm db:reset",
     "format": "prettier --write .",

@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
     "./reset": "./src/reset.ts",
+    "./showcase": "./src/showcase.ts",
     "./seed-data": "./src/seed/data.ts"
   },
   "scripts": {
@@ -14,6 +15,7 @@
     "migrate": "tsx src/migrate.ts",
     "seed": "tsx src/seed/index.ts",
     "reset": "tsx src/reset.ts",
+    "showcase": "tsx src/showcase.ts",
     "studio": "drizzle-kit studio",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
