@@ -6,10 +6,15 @@ SLUG="${1:?slug requerido (m1, m2…)}"
 PORT="${2:?puerto E2E requerido}"
 cd "$(dirname "$0")/.."
 
-docker compose up -d --wait >/dev/null
+# Un único contenedor compartido por todos los worktrees: si ya corre, no tocarlo
+# (compose desde otro worktree lo recrearía por montar otra ruta de init).
+PG=chipa-postgres-1
+if [ "$(docker inspect -f '{{.State.Running}}' "$PG" 2>/dev/null)" != "true" ]; then
+  docker compose up -d --wait >/dev/null
+fi
 for db in "chipa_${SLUG}" "chipa_${SLUG}_test"; do
-  docker compose exec -T postgres psql -U chipa -d chipa -tAc "SELECT 1 FROM pg_database WHERE datname='${db}'" | grep -q 1 \
-    || docker compose exec -T postgres createdb -U chipa "${db}"
+  docker exec "$PG" psql -U chipa -d chipa -tAc "SELECT 1 FROM pg_database WHERE datname='${db}'" | grep -q 1 \
+    || docker exec "$PG" createdb -U chipa "${db}"
 done
 
 sed -e "s#^DATABASE_URL=.*#DATABASE_URL=postgres://chipa:chipa@localhost:5433/chipa_${SLUG}#" .env.example > .env
