@@ -1,6 +1,7 @@
 import type { Tx } from "../client";
 import * as s from "../schema";
 import type { SeedRefs } from "./index";
+import { seedDemoQuality } from "./demo-m7";
 
 /**
  * Datos de demostración coherentes con el relevamiento: stock inicial de materia prima,
@@ -410,6 +411,8 @@ export async function seedDemo(tx: Tx, r: SeedRefs) {
       userId: r.users.jt,
     });
   }
+
+  await seedDemoQuality(tx, r, { sepLotId: sep.lotId });
 
   return { sep, oct };
 }
