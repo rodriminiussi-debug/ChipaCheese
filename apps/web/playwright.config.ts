@@ -33,6 +33,8 @@ export default defineConfig({
     timezoneId: "America/Argentina/Buenos_Aires",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    // El service worker (solo en el build de producción) cachearía navegaciones entre tests.
+    serviceWorkers: "block",
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: /\.tablet\.spec\.ts/ },
@@ -48,6 +50,7 @@ export default defineConfig({
       DATABASE_URL: TEST_DATABASE_URL,
       AI_MOCK: "1",
       APP_TODAY: DEMO_TODAY,
+      ALLOW_FROZEN_CLOCK: "1",
       STORAGE_DRIVER: "local",
       STORAGE_LOCAL_DIR: ".data/test-uploads",
       NEXT_DIST_DIR_SUFFIX: "e2e",

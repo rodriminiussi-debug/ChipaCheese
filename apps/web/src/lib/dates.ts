@@ -9,7 +9,9 @@ export const TZ = "America/Argentina/Buenos_Aires";
 export function todayAR(now?: Date): IsoDate {
   if (!now) {
     const frozen = typeof process !== "undefined" ? process.env.APP_TODAY : undefined;
-    if (frozen && process.env.NODE_ENV !== "production") return frozen;
+    // En producción solo se respeta con ALLOW_FROZEN_CLOCK=1 (E2E contra el build de producción en CI).
+    if (frozen && (process.env.NODE_ENV !== "production" || process.env.ALLOW_FROZEN_CLOCK === "1"))
+      return frozen;
     now = new Date();
   }
   return new Intl.DateTimeFormat("en-CA", {
