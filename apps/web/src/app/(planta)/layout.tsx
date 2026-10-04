@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { requirePermission } from "@/server/auth/session";
 import { logoutAction } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/brand/brand";
 import { OfflineQueueIndicator } from "@/components/pwa/pwa";
 
 /** Layout de tablet de planta: pantalla completa, botones grandes, sin menú lateral. */
@@ -11,7 +12,10 @@ export default async function PlantLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="bg-primary text-primary-foreground flex h-16 items-center justify-between px-4">
-        <Link href="/planta" className="text-xl font-bold">
+        <Link href="/planta" className="flex items-center gap-2 text-xl font-bold">
+          <span className="grid size-11 place-items-center rounded-full bg-white">
+            <BrandMark className="size-9" />
+          </span>
           Planta
         </Link>
         <div className="flex items-center gap-3">

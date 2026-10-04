@@ -1,11 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ServiceWorkerRegister } from "@/components/pwa/pwa";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
+// Tipografía de la marca (chipacheese.com.ar usa Poppins).
+const poppins = Poppins({
+  variable: "--font-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -13,15 +18,16 @@ export const metadata: Metadata = {
   description: "Sistema de gestión de Pacon SRL (Chipa Cheese)",
   applicationName: "Chipa Cheese",
   manifest: "/manifest.webmanifest",
+  icons: { icon: "/brand/isotipo.png", apple: "/icons/icon-192.png" },
 };
 
-export const viewport: Viewport = { themeColor: "#b45309", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#E54E2F", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es-AR"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full">

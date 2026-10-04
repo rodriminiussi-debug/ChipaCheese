@@ -9,6 +9,11 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  /* Marca Chipa Cheese (chipacheese.com.ar) */
+  --color-brand-red: oklch(0.628 0.198 36); /* #E54E2F */
+  --color-brand-yellow: oklch(0.885 0.178 95); /* #FCD31C */
+  --color-brand-coral: oklch(0.73 0.15 22); /* #FC7978 */
+  --color-brand-ink: oklch(0.33 0.012 255); /* #33373D */
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -49,72 +54,72 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.995 0.003 85);
+  --foreground: oklch(0.27 0.012 255);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.27 0.012 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.555 0.146 49);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.27 0.012 255);
+  --primary: oklch(0.56 0.19 36);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.955 0.06 95);
+  --secondary-foreground: oklch(0.3 0.04 70);
+  --muted: oklch(0.965 0.006 80);
+  --muted-foreground: oklch(0.5 0.012 255);
+  --accent: oklch(0.955 0.045 95);
+  --accent-foreground: oklch(0.3 0.04 70);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.666 0.157 58);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: oklch(0.915 0.008 80);
+  --input: oklch(0.9 0.008 80);
+  --ring: oklch(0.63 0.198 36);
+  --chart-1: oklch(0.628 0.198 36);
+  --chart-2: oklch(0.82 0.165 92);
+  --chart-3: oklch(0.73 0.15 22);
+  --chart-4: oklch(0.4 0.02 255);
+  --chart-5: oklch(0.7 0.02 80);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.555 0.146 49);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.985 0.012 92);
+  --sidebar-foreground: oklch(0.27 0.012 255);
+  --sidebar-primary: oklch(0.56 0.19 36);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.94 0.06 95);
+  --sidebar-accent-foreground: oklch(0.27 0.03 60);
+  --sidebar-border: oklch(0.92 0.02 92);
+  --sidebar-ring: oklch(0.63 0.198 36);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.769 0.165 70);
-  --primary-foreground: oklch(0.2 0.02 50);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.2 0.01 255);
+  --foreground: oklch(0.97 0.004 85);
+  --card: oklch(0.245 0.012 255);
+  --card-foreground: oklch(0.97 0.004 85);
+  --popover: oklch(0.245 0.012 255);
+  --popover-foreground: oklch(0.97 0.004 85);
+  --primary: oklch(0.72 0.16 38);
+  --primary-foreground: oklch(0.2 0.03 40);
+  --secondary: oklch(0.33 0.05 85);
+  --secondary-foreground: oklch(0.95 0.06 95);
+  --muted: oklch(0.29 0.012 255);
+  --muted-foreground: oklch(0.72 0.01 255);
+  --accent: oklch(0.33 0.05 85);
+  --accent-foreground: oklch(0.95 0.06 95);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.666 0.157 58);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.769 0.165 70);
-  --sidebar-primary-foreground: oklch(0.2 0.02 50);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.72 0.16 38);
+  --chart-1: oklch(0.72 0.16 38);
+  --chart-2: oklch(0.85 0.16 92);
+  --chart-3: oklch(0.78 0.12 22);
+  --chart-4: oklch(0.8 0.02 255);
+  --chart-5: oklch(0.6 0.02 80);
+  --sidebar: oklch(0.225 0.012 255);
+  --sidebar-foreground: oklch(0.97 0.004 85);
+  --sidebar-primary: oklch(0.72 0.16 38);
+  --sidebar-primary-foreground: oklch(0.2 0.03 40);
+  --sidebar-accent: oklch(0.3 0.04 85);
+  --sidebar-accent-foreground: oklch(0.95 0.06 95);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.72 0.16 38);
 }
 
 @layer base {
@@ -130,5 +135,26 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Mascota de la animación de capacitación: leve balanceo. */
+@keyframes chipa-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(3deg);
+  }
+}
+/* Pulso del resaltado sobre las capturas de capacitación. */
+@keyframes chipa-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-brand-red) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in oklch, var(--color-brand-red) 0%, transparent);
   }
 }

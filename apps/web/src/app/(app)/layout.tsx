@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/brand/brand";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app/app-sidebar";
 import { OfflineQueueIndicator } from "@/components/pwa/pwa";
@@ -12,7 +13,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         {/* En pantallas grandes el encabezado desaparece (`contents`) y solo queda el aviso, flotando abajo a la derecha. */}
         <header className="flex h-12 items-center gap-2 border-b px-4 md:contents">
           <SidebarTrigger className="md:hidden" />
-          <span className="font-semibold md:hidden">Chipa Cheese</span>
+          <BrandLogo className="w-28 md:hidden" />
           {/* Celular (pedidos, ruta del chofer): registros pendientes de enviar y reintento al volver la señal. */}
           <div className="ml-auto md:fixed md:right-4 md:bottom-4 md:z-50">
             <OfflineQueueIndicator />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand/brand";
 import { ClearPageCache } from "@/components/pwa/clear-page-cache";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,8 +16,9 @@ export default async function LoginPage(props: PageProps<"/login">) {
       <ClearPageCache />
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">Chipa Cheese</CardTitle>
-          <CardDescription>Sistema de gestión — Pacon SRL</CardDescription>
+          <CardTitle className="sr-only">Chipa Cheese</CardTitle>
+          <BrandLogo className="mx-auto w-52" />
+          <CardDescription className="text-center">Sistema de gestión — Pacon SRL</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
           <LoginForm next={typeof next === "string" ? next : undefined} />

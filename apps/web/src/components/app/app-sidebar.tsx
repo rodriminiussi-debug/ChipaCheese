@@ -16,6 +16,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { NAV } from "@/lib/nav";
+import { BrandLogo, BrandMark } from "@/components/brand/brand";
 import { can, ROLE_LABELS, type Role } from "@/lib/rbac";
 import { logoutAction } from "@/features/auth/actions";
 
@@ -29,11 +30,9 @@ export function AppSidebar({ user }: { user: { name: string; role: Role } }) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <Link href="/" className="flex items-center gap-2 px-2 py-1.5">
-          <span className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-md text-sm font-bold">
-            CC
-          </span>
-          <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">Chipa Cheese</span>
+        <Link href="/" className="flex items-center gap-2 px-1 py-1.5" aria-label="Chipa Cheese — inicio">
+          <BrandLogo className="w-36 group-data-[collapsible=icon]:hidden" />
+          <BrandMark className="hidden size-8 group-data-[collapsible=icon]:block" />
         </Link>
       </SidebarHeader>
       <SidebarContent>

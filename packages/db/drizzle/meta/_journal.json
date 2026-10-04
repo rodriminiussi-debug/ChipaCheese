@@ -36,6 +36,13 @@
       "when": 1791040946456,
       "tag": "0004_hb_functional_debt",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791156430287,
+      "tag": "0005_training_progress",
+      "breakpoints": true
     }
   ]
 }

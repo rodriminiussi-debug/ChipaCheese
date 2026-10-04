@@ -58,6 +58,7 @@ export const PERMISSIONS = [
   "people:read",
   "people:write",
   "export", // Excel / PDF
+  "training:read", // capacitación (todos los roles)
   "admin", // usuarios y configuración
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
@@ -81,6 +82,7 @@ const MATRIX: Record<Role, readonly Permission[]> = {
   ),
   // "Despacho y cobros"
   logistics: [
+    "training:read",
     "dispatch:read",
     "dispatch:write",
     "collections:write",
@@ -91,11 +93,12 @@ const MATRIX: Record<Role, readonly Permission[]> = {
     "stock:read",
   ],
   // "Solo carga de su tarea"
-  operator: ["production:record", "quality:record", "production:read"],
+  operator: ["training:read", "production:record", "quality:record", "production:read"],
   // "Local"
-  store: ["store:read", "store:write", "stock:read", "customers:read", "orders:read"],
+  store: ["training:read", "store:read", "store:write", "stock:read", "customers:read", "orders:read"],
   // "Consulta y exportación de registros BPM"
   technical_lead: [
+    "training:read",
     "quality:read",
     "maintenance:read",
     "production:read",
@@ -104,7 +107,15 @@ const MATRIX: Record<Role, readonly Permission[]> = {
     "export",
   ],
   // "Exportación de compras y ventas"
-  accountant: ["purchases:read", "suppliers:read", "billing:read", "customers:read", "store:read", "export"],
+  accountant: [
+    "training:read",
+    "purchases:read",
+    "suppliers:read",
+    "billing:read",
+    "customers:read",
+    "store:read",
+    "export",
+  ],
 };
 
 export function can(role: Role, permission: Permission | readonly Permission[]): boolean {

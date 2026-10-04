@@ -1,0 +1,37 @@
+{
+  "generatedAt": "placeholder",
+  "today": "2026-10-02",
+  "roles": [
+    {
+      "id": "operario",
+      "title": "Operarios de planta",
+      "who": "J.T., S.G., E.A., S.R.",
+      "device": "Tablet de planta",
+      "goal": "Registrar lo que pasa en planta en el momento, en menos de 30 segundos.",
+      "permissions": "Ves y cargás solo tus tareas de planta.",
+      "modules": [
+        {
+          "id": "ingreso",
+          "title": "Ingresar con tu PIN",
+          "why": "La tablet es compartida: cada registro queda con tu nombre, fecha y hora.",
+          "steps": [{ "text": "Tocá tu nombre y escribí tu **PIN**. Después tocá **Entrar**." }],
+          "tips": ["Si te equivocás de nombre, tocá **No soy yo**."],
+          "mistakes": [
+            {
+              "problem": "PIN incorrecto",
+              "fix": "Revisá que sea tu nombre. Después de 5 intentos esperá 5 minutos."
+            }
+          ],
+          "check": [
+            {
+              "q": "¿Por qué cada uno entra con su PIN?",
+              "options": ["Para que el registro quede a su nombre", "Para que la tablet sea más rápida"],
+              "answer": 0,
+              "explain": "BPM pide usuario, fecha y hora en cada registro."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

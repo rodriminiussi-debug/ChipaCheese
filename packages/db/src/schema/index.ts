@@ -10,4 +10,5 @@ export * from "./sales";
 export * from "./dispatch";
 export * from "./quality";
 export * from "./finance";
+export * from "./training";
 export * from "./views";
