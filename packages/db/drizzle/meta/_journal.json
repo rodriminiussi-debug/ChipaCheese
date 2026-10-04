@@ -43,6 +43,13 @@
       "when": 1791156430287,
       "tag": "0005_training_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791157965938,
+      "tag": "0006_product_kinds_store_ops",
+      "breakpoints": true
     }
   ]
 }

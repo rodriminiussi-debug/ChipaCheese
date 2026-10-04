@@ -129,3 +129,30 @@ export const dispatchItemsRelations = relations(dispatchItems, ({ one }) => ({
   product: one(products, { fields: [dispatchItems.productId], references: [products.id] }),
   lot: one(finishedLots, { fields: [dispatchItems.finishedLotId], references: [finishedLots.id] }),
 }));
+
+/**
+ * Rendición del chofer al volver: lo que entrega (efectivo, cheques) contra lo cobrado en la ruta.
+ * Una por ruta.
+ */
+export const routeSettlements = pgTable("route_settlements", {
+  id: id(),
+  routeId: uuid()
+    .notNull()
+    .unique()
+    .references(() => routes.id),
+  cashExpected: money().notNull(),
+  cashDelivered: money().notNull(),
+  checksExpected: integer().notNull().default(0),
+  checksDelivered: integer().notNull().default(0),
+  transfersExpected: money().notNull().default(0),
+  /** Quien recibe la rendición (Dirección o jefa). */
+  receivedById: uuid().references(() => users.id),
+  settledAt: tstz().notNull().defaultNow(),
+  notes: text(),
+  ...timestamps(),
+});
+
+export const routeSettlementsRelations = relations(routeSettlements, ({ one }) => ({
+  route: one(routes, { fields: [routeSettlements.routeId], references: [routes.id] }),
+  receivedBy: one(users, { fields: [routeSettlements.receivedById], references: [users.id] }),
+}));

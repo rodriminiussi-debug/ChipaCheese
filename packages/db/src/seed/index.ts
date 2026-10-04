@@ -145,12 +145,49 @@ export async function seedMasters(tx: Tx): Promise<SeedRefs> {
     }
   }
 
+  // Reventa y elaborados del local (no salen de la masa en planta).
+  for (const p of D.EXTRA_PRODUCTS) {
+    const [row] = await tx
+      .insert(s.products)
+      .values({
+        code: p.code,
+        name: p.name,
+        kind: p.kind,
+        shape: "other",
+        presentation: "unit",
+        netWeightKg: "netWeightKg" in p ? p.netWeightKg : 0,
+        unitLabel: p.unitLabel,
+        barcode: p.barcode,
+        baseProductId: "base" in p ? refs.products[p.base.product] : null,
+        baseQty: "base" in p ? p.base.qty : null,
+        minStockUnits: p.minStock,
+        availableForOrders: false,
+      })
+      .returning();
+    refs.products[p.key] = row!.id;
+    if (p.unitCost != null) {
+      await tx
+        .insert(s.productCosts)
+        .values({ productId: row!.id, date: "2026-09-29", unitCostNet: p.unitCost });
+    }
+  }
+
   for (const pl of D.PRICE_LISTS) {
     const [row] = await tx
       .insert(s.priceLists)
       .values({ name: pl.name, channel: pl.channel, targetMarginPct: pl.targetMarginPct })
       .returning();
     refs.priceLists[pl.key] = row!.id;
+    if (pl.channel === "store") {
+      await tx.insert(s.priceListItems).values(
+        D.EXTRA_PRODUCTS.map((p) => ({
+          priceListId: row!.id,
+          productId: refs.products[p.key]!,
+          unitPrice: p.storePrice,
+          validFrom: "2026-09-01",
+        })),
+      );
+    }
     await tx.insert(s.priceListItems).values(
       Object.entries(pl.prices).map(([prodKey, price]) => ({
         priceListId: row!.id,

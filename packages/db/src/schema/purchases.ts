@@ -10,7 +10,7 @@ import {
   unitEnum,
 } from "./enums";
 import { users } from "./auth";
-import { ingredients, suppliers } from "./catalog";
+import { ingredients, products, suppliers } from "./catalog";
 
 /** Orden de compra con fecha esperada y responsable (RF-10). */
 export const purchaseOrders = pgTable(
@@ -90,6 +90,8 @@ export const purchaseInvoiceItems = pgTable(
       .references(() => purchaseInvoices.id, { onDelete: "cascade" }),
     /** Null mientras el usuario no mapea la línea a un insumo. */
     ingredientId: uuid().references(() => ingredients.id),
+    /** Alternativa a `ingredientId`: la línea es un producto de reventa (gaseosas, aguas…). */
+    productId: uuid().references(() => products.id),
     description: text().notNull(),
     qty: qty().notNull(),
     unit: unitEnum(),
@@ -118,6 +120,23 @@ export const ingredientPrices = pgTable(
     ...timestamps(),
   },
   (t) => [index("ingredient_prices_lookup_idx").on(t.ingredientId, t.date)],
+);
+
+/** Costo de compra de productos de reventa (sin IVA, por unidad). Se escribe al confirmar la factura o al ingresar mercadería. */
+export const productCosts = pgTable(
+  "product_costs",
+  {
+    id: id(),
+    productId: uuid()
+      .notNull()
+      .references(() => products.id),
+    supplierId: uuid().references(() => suppliers.id),
+    date: day().notNull(),
+    unitCostNet: money().notNull(),
+    invoiceItemId: uuid().references(() => purchaseInvoiceItems.id, { onDelete: "set null" }),
+    ...timestamps(),
+  },
+  (t) => [index("product_costs_lookup_idx").on(t.productId, t.date)],
 );
 
 /** Pagos a proveedores (cuenta corriente, RF-12). */
@@ -163,6 +182,7 @@ export const purchaseInvoiceItemsRelations = relations(purchaseInvoiceItems, ({ 
     fields: [purchaseInvoiceItems.invoiceId],
     references: [purchaseInvoices.id],
   }),
+  product: one(products, { fields: [purchaseInvoiceItems.productId], references: [products.id] }),
   ingredient: one(ingredients, { fields: [purchaseInvoiceItems.ingredientId], references: [ingredients.id] }),
 }));
 export const ingredientPricesRelations = relations(ingredientPrices, ({ one }) => ({
@@ -171,4 +191,9 @@ export const ingredientPricesRelations = relations(ingredientPrices, ({ one }) =
 }));
 export const supplierPaymentsRelations = relations(supplierPayments, ({ one }) => ({
   supplier: one(suppliers, { fields: [supplierPayments.supplierId], references: [suppliers.id] }),
+}));
+
+export const productCostsRelations = relations(productCosts, ({ one }) => ({
+  product: one(products, { fields: [productCosts.productId], references: [products.id] }),
+  supplier: one(suppliers, { fields: [productCosts.supplierId], references: [suppliers.id] }),
 }));

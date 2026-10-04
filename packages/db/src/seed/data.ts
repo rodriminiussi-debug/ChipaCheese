@@ -694,3 +694,47 @@ export const CUSTOMERS = [
     whatsapp: null,
   },
 ] as const;
+
+/**
+ * Productos que no salen de la masa en planta (el local vende más que chipá):
+ * - resale: reventa (gaseosas, aguas), con su costo de compra.
+ * - prepared: elaborado en el local con producto terminado (equivalente en bolsas de un producto base).
+ * SUPUESTO: marcas, precios y costos de ejemplo hasta cargar los reales.
+ */
+export const EXTRA_PRODUCTS = [
+  {
+    key: "gaseosa500",
+    code: "RV-GAS-500",
+    name: "Gaseosa 500 ml",
+    kind: "resale",
+    unitLabel: "botella",
+    barcode: "7790895000997",
+    storePrice: 1800,
+    unitCost: 1100,
+    minStock: 24,
+  },
+  {
+    key: "agua500",
+    code: "RV-AGU-500",
+    name: "Agua mineral 500 ml",
+    kind: "resale",
+    unitLabel: "botella",
+    barcode: "7798062540017",
+    storePrice: 1300,
+    unitCost: 700,
+    minStock: 12,
+  },
+  {
+    key: "horneado250",
+    code: "EL-HOR-250",
+    name: "Chipá horneado 250 g (para llevar)",
+    kind: "prepared",
+    unitLabel: "porción",
+    barcode: null,
+    storePrice: 3200,
+    unitCost: null,
+    minStock: 0,
+    base: { product: "tap500", qty: 0.5 },
+    netWeightKg: 0.25,
+  },
+] as const;

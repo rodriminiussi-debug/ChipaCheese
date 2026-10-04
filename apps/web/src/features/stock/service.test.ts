@@ -439,7 +439,7 @@ describe("libro mayor de movimientos", () => {
 
       const day = await listMovements(tx, { from: "2026-09-28", to: "2026-09-28" });
       expect(day.rows.every((r) => r.type === "receipt")).toBe(true);
-      expect(day.total).toBe(9);
+      expect(day.total).toBe(11); // 9 recepciones de materia prima + 2 de reventa en el local
       expect((await listMovements(tx, { from: "2026-12-01" })).total).toBe(0);
       expect(
         (await listMovements(tx, { itemKind: "product" })).rows.every((r) => r.itemKind === "product"),

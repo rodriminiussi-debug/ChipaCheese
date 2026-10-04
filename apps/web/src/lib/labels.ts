@@ -28,6 +28,20 @@ export const SHAPE: Record<string, string> = {
   mixed: "Surtido",
   sandwich: "Sándwich",
   pizzeta: "Pizzetas",
+  other: "Otro",
+};
+
+/** Tipo de producto (ver productKindEnum). */
+export const PRODUCT_KIND: Record<string, { label: string; hint: string }> = {
+  manufactured: {
+    label: "Fabricado",
+    hint: "Chipá hecho en planta desde la masa: tiene lote y vencimiento.",
+  },
+  resale: { label: "Reventa", hint: "Se compra y se vende tal cual (gaseosas, aguas…)." },
+  prepared: {
+    label: "Elaborado en el local",
+    hint: "Se prepara con producto terminado; al venderse descuenta su equivalente.",
+  },
 };
 
 export const PAYMENT_METHOD: Record<string, string> = {
@@ -35,6 +49,7 @@ export const PAYMENT_METHOD: Record<string, string> = {
   transfer: "Transferencia",
   check: "Cheque",
   card: "Tarjeta",
+  qr: "QR / billetera virtual",
   other: "Otro",
 };
 

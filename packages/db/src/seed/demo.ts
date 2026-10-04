@@ -414,5 +414,22 @@ export async function seedDemo(tx: Tx, r: SeedRefs) {
 
   await seedDemoQuality(tx, r, { sepLotId: sep.lotId });
 
+  // --- Reventa en el local: stock inicial de gaseosas y aguas (sin lote) ---------------------
+  for (const [key, units] of [
+    ["gaseosa500", 48],
+    ["agua500", 24],
+  ] as const) {
+    await tx.insert(s.stockMovements).values({
+      occurredAt: new Date("2026-09-28T10:00:00-03:00"),
+      type: "receipt",
+      itemKind: "product",
+      productId: P[key]!,
+      locationId: L.local!,
+      qty: units,
+      note: "Stock inicial de reventa (demo)",
+      createdById: r.users.local1,
+    });
+  }
+
   return { sep, oct };
 }
