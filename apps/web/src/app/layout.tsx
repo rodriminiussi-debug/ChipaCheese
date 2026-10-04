@@ -3,6 +3,7 @@ import { Geist_Mono, Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ServiceWorkerRegister } from "@/components/pwa/pwa";
+import { ThemeProvider } from "@/components/theme/theme";
 import "./globals.css";
 
 // Tipografía de la marca (chipacheese.com.ar usa Poppins).
@@ -31,8 +32,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="min-h-full">
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster richColors position="top-center" />
+        <ThemeProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster richColors position="top-center" />
+        </ThemeProvider>
         <ServiceWorkerRegister />
       </body>
     </html>

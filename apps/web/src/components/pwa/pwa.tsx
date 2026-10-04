@@ -51,7 +51,7 @@ export function OfflineQueueIndicator() {
   if (online && !pending) return null;
   return (
     <span
-      className="flex items-center gap-2 rounded-md bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900"
+      className="flex items-center gap-2 rounded-md bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
       data-testid="offline-indicator"
     >
       {online ? <RefreshCw className="size-4 animate-spin" /> : <CloudOff className="size-4" />}

@@ -4,6 +4,7 @@ import { requirePermission } from "@/server/auth/session";
 import { logoutAction } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/brand/brand";
+import { ThemeToggle } from "@/components/theme/theme";
 import { OfflineQueueIndicator } from "@/components/pwa/pwa";
 
 /** Layout de tablet de planta: pantalla completa, botones grandes, sin menú lateral. */
@@ -20,6 +21,7 @@ export default async function PlantLayout({ children }: LayoutProps<"/">) {
         </Link>
         <div className="flex items-center gap-3">
           <OfflineQueueIndicator />
+          <ThemeToggle compact className="size-12" />
           <span className="text-lg font-semibold" data-testid="current-user">
             {user.initials}
           </span>

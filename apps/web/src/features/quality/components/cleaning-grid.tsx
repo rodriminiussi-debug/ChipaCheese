@@ -168,7 +168,7 @@ export function CleaningGrid({
       </div>
       <p className="text-muted-foreground mt-2 text-xs">
         x = correcto · P = a profundizar · * = carga tardía ·{" "}
-        <span className="rounded bg-red-100 px-1">·</span> = día hábil sin registro (hueco)
+        <span className="rounded bg-red-100 px-1 dark:bg-red-950">·</span> = día hábil sin registro (hueco)
         {canWrite ? " · tocá una celda vacía para cargar ese día." : ""}
       </p>
 

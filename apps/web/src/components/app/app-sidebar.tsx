@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { NAV } from "@/lib/nav";
 import { BrandLogo, BrandMark } from "@/components/brand/brand";
+import { ThemeToggle } from "@/components/theme/theme";
 import { can, ROLE_LABELS, type Role } from "@/lib/rbac";
 import { logoutAction } from "@/features/auth/actions";
 
@@ -31,7 +32,7 @@ export function AppSidebar({ user }: { user: { name: string; role: Role } }) {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <Link href="/" className="flex items-center gap-2 px-1 py-1.5" aria-label="Chipa Cheese — inicio">
-          <BrandLogo className="w-36 group-data-[collapsible=icon]:hidden" />
+          <BrandLogo className="w-36 group-data-[collapsible=icon]:hidden dark:rounded-md dark:bg-white/95 dark:px-1.5 dark:py-1" />
           <BrandMark className="hidden size-8 group-data-[collapsible=icon]:block" />
         </Link>
       </SidebarHeader>
@@ -67,6 +68,7 @@ export function AppSidebar({ user }: { user: { name: string; role: Role } }) {
           </div>
           <div className="text-muted-foreground">{ROLE_LABELS[user.role]}</div>
         </div>
+        <ThemeToggle />
         <form action={logoutAction}>
           <SidebarMenuButton type="submit" tooltip="Salir">
             <LogOut />
