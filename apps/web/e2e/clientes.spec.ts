@@ -34,11 +34,11 @@ test.describe("Clientes (RF-01)", () => {
 
   test.describe("local", () => {
     test.use({ storageState: asRole("store") });
-    test("puede ver pero no crear clientes", async ({ page }) => {
+    test("no accede al listado de clientes (elige clientes desde la venta del local)", async ({ page }) => {
       await page.goto("/clientes");
-      await expect(page.getByRole("link", { name: "Nuevo cliente" })).toHaveCount(0);
-      await page.goto("/clientes/nuevo");
       await expect(page).toHaveURL(/sin-permiso/);
+      await page.goto("/local");
+      await expect(page.getByRole("link", { name: "Clientes" })).toHaveCount(0);
     });
   });
 });

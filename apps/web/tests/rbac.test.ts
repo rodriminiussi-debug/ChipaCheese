@@ -18,6 +18,17 @@ describe("RBAC (tabla Usuarios y permisos)", () => {
     expect(can("operator", "purchases:read")).toBe(false);
     expect(can("operator", "production:write")).toBe(false);
   });
+  it("local y logística ven solo lo de su día a día", () => {
+    expect(can("store", "customers:read")).toBe(false);
+    expect(can("store", "stock:read")).toBe(false);
+    expect(can("store", "orders:read")).toBe(false);
+    expect(can("store", "store:write")).toBe(true);
+    expect(can("logistics", "billing:read")).toBe(false);
+    expect(can("logistics", "collections:write")).toBe(true);
+    expect(can("operator", ["purchases:receive", "maintenance:report", "stock:count"])).toBe(true);
+    expect(can("operator", "purchases:write")).toBe(false);
+  });
+
   it("externos son solo lectura", () => {
     for (const role of ["technical_lead", "accountant"] as const) {
       const writes = PERMISSIONS.filter((p) => p.endsWith(":write") || p.endsWith(":record"));

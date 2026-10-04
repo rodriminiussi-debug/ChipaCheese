@@ -59,6 +59,9 @@ export const PERMISSIONS = [
   "people:write",
   "export", // Excel / PDF
   "training:read", // capacitación (todos los roles)
+  "purchases:receive", // recibir mercadería (también desde la tablet de planta)
+  "maintenance:report", // avisar una falla de un equipo o del vehículo
+  "stock:count", // contar el inventario físico
   "admin", // usuarios y configuración
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
@@ -81,6 +84,7 @@ const MATRIX: Record<Role, readonly Permission[]> = {
       ].includes(p),
   ),
   // "Despacho y cobros"
+  // Cobra desde la pantalla de la ruta: no necesita el listado general de cobranzas ni el stock.
   logistics: [
     "training:read",
     "dispatch:read",
@@ -88,14 +92,22 @@ const MATRIX: Record<Role, readonly Permission[]> = {
     "collections:write",
     "orders:read",
     "customers:read",
-    "billing:read",
     "quality:record",
-    "stock:read",
+    "maintenance:report",
   ],
   // "Solo carga de su tarea"
-  operator: ["training:read", "production:record", "quality:record", "production:read"],
+  operator: [
+    "training:read",
+    "production:record",
+    "quality:record",
+    "production:read",
+    "purchases:receive",
+    "maintenance:report",
+    "stock:count",
+  ],
   // "Local"
-  store: ["training:read", "store:read", "store:write", "stock:read", "customers:read", "orders:read"],
+  // Ve el stock del local y elige clientes desde su pantalla; no el listado de clientes, pedidos ni el stock de planta.
+  store: ["training:read", "store:read", "store:write", "maintenance:report"],
   // "Consulta y exportación de registros BPM"
   technical_lead: [
     "training:read",
