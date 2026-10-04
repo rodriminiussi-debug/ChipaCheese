@@ -10,6 +10,12 @@ import { ModuleViewer } from "@/features/training/components/module-viewer";
 import { Quiz } from "@/features/training/components/quiz";
 import { RichText } from "@/features/training/components/rich-text";
 
+export async function generateMetadata(props: PageProps<"/capacitacion/[rol]/[modulo]">) {
+  const { rol, modulo } = await props.params;
+  const mod = findRole(rol)?.modules.find((m) => m.id === modulo);
+  return { title: mod ? `${mod.title} · Capacitación` : "Capacitación" };
+}
+
 export default async function TrainingModulePage(props: PageProps<"/capacitacion/[rol]/[modulo]">) {
   const user = await requirePermission("training:read");
   const { rol, modulo } = await props.params;

@@ -10,6 +10,11 @@ import { getUserProgress, roleCompletion } from "@/features/training/service";
 import { ProgressBar } from "@/features/training/components/progress-bar";
 import { RichText } from "@/features/training/components/rich-text";
 
+export async function generateMetadata(props: PageProps<"/capacitacion/[rol]">) {
+  const { rol } = await props.params;
+  return { title: `${findRole(rol)?.title ?? "Rol"} · Capacitación` };
+}
+
 export default async function TrainingRolePage(props: PageProps<"/capacitacion/[rol]">) {
   const user = await requirePermission("training:read");
   const { rol } = await props.params;
