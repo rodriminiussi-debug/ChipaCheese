@@ -62,6 +62,7 @@ export const PERMISSIONS = [
   "purchases:receive", // recibir mercadería (también desde la tablet de planta)
   "maintenance:report", // avisar una falla de un equipo o del vehículo
   "stock:count", // contar el inventario físico
+  "catalog:write", // alta y edición de productos, insumos, zonas, listas, vehículos y equipos
   "admin", // usuarios y configuración
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
