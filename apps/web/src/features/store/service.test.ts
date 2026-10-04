@@ -61,9 +61,14 @@ describe("ventas del local (RF-33)", () => {
       await stockLocal(tx, userId, "CH-TAP-500", 12);
       const after = await getStoreCatalog(tx, TODAY);
       expect(after.products.find((p) => p.code === "CH-TAP-500")!.stock).toBe(12);
-      expect((await getStoreStock(tx, TODAY)).map((s) => [s.productCode, s.qty])).toEqual([
-        ["CH-TAP-500", 12],
-      ]);
+      // Además del chipá transferido, el local tiene la reventa del stock inicial (gaseosas y aguas).
+      expect((await getStoreStock(tx, TODAY)).map((s) => [s.productCode, s.qty])).toEqual(
+        expect.arrayContaining([
+          ["CH-TAP-500", 12],
+          ["RV-GAS-500", 48],
+          ["RV-AGU-500", 24],
+        ]),
+      );
     });
   });
 

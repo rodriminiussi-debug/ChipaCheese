@@ -9,6 +9,7 @@ import {
   orderSourceEnum,
   orderStatusEnum,
   paymentMethodEnum,
+  replenishmentStatusEnum,
 } from "./enums";
 import { users } from "./auth";
 import { customers, locations, priceLists, products } from "./catalog";
@@ -162,6 +163,10 @@ export const storeSales = pgTable(
     method: paymentMethodEnum().notNull(),
     total: money().notNull(),
     sellerId: uuid().references(() => users.id),
+    /** Anulación (venta cargada por error): devuelve el stock; queda en la auditoría. */
+    voidedAt: tstz(),
+    voidedById: uuid().references(() => users.id),
+    voidReason: text(),
     ...timestamps(),
   },
   (t) => [index("store_sales_sold_at_idx").on(t.soldAt)],
@@ -242,4 +247,50 @@ export const storeSaleItemsRelations = relations(storeSaleItems, ({ one }) => ({
 export const cashClosingsRelations = relations(cashClosings, ({ one }) => ({
   location: one(locations, { fields: [cashClosings.locationId], references: [locations.id] }),
   closedBy: one(users, { fields: [cashClosings.closedById], references: [users.id] }),
+}));
+
+/** Pedido de reposición del local a la planta (transferencia F3/F4 → LOCAL). */
+export const storeReplenishments = pgTable(
+  "store_replenishments",
+  {
+    id: id(),
+    number: serial().notNull().unique(),
+    status: replenishmentStatusEnum().notNull().default("requested"),
+    requestedById: uuid().references(() => users.id),
+    requestedAt: tstz().notNull().defaultNow(),
+    /** Fecha en que el local necesita la mercadería. */
+    neededBy: day(),
+    sentById: uuid().references(() => users.id),
+    sentAt: tstz(),
+    receivedById: uuid().references(() => users.id),
+    receivedAt: tstz(),
+    notes: text(),
+    ...timestamps(),
+  },
+  (t) => [index("store_replenishments_status_idx").on(t.status)],
+);
+
+export const storeReplenishmentItems = pgTable("store_replenishment_items", {
+  id: id(),
+  replenishmentId: uuid()
+    .notNull()
+    .references(() => storeReplenishments.id, { onDelete: "cascade" }),
+  productId: uuid()
+    .notNull()
+    .references(() => products.id),
+  qtyRequested: integer().notNull(),
+  qtySent: integer(),
+  ...timestamps(),
+});
+
+export const storeReplenishmentsRelations = relations(storeReplenishments, ({ many, one }) => ({
+  items: many(storeReplenishmentItems),
+  requestedBy: one(users, { fields: [storeReplenishments.requestedById], references: [users.id] }),
+}));
+export const storeReplenishmentItemsRelations = relations(storeReplenishmentItems, ({ one }) => ({
+  replenishment: one(storeReplenishments, {
+    fields: [storeReplenishmentItems.replenishmentId],
+    references: [storeReplenishments.id],
+  }),
+  product: one(products, { fields: [storeReplenishmentItems.productId], references: [products.id] }),
 }));

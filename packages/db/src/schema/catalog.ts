@@ -9,6 +9,7 @@ import {
   text,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { day, id, money, pct, qty, timestamps } from "./_columns";
 import {
@@ -17,6 +18,7 @@ import {
   ingredientCategoryEnum,
   locationKindEnum,
   presentationEnum,
+  productKindEnum,
   productShapeEnum,
   unitEnum,
 } from "./enums";
@@ -120,20 +122,44 @@ export const supplierIngredients = pgTable(
 );
 
 /** Productos terminados (SKU). */
-export const products = pgTable("products", {
-  id: id(),
-  code: text().notNull().unique(),
-  name: text().notNull(),
-  shape: productShapeEnum().notNull(),
-  presentation: presentationEnum().notNull(),
-  /** Peso neto de masa por unidad de venta, en kg (bolsa 0,5 / granel 5 / sándwich 0,18). */
-  netWeightKg: qty().notNull(),
-  /** Código usado en el pizarrón (SW, C500, SWG, C granel). */
-  boardCode: text(),
-  minStockUnits: integer().notNull().default(0),
-  active: boolean().notNull().default(true),
-  ...timestamps(),
-});
+export const products = pgTable(
+  "products",
+  {
+    id: id(),
+    code: text().notNull().unique(),
+    name: text().notNull(),
+    kind: productKindEnum().notNull().default("manufactured"),
+    shape: productShapeEnum().notNull(),
+    presentation: presentationEnum().notNull(),
+    /**
+     * Equivalente en masa de chipá por unidad, en kg (bolsa 0,5 / granel 5 / sándwich 0,18).
+     * Reventa: 0. Elaborado: la masa que representa (para costeo y planificación).
+     */
+    netWeightKg: qty().notNull(),
+    /**
+     * Elaborado en el local: producto terminado que consume al venderse y cuántas unidades
+     * (p. ej. "Chipá horneado 250 g" = 0,5 bolsa de tapitas). El stock se descuenta del producto base.
+     */
+    baseProductId: uuid().references((): AnyPgColumn => products.id),
+    baseQty: qty(),
+    /** Cómo se cuenta: bolsa, pack, unidad, botella, lata… */
+    unitLabel: text().notNull().default("unidad"),
+    /** Código de barras (lector en el local). */
+    barcode: text(),
+    /** Proveedor habitual (reventa). */
+    defaultSupplierId: uuid().references(() => suppliers.id),
+    description: text(),
+    /** Código usado en el pizarrón (SW, C500, SWG, C granel). */
+    boardCode: text(),
+    minStockUnits: integer().notNull().default(0),
+    /** Se ofrece en la venta del local / en pedidos mayoristas. */
+    availableInStore: boolean().notNull().default(true),
+    availableForOrders: boolean().notNull().default(true),
+    active: boolean().notNull().default(true),
+    ...timestamps(),
+  },
+  (t) => [uniqueIndex("products_barcode_uq").on(t.barcode)],
+);
 
 /** Componentes por unidad además de la masa: envase, etiqueta, jamón y queso del sándwich… */
 export const productComponents = pgTable(
@@ -235,7 +261,13 @@ export const supplierIngredientsRelations = relations(supplierIngredients, ({ on
   supplier: one(suppliers, { fields: [supplierIngredients.supplierId], references: [suppliers.id] }),
   ingredient: one(ingredients, { fields: [supplierIngredients.ingredientId], references: [ingredients.id] }),
 }));
-export const productsRelations = relations(products, ({ many }) => ({
+export const productsRelations = relations(products, ({ many, one }) => ({
+  baseProduct: one(products, {
+    fields: [products.baseProductId],
+    references: [products.id],
+    relationName: "product_base",
+  }),
+  defaultSupplier: one(suppliers, { fields: [products.defaultSupplierId], references: [suppliers.id] }),
   components: many(productComponents),
   prices: many(priceListItems),
 }));

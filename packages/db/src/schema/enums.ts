@@ -23,6 +23,14 @@ export const ingredientCategoryEnum = pgEnum("ingredient_category", [
   "packaging",
   "other",
 ]);
+/**
+ * Tipo de producto:
+ * - manufactured: chipá elaborado en planta desde la masa (tiene lote y vencimiento).
+ * - resale: reventa (gaseosas, aguas…): se compra y se vende tal cual, sin lote.
+ * - prepared: elaborado en el local a partir de producto terminado (consume su equivalente al venderse).
+ */
+export const productKindEnum = pgEnum("product_kind", ["manufactured", "resale", "prepared"]);
+
 export const productShapeEnum = pgEnum("product_shape", [
   "tapita",
   "arito",
@@ -30,6 +38,7 @@ export const productShapeEnum = pgEnum("product_shape", [
   "mixed",
   "sandwich",
   "pizzeta",
+  "other", // reventa y otros productos que no salen de la masa
 ]);
 export const presentationEnum = pgEnum("presentation", ["bag_500g", "bulk_5kg", "pack", "unit"]);
 export const shiftEnum = pgEnum("shift", ["morning", "afternoon"]);
@@ -94,7 +103,14 @@ export const dispatchStatusEnum = pgEnum("dispatch_status", [
   "cancelled",
 ]);
 
-export const paymentMethodEnum = pgEnum("payment_method", ["cash", "transfer", "check", "card", "other"]);
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "cash",
+  "transfer",
+  "check",
+  "card",
+  "qr",
+  "other",
+]);
 export const checkStatusEnum = pgEnum("check_status", [
   "in_portfolio",
   "deposited",
@@ -115,3 +131,10 @@ export const cleaningFrequencyEnum = pgEnum("cleaning_frequency", ["daily", "wee
 export const complaintStatusEnum = pgEnum("complaint_status", ["open", "closed"]);
 export const maintenanceTypeEnum = pgEnum("maintenance_type", ["preventive", "corrective"]);
 export const maintenanceStatusEnum = pgEnum("maintenance_status", ["open", "done", "cancelled"]);
+
+export const replenishmentStatusEnum = pgEnum("replenishment_status", [
+  "requested", // el local pide
+  "sent", // la planta transfirió (total o parcial)
+  "received", // el local confirmó la recepción
+  "cancelled",
+]);

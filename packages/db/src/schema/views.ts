@@ -40,3 +40,15 @@ export const ingredientLastPrice = pgView("v_ingredient_last_price", {
   FROM ingredient_prices
   ORDER BY ingredient_id, date DESC, created_at DESC
 `);
+
+/** Último costo de compra sin IVA por producto de reventa. */
+export const productLastCost = pgView("v_product_last_cost", {
+  productId: uuid("product_id").notNull(),
+  supplierId: uuid("supplier_id"),
+  date: date("date", { mode: "string" }).notNull(),
+  unitCostNet: numeric("unit_cost_net", { mode: "number" }).notNull(),
+}).as(sql`
+  SELECT DISTINCT ON (product_id) product_id, supplier_id, date, unit_cost_net
+  FROM product_costs
+  ORDER BY product_id, date DESC, created_at DESC
+`);

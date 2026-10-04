@@ -129,6 +129,9 @@ export const maintenanceOrders = pgTable(
     responsibleId: uuid().references(() => users.id),
     supervisorId: uuid().references(() => users.id),
     downtimeMinutes: integer(),
+    /** Quien avisó la falla (operario, chofer, local) y cuándo. */
+    reportedById: uuid().references(() => users.id),
+    reportedAt: tstz(),
     ...timestamps(),
   },
   (t) => [index("maintenance_orders_equipment_idx").on(t.equipmentId, t.date)],
