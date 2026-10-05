@@ -111,13 +111,15 @@ export async function getStoreCatalog(db: Executor, today: IsoDate = todayAR()) 
     localStockByProduct(db, location.id),
   ]);
   const prices = listId ? ((await currentPriceMap(db, today, listId))[listId] ?? {}) : {};
+  const poolStock: Record<string, number> = {};
   const items: StoreProduct[] = products
     .filter((p) => prices[p.id] != null)
     .map((p) => {
       const prepared = p.kind === "prepared" && p.baseProductId && p.baseQty ? p : null;
       const poolId = prepared ? prepared.baseProductId! : p.id;
       const consume = prepared ? prepared.baseQty! : 1;
-      const poolStock = stockBy.get(poolId) ?? 0;
+      const pooled = stockBy.get(poolId) ?? 0;
+      poolStock[poolId] = pooled;
       return {
         productId: p.id,
         code: p.code,
@@ -126,12 +128,12 @@ export async function getStoreCatalog(db: Executor, today: IsoDate = todayAR()) 
         unitLabel: p.unitLabel,
         barcode: p.barcode,
         price: prices[p.id]!,
-        stock: prepared ? preparedAvailable(poolStock, consume) : poolStock,
+        stock: prepared ? preparedAvailable(pooled, consume) : pooled,
         poolId,
         consume,
       };
     });
-  return { locationId: location.id, priceListId: listId, products: items };
+  return { locationId: location.id, priceListId: listId, products: items, poolStock };
 }
 export type StoreCatalog = Awaited<ReturnType<typeof getStoreCatalog>>;
 

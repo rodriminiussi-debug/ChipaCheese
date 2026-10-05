@@ -17,6 +17,11 @@ const TABS: { href: Route; label: string; match: (p: string) => boolean }[] = [
     match: (p) => p.startsWith("/stock/producto-terminado"),
   },
   {
+    href: "/stock/reposicion" as Route,
+    label: "Reposición del local",
+    match: (p) => p.startsWith("/stock/reposicion"),
+  },
+  {
     href: "/stock/movimientos" as Route,
     label: "Movimientos",
     match: (p) => p.startsWith("/stock/movimientos"),
