@@ -24,6 +24,7 @@ import {
   listSupplierBalances,
   monthlySpend,
   priceOverview,
+  receivableOrders,
   receptionFormData,
   registerSupplierPayment,
   saveInvoice,
@@ -823,6 +824,55 @@ describe("gasto mensual (RF-12)", () => {
         ["2026-10", 2],
       ]);
       expect((await monthlySpend(tx, "2026-09")).totals.total).toBe(0);
+    });
+  });
+});
+
+describe("recepción desde la tablet de planta", () => {
+  it("el operario recibe la orden esperada: queda a su nombre, con lote, vencimiento y alerta de temperatura", async () => {
+    await inRollback("jt", async (tx, userId) => {
+      const x = await ids(tx);
+      const o = await createOrder(
+        tx,
+        userId,
+        purchaseOrderInput.parse({
+          supplierId: x.leo,
+          orderedAt: "2026-10-01",
+          expectedAt: TODAY,
+          items: [{ ingredientId: x.barra, qty: 20 }],
+        }),
+      );
+      await changeOrderStatus(tx, o.id, "sent");
+
+      const open = await receivableOrders(tx, TODAY);
+      const mine = open.find((r) => r.id === o.id)!;
+      expect(mine).toMatchObject({ number: o.number, supplier: "Leo Pelle", timing: { state: "today" } });
+      expect(mine.lines).toEqual([{ name: "Queso barra (Tybo/Maki)", unit: "kg", pending: 20 }]);
+
+      const res = await createReception(
+        tx,
+        userId,
+        receptionInput.parse({
+          supplierId: x.leo,
+          purchaseOrderId: o.id,
+          lines: [
+            {
+              ingredientId: x.barra,
+              qty: 20,
+              supplierLotCode: "TYBO-TAB",
+              expiryDate: "2026-12-31",
+              temperatureC: "7",
+              locationId: x.heladera,
+            },
+          ],
+        }),
+      );
+      expect(res.alerts).toEqual([{ ingredient: "Queso barra (Tybo/Maki)", temperatureC: 7 }]);
+      expect(res.orderStatus).toBe("received");
+      const rec = await tx.query.receptions.findFirst({ where: eq(schema.receptions.id, res.id) });
+      expect(rec!.receivedById).toBe(userId);
+      // ya recibida completa: no aparece más entre las esperadas
+      expect((await receivableOrders(tx, TODAY)).some((r) => r.id === o.id)).toBe(false);
     });
   });
 });

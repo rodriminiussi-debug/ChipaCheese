@@ -108,4 +108,77 @@ test.describe("Modo planta en tablet (M4)", () => {
     await expect(page.getByRole("heading", { name: "Preproducción" })).toBeVisible();
     await expect(page.getByText("Huevos")).toBeVisible();
   });
+
+  test("el operario recibe una orden de compra: lote, vencimiento y temperatura con alerta sobre 5 °C", async ({
+    page,
+    sql,
+  }) => {
+    const [{ id: supplierId }] = await sql`select id from suppliers where legal_name = 'Leo Pelle'`;
+    const [order] =
+      await sql`insert into purchase_orders (number, supplier_id, ordered_at, expected_at, status)
+      values ('OC-TAB-1', ${supplierId}, ${demoDay(-1)}, ${todayAR()}, 'sent') returning id`;
+    await sql`insert into purchase_order_items (purchase_order_id, ingredient_id, qty, unit)
+      select ${order!.id}, id, 50, 'kg' from ingredients where name = 'Fécula de mandioca'`;
+    await sql`insert into purchase_order_items (purchase_order_id, ingredient_id, qty, unit)
+      select ${order!.id}, id, 10, 'kg' from ingredients where name = 'Queso barra (Tybo/Maki)'`;
+    const stock = async (name: string) => {
+      const [r] = await sql`select coalesce(sum(sm.qty), 0)::float as qty from stock_movements sm
+        join ingredients i on i.id = sm.ingredient_id where i.name = ${name}`;
+      return r!.qty as number;
+    };
+    const [fecula0, queso0] = [await stock("Fécula de mandioca"), await stock("Queso barra (Tybo/Maki)")];
+
+    await page.goto("/planta");
+    await page.getByTestId("tile-recepcion").click();
+    await expect(page.getByRole("heading", { name: "Recibir mercadería" })).toBeVisible();
+    const card = page.getByTestId("reception-order").filter({ hasText: "OC-TAB-1" });
+    await expect(card).toContainText("Se espera hoy");
+    await card.click();
+    await expect(page.getByRole("heading", { name: "Recibir OC-TAB-1" })).toBeVisible();
+
+    // Controles grandes y precarga de lo pendiente.
+    const register = page.getByRole("button", { name: /Registrar recepción/ });
+    expect((await register.boundingBox())!.height).toBeGreaterThanOrEqual(64);
+    expect(
+      (await page.getByLabel("Cantidad recibida (kg) — Fécula de mandioca").boundingBox())!.height,
+    ).toBeGreaterThanOrEqual(64);
+    await expect(page.getByLabel("Cantidad recibida (kg) — Fécula de mandioca")).toHaveValue("50");
+
+    // Faltan lote y temperatura: el servidor lo explica.
+    await register.click();
+    await expectToast(page, /falta el lote del proveedor|la temperatura es obligatoria/);
+
+    await page.getByLabel("Lote del proveedor — Fécula de mandioca").fill("FEC-TAB");
+    await page.getByLabel("Lote del proveedor — Queso barra (Tybo/Maki)").fill("TYBO-TAB");
+    await page.getByLabel("Vencimiento — Queso barra (Tybo/Maki)").fill("2026-12-31");
+    await page.getByLabel("Cantidad recibida (kg) — Queso barra (Tybo/Maki)").fill("8,5");
+    await page.getByLabel("Temperatura °C — Queso barra (Tybo/Maki)").fill("7");
+    await expect(page.getByRole("alert").filter({ hasText: "Temperatura fuera de rango" })).toBeVisible();
+    await register.click();
+
+    await expect(page.getByTestId("reception-done")).toContainText("2 lotes ingresados");
+    await expect(page.getByTestId("reception-done").getByRole("alert")).toContainText(
+      "Queso barra (Tybo/Maki) llegó a 7,0 °C",
+    );
+    expect(await stock("Fécula de mandioca")).toBe(fecula0 + 50);
+    expect(await stock("Queso barra (Tybo/Maki)")).toBe(queso0 + 8.5);
+    const [rec] = await sql`select u.username, r.purchase_order_id from receptions r
+      join users u on u.id = r.received_by_id order by r.created_at desc limit 1`;
+    expect(rec).toMatchObject({ username: "jt", purchase_order_id: order!.id });
+    const [po] = await sql`select status from purchase_orders where id = ${order!.id}`;
+    expect(po!.status).toBe("partially_received"); // del queso llegaron 8,5 de 10
+  });
+
+  test("entrega sin orden: el operario elige el proveedor y carga lo que trajo", async ({ page, sql }) => {
+    await page.goto("/planta/recepcion");
+    await page.getByRole("link", { name: "Leo Pelle", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Recibir mercadería" })).toBeVisible();
+    await page.getByLabel("Cantidad recibida (kg) — Fécula de mandioca").fill("25");
+    await page.getByLabel("Lote del proveedor — Fécula de mandioca").fill("FEC-LIBRE");
+    await page.getByRole("button", { name: "Registrar recepción (1)" }).click();
+    await expect(page.getByTestId("reception-done")).toContainText("1 lote ingresado");
+    const [lot] =
+      await sql`select received_qty::float as qty from raw_lots where supplier_lot_code = 'FEC-LIBRE'`;
+    expect(lot!.qty).toBe(25);
+  });
 });
