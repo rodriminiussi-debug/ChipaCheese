@@ -74,6 +74,8 @@ export const dispatches = pgTable(
     /** Foto o firma de conformidad en el storage. */
     proofFileKey: text(),
     notes: text(),
+    /** Idempotencia offline: uuid del celular del chofer para la entrega con conformidad. */
+    deliveryClientId: uuid().unique(),
     ...timestamps(),
   },
   (t) => [index("dispatches_order_idx").on(t.orderId), index("dispatches_route_idx").on(t.routeId)],

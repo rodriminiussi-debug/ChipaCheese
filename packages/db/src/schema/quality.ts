@@ -165,6 +165,11 @@ export const maintenancePlansRelations = relations(maintenancePlans, ({ one, man
 }));
 export const maintenanceOrdersRelations = relations(maintenanceOrders, ({ one }) => ({
   equipment: one(equipment, { fields: [maintenanceOrders.equipmentId], references: [equipment.id] }),
+  reportedBy: one(users, {
+    fields: [maintenanceOrders.reportedById],
+    references: [users.id],
+    relationName: "mo_reported_by",
+  }),
   plan: one(maintenancePlans, { fields: [maintenanceOrders.planId], references: [maintenancePlans.id] }),
   responsible: one(users, {
     fields: [maintenanceOrders.responsibleId],

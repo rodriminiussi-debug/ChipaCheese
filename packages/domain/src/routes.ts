@@ -92,3 +92,28 @@ export function allocateCostByKg(
   }
   return out;
 }
+
+/**
+ * Rendición del chofer al volver: lo que entrega contra lo que el sistema registró como cobrado en la ruta.
+ * Diferencia = entregado − esperado (negativa = falta plata o cheques; positiva = sobra). Tolera centavos.
+ */
+export interface SettlementDifference {
+  /** Entregado − esperado, en pesos. */
+  cash: number;
+  /** Cheques entregados − esperados, en cantidad. */
+  checks: number;
+  /** "ok" sin diferencia; "short" si falta efectivo o cheques; "over" si sobra y no falta nada. */
+  status: "ok" | "short" | "over";
+}
+
+export function settlementDifference(input: {
+  cashExpected: number;
+  cashDelivered: number;
+  checksExpected: number;
+  checksDelivered: number;
+}): SettlementDifference {
+  const cash = roundMoney(input.cashDelivered - input.cashExpected);
+  const checks = input.checksDelivered - input.checksExpected;
+  const status = cash < 0 || checks < 0 ? "short" : cash > 0 || checks > 0 ? "over" : "ok";
+  return { cash, checks, status };
+}

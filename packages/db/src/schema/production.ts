@@ -162,6 +162,27 @@ export const productionConsumptionConfirmations = pgTable(
   (t) => [index("production_consumption_confirmations_run_idx").on(t.runId)],
 );
 
+/**
+ * Cambios de estado de la producción (iniciar, congelado…) hechos desde la tablet, con su `client_id`
+ * (uuid generado en el equipo): reenviar el mismo cambio desde la cola offline no repite el efecto.
+ */
+export const productionStatusChanges = pgTable(
+  "production_status_changes",
+  {
+    id: id(),
+    runId: uuid()
+      .notNull()
+      .references(() => productionRuns.id, { onDelete: "cascade" }),
+    status: productionStatusEnum().notNull(),
+    clientId: uuid().notNull().unique(),
+    changedById: uuid().references(() => users.id),
+    /** Momento real del cambio en la tablet (acotado a "ahora" por el servidor). */
+    changedAt: tstz().notNull().defaultNow(),
+    ...timestamps(),
+  },
+  (t) => [index("production_status_changes_run_idx").on(t.runId)],
+);
+
 /** Pesadas por forma (RF-21). */
 export const productionWeighings = pgTable(
   "production_weighings",
