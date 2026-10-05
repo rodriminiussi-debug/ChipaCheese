@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/app/page-header";
 import { DateText, Money, Num } from "@/components/app/format";
 import { StatCard } from "@/components/app/stat-card";
@@ -34,6 +35,13 @@ export default async function StorePage() {
       <PageHeader
         title="Local"
         description="Ventas del mostrador, stock del local y cierre de caja (RF-33)."
+        actions={
+          can(user.role, "maintenance:report") ? (
+            <Link href="/avisar-falla?volver=/local" className="text-sm font-medium underline">
+              Avisar una falla (freezer, equipo)
+            </Link>
+          ) : null
+        }
       />
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard

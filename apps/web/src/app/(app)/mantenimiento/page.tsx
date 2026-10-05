@@ -5,15 +5,17 @@ import { EmptyState } from "@/components/app/empty-state";
 import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TriangleAlert } from "lucide-react";
 import { requirePermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { can } from "@/lib/rbac";
-import { todayAR } from "@/lib/dates";
+import { formatDateTimeAR, todayAR } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { DateText } from "@/components/app/format";
 import {
   equipmentSummaries,
   getMaintenanceAlerts,
+  listOpenFaultReports,
   listOrders,
   listPlans,
   maintenanceFormOptions,
@@ -40,9 +42,10 @@ export default async function MaintenancePage(props: PageProps<"/mantenimiento">
   const today = todayAR();
   const canWrite = can(user.role, "maintenance:write");
 
-  const [alerts, options] = await Promise.all([
+  const [alerts, options, reports] = await Promise.all([
     getMaintenanceAlerts(db, today),
     canWrite ? maintenanceFormOptions(db) : null,
+    listOpenFaultReports(db),
   ]);
 
   return (
@@ -59,6 +62,37 @@ export default async function MaintenancePage(props: PageProps<"/mantenimiento">
           ) : null
         }
       />
+
+      {reports.length ? (
+        <section
+          aria-label="Fallas avisadas"
+          className="border-destructive/40 bg-destructive/5 mb-6 rounded-lg border p-4"
+          data-testid="fault-reports"
+        >
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+            <TriangleAlert className="text-destructive size-4" /> Fallas avisadas sin resolver (
+            {reports.length})
+          </h2>
+          <ul className="grid gap-2 text-sm">
+            {reports.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <Link
+                  href={`/mantenimiento/equipos/${r.equipmentId}` as Route}
+                  className="font-medium hover:underline"
+                >
+                  {r.equipment.name}
+                </Link>
+                {r.stopped ? <StatusBadge tone="bad">Equipo parado</StatusBadge> : null}
+                <span>{r.activity}</span>
+                <span className="text-muted-foreground">
+                  Avisada por {r.reportedBy?.name ?? "—"}
+                  {r.reportedAt ? ` · ${formatDateTimeAR(r.reportedAt)}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

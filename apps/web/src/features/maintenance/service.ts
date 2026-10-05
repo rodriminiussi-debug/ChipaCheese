@@ -6,10 +6,16 @@ import {
   nextMaintenanceDue,
   type IsoDate,
 } from "@chipa/domain";
-import { and, asc, count, desc, eq, inArray, lte, schema, type Executor } from "@chipa/db";
+import { and, asc, count, desc, eq, inArray, isNotNull, lte, schema, type Executor } from "@chipa/db";
 import { todayAR } from "@/lib/dates";
 import { UserError } from "@/server/errors";
-import type { CloseCorrectiveData, CorrectiveData, PlanData, RegisterPreventiveData } from "./schemas";
+import type {
+  CloseCorrectiveData,
+  CorrectiveData,
+  PlanData,
+  RegisterPreventiveData,
+  ReportFaultData,
+} from "./schemas";
 
 /**
  * Servicio de mantenimiento (M7, RF-37): planes preventivos por equipo con su próximo vencimiento,
@@ -174,7 +180,7 @@ export function listOrders(
     ),
     orderBy: [desc(o.date), desc(o.createdAt)],
     limit: f.limit,
-    with: { equipment: true, responsible: true, supervisor: true },
+    with: { equipment: true, responsible: true, supervisor: true, reportedBy: true },
   });
 }
 export type OrderRow = Awaited<ReturnType<typeof listOrders>>[number];
@@ -199,6 +205,60 @@ export async function createCorrective(
     .returning();
   return row!;
 }
+
+// --- Avisos de falla ---------------------------------------------------------------------------------------
+
+/** Equipos a los que se les puede avisar una falla: máquinas, freezers, heladera y el equipo de frío del vehículo. */
+export async function faultEquipmentOptions(db: Executor) {
+  const equipment = await db.query.equipment.findMany({
+    where: eq(schema.equipment.active, true),
+    orderBy: [asc(schema.equipment.area), asc(schema.equipment.name)],
+  });
+  return equipment.map((e) => ({ id: e.id, code: e.code, name: e.name, area: e.area }));
+}
+export type FaultEquipmentOption = Awaited<ReturnType<typeof faultEquipmentOptions>>[number];
+
+/**
+ * Aviso de falla de quien la ve (operario, chofer, local, jefa): crea una orden correctiva ABIERTA con
+ * quién y cuándo avisó. Mantenimiento la completa (causa, repuesto, costo) y la cierra.
+ */
+export async function reportFault(
+  db: Executor,
+  userId: string,
+  input: ReportFaultData,
+  now: Date = new Date(),
+  today: IsoDate = todayAR(),
+) {
+  const equipment = await db.query.equipment.findFirst({
+    where: eq(schema.equipment.id, input.equipmentId),
+  });
+  if (!equipment || !equipment.active) throw new UserError("El equipo no existe.");
+  const [row] = await db
+    .insert(schema.maintenanceOrders)
+    .values({
+      equipmentId: equipment.id,
+      type: "corrective",
+      status: "open",
+      activity: input.description,
+      date: today,
+      stopped: input.stopped,
+      reportedById: userId,
+      reportedAt: now,
+    })
+    .returning();
+  return { id: row!.id, equipmentName: equipment.name, stopped: input.stopped };
+}
+
+/** Fallas avisadas que siguen abiertas (las paradas primero): lo que la jefa y Dirección tienen que mirar. */
+export function listOpenFaultReports(db: Executor) {
+  const o = schema.maintenanceOrders;
+  return db.query.maintenanceOrders.findMany({
+    where: and(eq(o.type, "corrective"), eq(o.status, "open"), isNotNull(o.reportedAt)),
+    orderBy: [desc(o.stopped), desc(o.reportedAt)],
+    with: { equipment: true, reportedBy: true },
+  });
+}
+export type FaultReportRow = Awaited<ReturnType<typeof listOpenFaultReports>>[number];
 
 export async function updateCorrective(db: Executor, id: string, input: CorrectiveData) {
   const { closed, ...v } = input;

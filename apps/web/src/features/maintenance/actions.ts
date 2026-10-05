@@ -7,6 +7,7 @@ import {
   correctiveInput,
   planInput,
   registerPreventiveInput,
+  reportFaultInput,
   updateCorrectiveInput,
   updatePlanInput,
 } from "./schemas";
@@ -15,6 +16,7 @@ import {
   createCorrective,
   createPlan,
   registerPreventive,
+  reportFault,
   updateCorrective,
   updatePlan,
 } from "./service";
@@ -76,5 +78,16 @@ export const closeCorrectiveAction = action(
     const row = await closeCorrective(tx, input);
     revalidateMaintenance(row.equipmentId);
     return { id: row.id };
+  },
+);
+
+/** Avisar una falla (operario, chofer, local, jefa): crea una correctiva abierta "Avisada por X". */
+export const reportFaultAction = action(
+  { permission: "maintenance:report", schema: reportFaultInput },
+  async (input, { tx, user }) => {
+    const res = await reportFault(tx, user.id, input);
+    revalidateMaintenance();
+    revalidatePath("/tablero");
+    return res;
   },
 );

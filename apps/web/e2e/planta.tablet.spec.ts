@@ -181,4 +181,48 @@ test.describe("Modo planta en tablet (M4)", () => {
       await sql`select received_qty::float as qty from raw_lots where supplier_lot_code = 'FEC-LIBRE'`;
     expect(lot!.qty).toBe(25);
   });
+
+  test("el operario avisa una falla de la Biscomatic y la jefa la ve en Mantenimiento", async ({
+    page,
+    sql,
+    browser,
+  }) => {
+    await page.goto("/planta");
+    await page.getByTestId("tile-falla").click();
+    await expect(page.getByRole("heading", { name: "Avisar una falla" })).toBeVisible();
+    const send = page.getByRole("button", { name: "Avisar la falla" });
+    expect((await send.boundingBox())!.height).toBeGreaterThanOrEqual(64);
+    expect(
+      (await page.getByRole("button", { name: "Formadora Biscomatic" }).boundingBox())!.height,
+    ).toBeGreaterThanOrEqual(64);
+    await expect(send).toBeDisabled();
+    await page.getByRole("button", { name: "Formadora Biscomatic" }).click();
+    await page.getByRole("button", { name: "No arranca" }).click();
+    await page.getByLabel("¿Qué pasa?").fill("No arranca. Salta el térmico al encender");
+    await page.getByRole("button", { name: /Está parado/ }).click();
+    await send.click();
+    await expect(page.getByTestId("fault-done")).toContainText("Aviso enviado: Formadora Biscomatic");
+
+    const [o] =
+      await sql`select o.status, o.type, o.stopped, o.reported_at is not null as reported, u.username
+      from maintenance_orders o join users u on u.id = o.reported_by_id
+      join equipment e on e.id = o.equipment_id where e.code = 'BISCOMATIC' and o.reported_at is not null`;
+    expect(o).toMatchObject({
+      status: "open",
+      type: "corrective",
+      stopped: true,
+      reported: true,
+      username: "jt",
+    });
+
+    // La jefa lo ve como "Avisada por J.T." en Mantenimiento.
+    const jefa = await browser.newContext({ storageState: asRole("production_manager") });
+    const jefaPage = await jefa.newPage();
+    await jefaPage.goto("/mantenimiento");
+    const panel = jefaPage.getByTestId("fault-reports");
+    await expect(panel).toContainText("Formadora Biscomatic");
+    await expect(panel).toContainText("Equipo parado");
+    await expect(panel).toContainText("Avisada por J.T.");
+    await jefa.close();
+  });
 });

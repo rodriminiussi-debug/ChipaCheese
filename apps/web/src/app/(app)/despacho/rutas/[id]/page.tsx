@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Route } from "next";
-import { ChevronLeft, Printer, Wallet } from "lucide-react";
+import { ChevronLeft, Printer, Wallet, Wrench } from "lucide-react";
 import { routeHours } from "@chipa/domain";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
@@ -99,6 +99,17 @@ export default async function RoutePage(props: PageProps<"/despacho/rutas/[id]">
                 <Printer /> Hoja de ruta
               </Link>
             </Button>
+            {can(user.role, "maintenance:report") ? (
+              <Button asChild variant="outline" className="h-11">
+                <Link
+                  href={
+                    `/avisar-falla?volver=/despacho/rutas/${route.id}${route.vehicle?.equipmentId ? `&equipo=${route.vehicle.equipmentId}` : ""}` as Route
+                  }
+                >
+                  <Wrench /> Avisar una falla
+                </Link>
+              </Button>
+            ) : null}
             {can(user.role, "collections:write") ? (
               <Button asChild variant="outline" className="h-11">
                 <Link href={`/cobranzas/ruta/${route.id}` as Route}>

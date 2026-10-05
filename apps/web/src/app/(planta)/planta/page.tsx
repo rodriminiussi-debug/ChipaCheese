@@ -1,6 +1,15 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ClipboardList, GraduationCap, Package, Scale, SprayCan, Thermometer, Truck } from "lucide-react";
+import {
+  ClipboardList,
+  GraduationCap,
+  Package,
+  Scale,
+  SprayCan,
+  Thermometer,
+  Truck,
+  Wrench,
+} from "lucide-react";
 import { requireUser } from "@/server/auth/session";
 import { can, type Permission } from "@/lib/rbac";
 
@@ -50,6 +59,13 @@ const TILES: { title: string; href: Route; icon: typeof Scale; permission: Permi
     icon: Truck,
     permission: "purchases:receive",
     testId: "tile-recepcion",
+  },
+  {
+    title: "Avisar una falla",
+    href: "/planta/falla" as Route,
+    icon: Wrench,
+    permission: "maintenance:report",
+    testId: "tile-falla",
   },
   {
     title: "Capacitación",
