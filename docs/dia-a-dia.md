@@ -39,16 +39,16 @@ Lista de control funcional: cada tarea real de cada persona, en qué pantalla se
 
 ## Operarios — J.T., S.G., E.A., S.R. (tablet de planta, con guantes)
 
-| Momento         | Tarea                                                                 | Pantalla                                   | Estado            |
-| --------------- | --------------------------------------------------------------------- | ------------------------------------------ | ----------------- |
-| Inicio          | Entrar con PIN; ver mis tareas                                        | `/login/planta`, `/planta/tareas`          | ✅                |
-| Producción      | Consumos por lote, pesadas, envasado, etiquetas (también sin señal)   | `/planta/produccion`, `/planta/envasado`   | ✅                |
-| Producción      | Iniciar / pasar a congelado sin señal                                 | `/planta/produccion`                       | ✅                |
-| Limpieza y frío | Registrar limpieza y temperaturas                                     | `/planta/limpieza`, `/planta/temperaturas` | ✅                |
-| Eventual        | **Recibir mercadería** del proveedor (lote, vencimiento, temperatura) | `/planta/recepcion`                        | ✅                |
-| Eventual        | **Avisar una falla** de la Biscomatic u otro equipo                   | `/planta/falla`                            | ✅                |
-| Semana          | **Contar el inventario** en la tablet                                 | `/planta/inventario`                       | ✅                |
-| Siempre         | Capacitación de mi puesto y de otros                                  | `/capacitacion`                            | ✅                |
+| Momento         | Tarea                                                                 | Pantalla                                   | Estado |
+| --------------- | --------------------------------------------------------------------- | ------------------------------------------ | ------ |
+| Inicio          | Entrar con PIN; ver mis tareas                                        | `/login/planta`, `/planta/tareas`          | ✅     |
+| Producción      | Consumos por lote, pesadas, envasado, etiquetas (también sin señal)   | `/planta/produccion`, `/planta/envasado`   | ✅     |
+| Producción      | Iniciar / pasar a congelado sin señal                                 | `/planta/produccion`                       | ✅     |
+| Limpieza y frío | Registrar limpieza y temperaturas                                     | `/planta/limpieza`, `/planta/temperaturas` | ✅     |
+| Eventual        | **Recibir mercadería** del proveedor (lote, vencimiento, temperatura) | `/planta/recepcion`                        | ✅     |
+| Eventual        | **Avisar una falla** de la Biscomatic u otro equipo                   | `/planta/falla`                            | ✅     |
+| Semana          | **Contar el inventario** en la tablet                                 | `/planta/inventario`                       | ✅     |
+| Siempre         | Capacitación de mi puesto y de otros                                  | `/capacitacion`                            | ✅     |
 
 ## Logística — chofer (celular)
 
