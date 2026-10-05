@@ -4,7 +4,7 @@ import { formatInvoiceNumber } from "@chipa/domain";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { asc, eq, schema } from "@chipa/db";
+import { and, asc, eq, schema } from "@chipa/db";
 import { requirePermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { fileUrl } from "@/server/storage";
@@ -23,11 +23,15 @@ export default async function InvoicePage(props: PageProps<"/compras/facturas/[i
   const invoice = await getInvoice(db, id);
   if (!invoice) notFound();
 
-  const [suppliers, ingredients] = await Promise.all([
+  const [suppliers, ingredients, resaleProducts] = await Promise.all([
     db.query.suppliers.findMany({ orderBy: asc(schema.suppliers.legalName) }),
     db.query.ingredients.findMany({
       where: eq(schema.ingredients.active, true),
       orderBy: asc(schema.ingredients.name),
+    }),
+    db.query.products.findMany({
+      where: and(eq(schema.products.kind, "resale"), eq(schema.products.active, true)),
+      orderBy: asc(schema.products.name),
     }),
   ]);
   const editable = invoice.status === "draft" && can(user.role, "purchases:write");
@@ -56,6 +60,7 @@ export default async function InvoicePage(props: PageProps<"/compras/facturas/[i
       ? invoice.items.map((i) => ({
           description: i.description,
           ingredientId: i.ingredientId,
+          productId: i.productId,
           qty: toInput(i.qty),
           unit: i.unit,
           unitPriceNet: toInput(i.unitPriceNet),
@@ -66,6 +71,7 @@ export default async function InvoicePage(props: PageProps<"/compras/facturas/[i
           {
             description: "",
             ingredientId: null,
+            productId: null,
             qty: "",
             unit: null,
             unitPriceNet: "",
@@ -114,12 +120,14 @@ export default async function InvoicePage(props: PageProps<"/compras/facturas/[i
               initial={initial}
               suppliers={suppliers.map((s) => ({ id: s.id, name: s.legalName, cuit: s.cuit }))}
               ingredients={ingredients.map((i) => ({ id: i.id, name: i.name, unit: i.unit }))}
+              products={resaleProducts.map((p) => ({ id: p.id, name: p.name, unitLabel: p.unitLabel }))}
               extracted={ai?.extracted ?? null}
             />
           ) : (
             <InvoiceSummary
               invoice={invoice}
               ingredientNames={new Map(ingredients.map((i) => [i.id, i.name]))}
+              productNames={new Map(resaleProducts.map((p) => [p.id, p.name]))}
             />
           )}
         </div>

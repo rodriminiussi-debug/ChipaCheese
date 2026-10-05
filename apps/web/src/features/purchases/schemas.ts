@@ -16,26 +16,28 @@ export const uploadInvoiceInput = z.object({
     .refine((f) => f.size > 0, "El archivo está vacío"),
 });
 
-export const invoiceItemInput = z.object({
-  description: z.string().trim().min(1, "Ingresá la descripción"),
-  /** Insumo al que se mapea la línea (null = no es un insumo, p. ej. un flete). */
-  ingredientId: optUuid(),
-  /** Alternativa: producto de reventa (gaseosas, aguas…). Una línea es un insumo o un producto, no ambos. */
-  productId: optUuid(),
-  qty: decimal({ min: 0 }),
-  unit: z
-    .enum(UNITS)
-    .nullish()
-    .transform((v) => v ?? null),
-  unitPriceNet: decimal({ min: 0 }),
-  /** Alícuota que figura en la factura (Regla 11): 21, 10,5… */
-  vatRate: decimal({ min: 0, max: 100 }),
-  /** IVA de la línea según la factura. Vacío = neto × alícuota. */
-  vatAmount: optDecimal({ min: 0 }),
-}).refine((i) => !(i.ingredientId && i.productId), {
-  path: ["productId"],
-  message: "La línea es un insumo o un producto, no los dos",
-});
+export const invoiceItemInput = z
+  .object({
+    description: z.string().trim().min(1, "Ingresá la descripción"),
+    /** Insumo al que se mapea la línea (null = no es un insumo, p. ej. un flete). */
+    ingredientId: optUuid(),
+    /** Alternativa: producto de reventa (gaseosas, aguas…). Una línea es un insumo o un producto, no ambos. */
+    productId: optUuid(),
+    qty: decimal({ min: 0 }),
+    unit: z
+      .enum(UNITS)
+      .nullish()
+      .transform((v) => v ?? null),
+    unitPriceNet: decimal({ min: 0 }),
+    /** Alícuota que figura en la factura (Regla 11): 21, 10,5… */
+    vatRate: decimal({ min: 0, max: 100 }),
+    /** IVA de la línea según la factura. Vacío = neto × alícuota. */
+    vatAmount: optDecimal({ min: 0 }),
+  })
+  .refine((i) => !(i.ingredientId && i.productId), {
+    path: ["productId"],
+    message: "La línea es un insumo o un producto, no los dos",
+  });
 
 export const invoiceInput = z.object({
   id: uuid,

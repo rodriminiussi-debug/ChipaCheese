@@ -117,8 +117,12 @@ export const saveInvoiceAction = action(
 
 export const confirmInvoiceAction = action(
   { permission: "purchases:write", schema: confirmInvoiceInput },
-  async (input, { tx }) => {
-    const result = await confirmInvoice(tx, input);
+  async (input, { tx, user }) => {
+    const result = await confirmInvoice(tx, input, { userId: user.id });
+    if (result.stockReceived) {
+      revalidatePath("/local");
+      revalidatePath("/stock/producto-terminado");
+    }
     revalidateInvoices(input.id);
     revalidatePath("/compras/precios");
     return result;

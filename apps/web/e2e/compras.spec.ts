@@ -58,9 +58,9 @@ test.describe("Compras y proveedores (M2)", () => {
     await expect(page.getByLabel("Punto de venta")).toHaveValue("0003");
     await expect(page.getByLabel("Número", { exact: true })).toHaveValue("00004567");
     await expect(page.getByLabel("Descripción (línea 1)")).toHaveValue("QUESO TYBO BARRA X KG");
-    await expect(page.getByLabel("Insumo (línea 1)")).toContainText("Queso barra (Tybo/Maki)");
-    await expect(page.getByLabel("Insumo (línea 2)")).toContainText("Queso reggianito");
-    await expect(page.getByLabel("Insumo (línea 3)")).toContainText("Fécula de mandioca");
+    await expect(page.getByLabel("Insumo o producto (línea 1)")).toContainText("Queso barra (Tybo/Maki)");
+    await expect(page.getByLabel("Insumo o producto (línea 2)")).toContainText("Queso reggianito");
+    await expect(page.getByLabel("Insumo o producto (línea 3)")).toContainText("Fécula de mandioca");
     await expect(page.getByText("Los totales coinciden con la factura.")).toBeVisible();
 
     // El IVA es el de la factura: si un renglón no cierra, la diferencia se ve y no deja confirmar
@@ -73,10 +73,10 @@ test.describe("Compras y proveedores (M2)", () => {
     await expect(page.getByText("Los totales coinciden con la factura.")).toBeVisible();
 
     // Mapeo editable: sacar y volver a elegir el insumo de la línea 3
-    await page.getByLabel("Insumo (línea 3)").click();
+    await page.getByLabel("Insumo o producto (línea 3)").click();
     await page.getByRole("option", { name: "No es un insumo (flete, otros)" }).click();
     await expect(page.getByText("1 línea sin insumo")).toBeVisible();
-    await page.getByLabel("Insumo (línea 3)").click();
+    await page.getByLabel("Insumo o producto (línea 3)").click();
     await page.getByRole("option", { name: "Fécula de mandioca" }).click();
 
     await page.getByRole("button", { name: "Confirmar factura" }).click();
@@ -116,7 +116,7 @@ test.describe("Compras y proveedores (M2)", () => {
     await page.goto("/compras/ordenes/nueva");
     await page.getByLabel("Proveedor *").click();
     await page.getByRole("option", { name: "Leo Pelle" }).click();
-    await page.getByLabel("Insumo (línea 1)").click();
+    await page.getByLabel("Insumo o producto (línea 1)").click();
     await page.getByRole("option", { name: "Fécula de mandioca" }).click();
     await page.getByLabel(/Cantidad.*línea 1/).fill("50");
     // precio estimado = último precio de compra (el de la factura confirmada)
@@ -160,7 +160,7 @@ test.describe("Compras y proveedores (M2)", () => {
     await page.goto("/compras/ordenes/nueva");
     await page.getByLabel("Proveedor *").click();
     await page.getByRole("option", { name: "Leo Pelle" }).click();
-    await page.getByLabel("Insumo (línea 1)").click();
+    await page.getByLabel("Insumo o producto (línea 1)").click();
     await page.getByRole("option", { name: "Manteca" }).click();
     await page.getByLabel(/Cantidad.*línea 1/).fill("12");
     await page.getByLabel("Retiro en proveedor").check();
@@ -195,7 +195,7 @@ test.describe("Compras y proveedores (M2)", () => {
     await page.goto("/compras/recepciones/nueva");
     await page.getByLabel("Proveedor *").click();
     await page.getByRole("option", { name: "Leo Pelle" }).click();
-    await page.getByLabel("Insumo (línea 1)").click();
+    await page.getByLabel("Insumo o producto (línea 1)").click();
     await page.getByRole("option", { name: "Queso barra (Tybo/Maki)" }).click();
     await page.getByLabel(/Cantidad.*línea 1/).fill("10");
     await page.getByLabel(/Lote del proveedor.*línea 1/).fill("TYBO-E2E");
