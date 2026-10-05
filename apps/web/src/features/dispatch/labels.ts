@@ -87,3 +87,10 @@ export function timeHM(d: Date | string): string {
     hourCycle: "h23",
   }).format(typeof d === "string" ? new Date(d) : d);
 }
+
+/** Estado de una rendición según su diferencia. */
+export const SETTLEMENT_STATUS = {
+  ok: { label: "Sin diferencia", tone: "good" },
+  short: { label: "Falta", tone: "bad" },
+  over: { label: "Sobra", tone: "warn" },
+} as const;

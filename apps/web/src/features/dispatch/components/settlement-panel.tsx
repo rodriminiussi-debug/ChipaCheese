@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/hooks/use-action";
 import { formatDateTimeAR } from "@/lib/dates";
+import { SETTLEMENT_STATUS } from "../labels";
 import { receiveSettlementAction, registerSettlementAction } from "../actions";
 
 export interface SettlementPanelData {
@@ -31,12 +32,6 @@ export interface SettlementPanelData {
     receivedByName: string | null;
   } | null;
 }
-
-export const SETTLEMENT_STATUS = {
-  ok: { label: "Sin diferencia", tone: "good" },
-  short: { label: "Falta", tone: "bad" },
-  over: { label: "Sobra", tone: "warn" },
-} as const;
 
 const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${formatARS(Math.abs(n))}`;
 
