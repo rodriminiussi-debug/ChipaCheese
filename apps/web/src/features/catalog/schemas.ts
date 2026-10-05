@@ -147,11 +147,12 @@ export const priceListInput = z.object({
 export type PriceListFormInput = z.input<typeof priceListInput>;
 export type PriceListData = z.output<typeof priceListInput>;
 export const updatePriceListInput = priceListInput.extend({ id: uuid });
-export const copyPricesInput = z.object({
-  fromListId: uuid,
-  toListId: uuid,
+export const copyPricesFormInput = z.object({
+  fromListId: z.string().uuid("Elegí la lista de origen"),
   adjustPct: optDecimal({ min: -90, max: 500 }),
 });
+export type CopyPricesFormInput = z.input<typeof copyPricesFormInput>;
+export const copyPricesInput = copyPricesFormInput.extend({ toListId: uuid });
 export type CopyPricesData = z.output<typeof copyPricesInput>;
 
 export const vehicleInput = z.object({

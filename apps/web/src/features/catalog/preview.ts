@@ -24,7 +24,7 @@ export interface CostPreviewInput {
   baseProductId: string | null;
   baseQty: number | null;
   initialCost: number | null;
-  components: { ingredientId: string; qtyPerUnit: number }[];
+  components: readonly { ingredientId: string; qtyPerUnit: number }[];
 }
 
 export function previewProductCost(

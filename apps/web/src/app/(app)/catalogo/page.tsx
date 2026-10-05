@@ -1,13 +1,7 @@
-import { ComingSoon } from "@/components/app/coming-soon";
+import { redirect } from "next/navigation";
 import { requirePermission } from "@/server/auth/session";
 
-export default async function Page() {
+export default async function CatalogoPage() {
   await requirePermission("catalog:write");
-  return (
-    <ComingSoon
-      title="Catálogo"
-      module="Configuración"
-      rfs="Productos, insumos, zonas, listas, vehículos y equipos"
-    />
-  );
+  redirect("/catalogo/productos");
 }

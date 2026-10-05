@@ -3,6 +3,7 @@ import { and, asc, eq, ilike, inArray, ne, or, schema, sql, type Executor } from
 import { UserError } from "@/server/errors";
 import { todayAR } from "@/lib/dates";
 import { getProductCosts } from "@/features/costing/service";
+import { getPriceMatrix } from "@/features/pricing/service";
 import type { CostReference } from "./preview";
 import type { ProductData, UpdateProductData } from "./schemas";
 
@@ -379,4 +380,34 @@ export async function deleteProduct(db: Executor, id: string) {
     throw e;
   }
   return { id };
+}
+
+/** Costo actual y precio/margen del producto en cada lista (para la ficha). null si no hay receta activa. */
+export async function productPricing(db: Executor, productId: string, today: IsoDate = todayAR()) {
+  try {
+    const { lists, costs } = await getPriceMatrix(db, today);
+    const cost = costs.byProductId[productId];
+    return {
+      cost: cost?.unitCost ?? null,
+      missingPrices: cost?.missingPrices ?? [],
+      lists: lists.flatMap((l) => {
+        const r = l.rows.find((x) => x.productId === productId);
+        return r
+          ? [
+              {
+                id: l.id,
+                name: l.name,
+                targetMarginPct: l.targetMarginPct,
+                price: r.price,
+                marginPct: r.marginPct,
+                status: r.status,
+              },
+            ]
+          : [];
+      }),
+    };
+  } catch (e) {
+    if (e instanceof UserError) return null;
+    throw e;
+  }
 }
