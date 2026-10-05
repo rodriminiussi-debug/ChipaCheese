@@ -77,7 +77,7 @@ test.describe("Catálogo (Dirección)", () => {
     await page.goto("/catalogo/insumos");
     await page.getByRole("button", { name: "Nuevo insumo" }).click();
     await page.getByLabel("Nombre *").fill("Orégano");
-    await page.getByLabel("Categoría").selectOption("seasoning");
+    await page.getByLabel("Categoría", { exact: true }).selectOption("seasoning");
     await page.getByLabel("Precio inicial (sin IVA, por unidad)").fill("8500");
     await page.getByRole("button", { name: "Crear insumo" }).click();
     await expectToast(page, "Insumo creado");
@@ -110,7 +110,7 @@ test.describe("Catálogo (Dirección)", () => {
     await page.goto("/catalogo/zonas");
     await page.getByRole("button", { name: "Nueva zona" }).click();
     await page.getByLabel("Nombre *").fill("Baigorria");
-    await page.getByRole("button", { name: "Martes" }).click();
+    await page.getByRole("button", { name: "Mar", exact: true }).click();
     await page.getByRole("button", { name: "Crear zona" }).click();
     await expectToast(page, "Zona creada");
     await expect(page.getByRole("row").filter({ hasText: "Baigorria" })).toContainText("Mar");
