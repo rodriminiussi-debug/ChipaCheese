@@ -20,6 +20,8 @@ export const invoiceItemInput = z.object({
   description: z.string().trim().min(1, "Ingresá la descripción"),
   /** Insumo al que se mapea la línea (null = no es un insumo, p. ej. un flete). */
   ingredientId: optUuid(),
+  /** Alternativa: producto de reventa (gaseosas, aguas…). Una línea es un insumo o un producto, no ambos. */
+  productId: optUuid(),
   qty: decimal({ min: 0 }),
   unit: z
     .enum(UNITS)
@@ -30,6 +32,9 @@ export const invoiceItemInput = z.object({
   vatRate: decimal({ min: 0, max: 100 }),
   /** IVA de la línea según la factura. Vacío = neto × alícuota. */
   vatAmount: optDecimal({ min: 0 }),
+}).refine((i) => !(i.ingredientId && i.productId), {
+  path: ["productId"],
+  message: "La línea es un insumo o un producto, no los dos",
 });
 
 export const invoiceInput = z.object({
@@ -51,7 +56,11 @@ export const invoiceInput = z.object({
 export type InvoiceFormInput = z.input<typeof invoiceInput>;
 export type InvoiceFormData = z.output<typeof invoiceInput>;
 
-export const confirmInvoiceInput = invoiceInput.extend({ acceptDifferences: z.boolean().default(false) });
+export const confirmInvoiceInput = invoiceInput.extend({
+  acceptDifferences: z.boolean().default(false),
+  /** Suma al stock del local las líneas de productos de reventa (gaseosas…) de esta factura. */
+  receiveToStore: z.boolean().default(false),
+});
 export type ConfirmInvoiceInput = z.input<typeof confirmInvoiceInput>;
 
 export const idInput = z.object({ id: uuid });
