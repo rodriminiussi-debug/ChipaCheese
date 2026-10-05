@@ -129,22 +129,22 @@ export interface TrendPoint {
 export function TrendPlot({
   data,
   seriesLabel,
-  format,
-  tick,
+  unit,
   step,
   reference,
   height = 224,
 }: {
   data: TrendPoint[];
   seriesLabel: string;
-  /** Valor completo para el tooltip y la etiqueta final. */
-  format: (n: number) => string;
-  tick: (n: number) => string;
+  /** Unidad del valor: pesos sin decimales o porcentaje con 1 decimal. */
+  unit: "ars" | "pct";
   /** Paso del eje (para redondear los topes). */
   step: number;
   reference?: { value: number; label: string };
   height?: number;
 }) {
+  const format = (n: number) => (unit === "ars" ? formatARS(n, { decimals: 0 }) : `${formatNumber(n, 1)} %`);
+  const tick = (n: number) => (unit === "ars" ? formatARS(n, { decimals: 0 }) : `${n} %`);
   const values = data.map((d) => d.value);
   const last = lastIndex(values);
   const nums = values.filter((v): v is number => v != null);

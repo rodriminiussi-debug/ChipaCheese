@@ -239,7 +239,7 @@ function CostPerBagCard({ fin }: { fin: FinancialDashboard }) {
         ]),
       }}
     >
-      <TrendPlot data={data} seriesLabel="Costo por bolsa" format={ars0} tick={ars0} step={100} />
+      <TrendPlot data={data} seriesLabel="Costo por bolsa" unit="ars" step={100} />
     </ChartCard>
   );
 }
@@ -278,7 +278,7 @@ function DeliveryCostCard({ fin }: { fin: FinancialDashboard }) {
         ]),
       }}
     >
-      <TrendPlot data={data} seriesLabel="Costo por kg entregado" format={ars0} tick={ars0} step={10} />
+      <TrendPlot data={data} seriesLabel="Costo por kg entregado" unit="ars" step={10} />
     </ChartCard>
   );
 }
@@ -475,8 +475,7 @@ function YieldCard({ op }: { op: OperationalDashboard }) {
         <TrendPlot
           data={data}
           seriesLabel="Rendimiento"
-          format={pct}
-          tick={(n) => `${n} %`}
+          unit="pct"
           step={1}
           reference={avg != null ? { value: avg, label: `Promedio ${pct(avg)}` } : undefined}
         />

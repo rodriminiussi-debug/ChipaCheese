@@ -30,16 +30,8 @@ test.describe("Tablero de Dirección (RF-41)", () => {
     await expect(page.getByTestId("kpi-receivables")).toContainText("$ 268.000");
     await expect(page.getByTestId("kpi-result")).toContainText("-$ 1.108.282");
     await expect(page.getByTestId("kpi-withdrawals")).toContainText("No cubre");
-    await expect(page.getByRole("table", { name: "Margen por canal" })).toContainText(
-      "Revendedores (mayorista)",
-    );
-    await expect(page.getByRole("list", { name: "Mejores clientes" })).toContainText("Supermercado La Reina");
-
-    // Gráficos con su vista de tabla.
-    await expect(
-      page.getByRole("img", { name: /Producción diaria de las últimas dos semanas/ }),
-    ).toBeVisible();
-    await expect(page.getByRole("img", { name: "Ventas netas del mes por canal" })).toBeVisible();
+    await expect(page.getByTestId("chart-margin")).toContainText("Revendedores (mayorista)");
+    await expect(page.getByTestId("chart-top-customers")).toContainText("Supermercado La Reina");
 
     // Alertas: cada una navega a donde se resuelve.
     const alerts = page.getByRole("list", { name: "Alertas" });
@@ -63,6 +55,98 @@ test.describe("Tablero de Dirección (RF-41)", () => {
       .getByRole("link", { name: /Temperaturas sin registrar hoy/ })
       .click();
     await expect(page).toHaveURL(/\/calidad\?vista=temperaturas/);
+  });
+
+  test("gráficos por tema: título que es la pregunta, lectura accesible y tabla alternativa", async ({
+    page,
+  }) => {
+    await page.goto("/tablero?mes=2026-09");
+    for (const group of ["Ventas y resultado", "Costos y reparto", "Cobranzas", "Producción", "Calidad"])
+      await expect(page.getByRole("heading", { name: group, level: 2, exact: true })).toBeVisible();
+
+    const questions = [
+      "¿Cómo vienen las ventas?",
+      "¿Estamos ganando?",
+      "¿Qué canal deja más margen?",
+      "¿Quiénes compran más?",
+      "¿Cómo evoluciona el costo por bolsa?",
+      "¿Cuánto cuesta repartir?",
+      "¿Cuánto nos deben y hace cuánto?",
+      "¿Cuánto producimos contra la capacidad?",
+      "¿Cuánto rinde cada producción?",
+      "¿Alcanza la materia prima?",
+      "¿Entregamos a tiempo y completo?",
+      "¿Cuánto vende el local por día?",
+    ];
+    for (const q of questions) {
+      await expect(page.getByRole("heading", { name: q, level: 3 })).toBeVisible();
+      // Cada gráfico lleva su lectura como descripción accesible.
+      await expect(
+        page.getByRole("img", { name: new RegExp(`^${q.replace("?", "\\?")} .+`) }),
+      ).toBeAttached();
+    }
+    // Septiembre sin datos de ventas previos: la lectura compara contra agosto o lo dice.
+    await expect(page.getByTestId("chart-sales")).toContainText(/Septiembre: \$ 387 mil/);
+    await expect(page.getByTestId("chart-result")).toContainText("no cubre los retiros de $ 9,0 M");
+    await expect(page.getByTestId("chart-aging")).toContainText(
+      "$ 268 mil por cobrar, todo dentro del plazo",
+    );
+
+    // La tabla alternativa trae los mismos valores.
+    const sales = page.getByTestId("chart-sales");
+    await sales.getByText("Ver como tabla").click();
+    await expect(sales.getByRole("table", { name: "Ventas netas por canal y mes" })).toContainText(
+      "$ 386.777",
+    );
+    const production = page.getByTestId("chart-production");
+    await production.getByText("Ver como tabla").click();
+    await expect(production.getByRole("table", { name: "Producción diaria" })).toContainText("149,3 kg");
+  });
+
+  test("alertas nuevas: lotes por vencer, proveedores atrasados, aumentos de precio y pedidos sin preparar", async ({
+    page,
+    sql,
+  }) => {
+    test.slow();
+    await page.goto("/tablero");
+    const alerts = page.getByRole("list", { name: "Alertas" });
+    // El pedido del Club Náutico es para el próximo día hábil (lunes) y todavía no está listo.
+    await expect(alerts.getByRole("link", { name: /Pedidos del lunes sin preparar/ })).toContainText(
+      "Club Náutico",
+    );
+
+    await sql`update finished_lots set expiry_date = '2026-10-20' where code = '260901-1'`;
+    await sql`update raw_lots set expiry_date = '2026-10-05' where supplier_lot_code = 'LEC-0928'`;
+    await sql`insert into purchase_orders (number, supplier_id, ordered_at, expected_at, status)
+      select 'OC-E2E', id, '2026-09-20', '2026-09-30', 'sent' from suppliers limit 1`;
+    await sql`insert into ingredient_prices (ingredient_id, supplier_id, date, unit_price_net)
+      select i.id, p.supplier_id, '2026-10-01', 1500 from ingredients i
+      join ingredient_prices p on p.ingredient_id = i.id where i.name = 'Leche' limit 1`;
+    await page.reload();
+    await expect(alerts.getByRole("link", { name: /Lotes de producto terminado por vencer/ })).toContainText(
+      "260901-1",
+    );
+    await expect(alerts.getByRole("link", { name: /Lotes de materia prima por vencer/ })).toContainText(
+      "Leche",
+    );
+    await expect(alerts.getByRole("link", { name: /Entregas de proveedores atrasadas/ })).toBeVisible();
+    await expect(alerts.getByRole("link", { name: /Aumentos de precio de compra/ })).toContainText("Leche +");
+
+    // Cada una lleva a donde se resuelve.
+    await expect(alerts.getByRole("link", { name: /Entregas de proveedores atrasadas/ })).toHaveAttribute(
+      "href",
+      "/compras/ordenes",
+    );
+    await expect(alerts.getByRole("link", { name: /Lotes de materia prima por vencer/ })).toHaveAttribute(
+      "href",
+      "/stock",
+    );
+    await expect(alerts.getByRole("link", { name: /Aumentos de precio de compra/ })).toHaveAttribute(
+      "href",
+      /^\/compras\/precios\//,
+    );
+    await alerts.getByRole("link", { name: /Lotes de producto terminado por vencer/ }).click();
+    await expect(page).toHaveURL(/\/stock\/producto-terminado/, { timeout: 30_000 });
   });
 
   test("cambia el mes de los indicadores", async ({ page }) => {
@@ -103,7 +187,20 @@ test.describe("Tablero de la jefa de producción", () => {
     await expect(
       page.getByRole("list", { name: "Alertas" }).getByRole("link", { name: /Insumos a reponer/ }),
     ).toBeVisible();
-    await expect(page.getByRole("img", { name: /Producción diaria/ })).toBeVisible();
+    await expect(page.getByTestId("chart-production")).toBeVisible();
+    // Gráficos operativos sí; ninguno con montos.
+    for (const q of [
+      "¿Cuánto rinde cada producción?",
+      "¿Alcanza la materia prima?",
+      "¿Entregamos a tiempo y completo?",
+    ])
+      await expect(page.getByRole("heading", { name: q, level: 3 })).toBeVisible();
+    for (const id of ["sales", "result", "margin", "top-customers", "cost-bag", "delivery-cost", "aging"])
+      await expect(page.getByTestId(`chart-${id}`)).toHaveCount(0);
+    for (const h of ["Ventas y resultado", "Costos y reparto", "Cobranzas"])
+      await expect(page.getByRole("heading", { name: h, exact: true })).toHaveCount(0);
+    // Los avisos de lotes y pedidos los ve también, sin plata.
+    await expect(page.getByRole("list", { name: "Alertas" })).toContainText("Pedidos del lunes sin preparar");
 
     // Ni un solo monto en la pantalla.
     const text = await page.locator("main, body").first().innerText();
