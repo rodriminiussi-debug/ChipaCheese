@@ -228,6 +228,36 @@ describe("resultado mensual (RF-40) — septiembre 2026 con los datos demo", () 
     });
   });
 
+  it("las ventas anuladas del local no suman a las ventas ni al costo", async () => {
+    await inRollback("nahuel", async (tx) => {
+      const [local, tap] = await Promise.all([
+        locationByCode(tx, "LOCAL"),
+        tx.query.products.findFirst({ where: eq(schema.products.code, "CH-TAP-500") }),
+      ]);
+      const [sale] = await tx
+        .insert(schema.storeSales)
+        .values({
+          soldAt: new Date("2026-09-15T15:00:00-03:00"),
+          locationId: local.id,
+          method: "cash",
+          total: 48_000,
+          voidedAt: new Date("2026-09-15T15:05:00-03:00"),
+          voidReason: "Cargada por error",
+        })
+        .returning();
+      await tx.insert(schema.storeSaleItems).values({
+        saleId: sale!.id,
+        productId: tap!.id,
+        qtyUnits: 10,
+        unitPrice: 4_800,
+      });
+      const r = await getMonthlyResult(tx, "2026-09", { today: TODAY });
+      expect(r.salesByChannel.find((c) => c.channel === "store")).toBeUndefined();
+      expect(r.costOfSales.unitsFromStore).toBe(0);
+      expect(r.sales).toBe(386_776.86);
+    });
+  });
+
   it("productos con precio faltante se marcan como costo subestimado, no como $0 silencioso", async () => {
     await inRollback("nahuel", async (tx) => {
       const sandwich = await tx.query.products.findFirst({

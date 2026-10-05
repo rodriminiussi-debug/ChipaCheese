@@ -81,7 +81,13 @@ export function traceSheet(
         dt(d.date),
       ]);
     for (const s of f.storeSales)
-      rows.push(["Ventas del local", s.product, "", `${s.units} u.`, dt(s.soldAt)]);
+      rows.push([
+        "Ventas del local",
+        s.product,
+        s.voided ? "Anulada (volvió al stock)" : "",
+        `${s.units} u.`,
+        dt(s.soldAt),
+      ]);
     for (const c of f.complaints)
       rows.push([
         "Reclamos",

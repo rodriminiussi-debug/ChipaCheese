@@ -12,7 +12,7 @@ import {
   type IsoDate,
   type StatementRow,
 } from "@chipa/domain";
-import { and, asc, desc, eq, gte, inArray, lt, ne, schema, sql, type Executor } from "@chipa/db";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, schema, sql, type Executor } from "@chipa/db";
 import { UserError } from "@/server/errors";
 import { todayAR } from "@/lib/dates";
 import { PAYMENT_METHOD } from "@/lib/labels";
@@ -746,6 +746,8 @@ export async function getSalesByChannel(db: Executor, month: string) {
     .from(schema.storeSales)
     .where(
       and(
+        // Las ventas anuladas no cuentan.
+        isNull(schema.storeSales.voidedAt),
         sql`(${schema.storeSales.soldAt} at time zone 'America/Argentina/Buenos_Aires')::date >= ${from}::date`,
         sql`(${schema.storeSales.soldAt} at time zone 'America/Argentina/Buenos_Aires')::date < ${to}::date`,
       ),

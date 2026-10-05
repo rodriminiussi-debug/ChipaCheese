@@ -383,7 +383,14 @@ async function storeUnits(db: Executor, from: IsoDate, to: IsoDate) {
     })
     .from(schema.storeSaleItems)
     .innerJoin(schema.storeSales, eq(schema.storeSales.id, schema.storeSaleItems.saleId))
-    .where(and(sql`${soldDay} >= ${from}::date`, sql`${soldDay} < ${to}::date`))
+    .where(
+      and(
+        // Las ventas anuladas no cuentan.
+        isNull(schema.storeSales.voidedAt),
+        sql`${soldDay} >= ${from}::date`,
+        sql`${soldDay} < ${to}::date`,
+      ),
+    )
     .groupBy(schema.storeSaleItems.productId);
   return new Map(rows.map((r) => [r.productId, r.units]));
 }
