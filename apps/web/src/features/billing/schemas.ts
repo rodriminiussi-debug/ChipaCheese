@@ -103,3 +103,5 @@ export const arcaFileInput = z.object({
 export type ArcaFileInput = z.input<typeof arcaFileInput>;
 
 export const monthInput = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Mes inválido") });
+
+export const linkInvoiceInput = z.object({ invoiceId: z.string().uuid(), orderId: z.string().uuid() });

@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { action } from "@/server/action";
-import { arcaFileInput, checkStatusInput, invoiceInput, paymentInput } from "./schemas";
+import { arcaFileInput, checkStatusInput, invoiceInput, linkInvoiceInput, paymentInput } from "./schemas";
 import { importArcaFile, previewArcaFile } from "./arca-service";
-import { createInvoice, registerPayment, setCheckStatus } from "./service";
+import { createInvoice, linkInvoiceToOrder, registerPayment, setCheckStatus } from "./service";
 
 function revalidateBilling(customerId?: string, routeId?: string | null) {
   revalidatePath("/cobranzas");
@@ -55,8 +55,18 @@ export const previewArcaAction = action(
 /** Importa los emitidos nuevos (idempotente) o concilia los recibidos; reporta lo que no pudo matchear. */
 export const importArcaAction = action(
   { permission: "billing:write", schema: arcaFileInput },
-  async (input, { tx }) => {
-    const res = await importArcaFile(tx, input.kind, input.file);
+  async (input, { tx, user }) => {
+    const res = await importArcaFile(tx, input.kind, input.file, user.id);
+    revalidateBilling();
+    return res;
+  },
+);
+
+/** Vincula una factura sin pedido (p. ej. importada de ARCA) a un pedido entregado del cliente. */
+export const linkInvoiceAction = action(
+  { permission: "billing:write", schema: linkInvoiceInput },
+  async (input, { tx, user }) => {
+    const res = await linkInvoiceToOrder(tx, user.id, input);
     revalidateBilling();
     return res;
   },

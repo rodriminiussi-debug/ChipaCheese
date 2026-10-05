@@ -33,6 +33,7 @@ export function ArcaImport() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ArcaPreview | null>(null);
   const [imported, setImported] = useState<number | null>(null);
+  const [link, setLink] = useState<{ linked: number; ambiguous: number } | null>(null);
 
   const previewAct = useAction(previewArcaAction, { onSuccess: (p) => setPreview(p) });
   const importAct = useAction(importArcaAction, {
@@ -41,6 +42,7 @@ export function ArcaImport() {
     onSuccess: (r) => {
       setPreview(r);
       setImported(r.imported);
+      setLink({ linked: r.linked, ambiguous: r.ambiguous });
       router.refresh();
     },
   });
@@ -113,6 +115,12 @@ export function ArcaImport() {
               <AlertTitle>Importación terminada</AlertTitle>
               <AlertDescription>
                 Se importaron {imported} comprobante(s). Importar de nuevo el mismo archivo no duplica nada.
+                {link?.linked
+                  ? ` ${link.linked} se vincularon solos a su pedido entregado (pasaron a "Facturado").`
+                  : ""}
+                {link?.ambiguous
+                  ? ` ${link.ambiguous} tienen más de un pedido posible: vinculalos desde la cuenta del cliente.`
+                  : ""}
               </AlertDescription>
             </Alert>
           ) : null}

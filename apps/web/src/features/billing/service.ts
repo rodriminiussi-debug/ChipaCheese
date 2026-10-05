@@ -11,10 +11,11 @@ import {
   type Credit,
   type IsoDate,
   type StatementRow,
+  matchInvoicesToOrders,
 } from "@chipa/domain";
-import { and, asc, desc, eq, gte, inArray, lt, ne, schema, sql, type Executor } from "@chipa/db";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, schema, sql, type Executor } from "@chipa/db";
 import { UserError } from "@/server/errors";
-import { todayAR } from "@/lib/dates";
+import { toIsoDateAR, todayAR } from "@/lib/dates";
 import { PAYMENT_METHOD } from "@/lib/labels";
 import { changeOrderStatus } from "@/features/orders/service";
 import { INVOICE_TYPE_LABEL } from "./labels";
@@ -404,6 +405,82 @@ export async function createInvoice(
   }
   const settledOrders = await settleInvoicedOrders(db, userId, customer.id, today);
   return { invoice: invoice!, settledOrders };
+}
+
+/**
+ * Vincula una factura ya cargada (p. ej. importada de ARCA) a un pedido entregado del mismo cliente:
+ * el pedido pasa a "facturado" (y a "cobrado" si la factura ya está saldada).
+ */
+export async function linkInvoiceToOrder(
+  db: Executor,
+  userId: string | null,
+  input: { invoiceId: string; orderId: string },
+  today: IsoDate = todayAR(),
+) {
+  const invoice = await db.query.salesInvoices.findFirst({
+    where: eq(schema.salesInvoices.id, input.invoiceId),
+  });
+  if (!invoice) throw new UserError("La factura no existe.");
+  if (invoice.orderId) throw new UserError("La factura ya está vinculada a un pedido.");
+  if (NC_TYPES.has(invoice.invoiceType))
+    throw new UserError("Una nota de crédito no se vincula a un pedido.");
+  const order = await db.query.orders.findFirst({ where: eq(schema.orders.id, input.orderId) });
+  if (!order) throw new UserError("El pedido no existe.");
+  if (order.customerId !== invoice.customerId) throw new UserError("El pedido es de otro cliente.");
+  if (order.status !== "delivered")
+    throw new UserError("Solo se puede vincular un pedido entregado y sin facturar.");
+  await db
+    .update(schema.salesInvoices)
+    .set({ orderId: order.id })
+    .where(eq(schema.salesInvoices.id, invoice.id));
+  await changeOrderStatus(db, userId, {
+    id: order.id,
+    to: "invoiced",
+    note: `Factura ${invoiceLabel(invoice)}`,
+  });
+  const settledOrders = await settleInvoicedOrders(db, userId, invoice.customerId, today);
+  return { orderNumber: order.number, settledOrders };
+}
+
+/**
+ * Vincula automáticamente facturas sin pedido con pedidos entregados sin facturar cuando la coincidencia
+ * es única (cliente, importe ± $1, entregado hasta 45 días antes). Devuelve cuántas vinculó y cuántas quedaron ambiguas.
+ */
+export async function autoLinkInvoices(
+  db: Executor,
+  userId: string | null,
+  invoiceIds: string[],
+  today: IsoDate = todayAR(),
+) {
+  if (!invoiceIds.length) return { linked: 0, ambiguous: 0 };
+  const invoices = await db
+    .select()
+    .from(schema.salesInvoices)
+    .where(and(inArray(schema.salesInvoices.id, invoiceIds), isNull(schema.salesInvoices.orderId)));
+  const candidates = invoices.filter((i) => !NC_TYPES.has(i.invoiceType));
+  const customerIds = [...new Set(candidates.map((i) => i.customerId))];
+  if (!customerIds.length) return { linked: 0, ambiguous: 0 };
+  const orders = await db
+    .select({
+      id: schema.orders.id,
+      customerId: schema.orders.customerId,
+      total: schema.orders.total,
+      deliveredAt: schema.orders.deliveredAt,
+      promisedDate: schema.orders.promisedDate,
+    })
+    .from(schema.orders)
+    .where(and(eq(schema.orders.status, "delivered"), inArray(schema.orders.customerId, customerIds)));
+  const { links, ambiguous } = matchInvoicesToOrders(
+    candidates.map((i) => ({ id: i.id, customerId: i.customerId, issueDate: i.issueDate, total: i.total })),
+    orders.map((o) => ({
+      id: o.id,
+      customerId: o.customerId,
+      total: o.total,
+      deliveredOn: o.deliveredAt ? toIsoDateAR(o.deliveredAt) : o.promisedDate,
+    })),
+  );
+  for (const l of links) await linkInvoiceToOrder(db, userId, l, today);
+  return { linked: links.length, ambiguous: ambiguous.length };
 }
 
 /**
