@@ -22,6 +22,8 @@ export interface PriceRow {
   code: string;
   name: string;
   presentation: string;
+  /** Tipo de producto: fabricado, reventa o elaborado en el local. */
+  kind: "manufactured" | "resale" | "prepared";
   /** Precio vigente a hoy; null si el producto no tiene precio en la lista. */
   price: number | null;
   validFrom: IsoDate | null;
@@ -67,6 +69,7 @@ export async function getPriceMatrix(db: Executor, today: IsoDate = todayAR(), c
       where: eq(schema.products.active, true),
       orderBy: asc(schema.products.code),
     }),
+    // Costeo de todos los tipos (fabricado, reventa, elaborado): cada uno con su propia fuente de costo.
     costs ?? getProductCosts(db, today),
   ]);
 
@@ -93,6 +96,7 @@ export async function getPriceMatrix(db: Executor, today: IsoDate = todayAR(), c
         code: p.code,
         name: p.name,
         presentation: p.presentation,
+        kind: p.kind,
         price,
         validFrom: current?.validFrom ?? null,
         upcoming,

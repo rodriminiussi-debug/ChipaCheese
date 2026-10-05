@@ -123,7 +123,14 @@ describe("costeo base (Regla 8)", () => {
       const c = await getProductCosts(tx, TODAY);
       expect(c.costPerKg).toBeNull();
       expect(c.missingPrices).toEqual(["Sal"]);
-      expect(c.products.every((p) => p.unitCost === null)).toBe(true);
+      expect(c.products.filter((p) => p.kind === "manufactured").every((p) => p.unitCost === null)).toBe(
+        true,
+      );
+      // La reventa no depende de la receta; el elaborado sí (usa el costo del producto base).
+      const hor = c.byProductId[(await productByCode(tx, "EL-HOR-250")).id]!;
+      expect(hor.unitCost).toBeNull();
+      expect(hor.missingPrices).toContain("Sal");
+      expect(c.byProductId[(await productByCode(tx, "RV-GAS-500")).id]!.unitCost).toBe(1100);
       expect(c.byProductId[(await productByCode(tx, "CH-TAP-500")).id]!.missingPrices).toContain("Sal");
     });
   });
@@ -145,6 +152,69 @@ describe("costeo base (Regla 8)", () => {
       expect(manteca.unitPriceNet).toBe(12000);
       expect(after.labor.costPerRun).toBe(4 * 6 * 8000);
       expect(after.costPerKg!).toBeGreaterThan(before.costPerKg!);
+    });
+  });
+
+  it("reventa: costo = último costo de compra sin IVA; sin compra cargada queda faltante, nunca $0", async () => {
+    await inRollback("nahuel", async (tx) => {
+      const gas = await productByCode(tx, "RV-GAS-500");
+      const c = await getProductCosts(tx, TODAY);
+      const row = c.byProductId[gas.id]!;
+      expect(row.kind).toBe("resale");
+      expect(row.source).toBe("purchase");
+      expect(row.unitCost).toBe(1100);
+      expect(row.doughCost).toBeNull();
+      await tx
+        .insert(schema.productCosts)
+        .values({ productId: gas.id, date: "2026-10-01", unitCostNet: 1250 });
+      expect((await getProductCosts(tx, TODAY)).byProductId[gas.id]!.unitCost).toBe(1250);
+
+      await tx.delete(schema.productCosts).where(eq(schema.productCosts.productId, gas.id));
+      const missing = (await getProductCosts(tx, TODAY)).byProductId[gas.id]!;
+      expect(missing.unitCost).toBeNull();
+      expect(missing.missingPrices).toEqual(["Gaseosa 500 ml (costo de compra)"]);
+    });
+  });
+
+  it("elaborado: costo del producto base × unidades que consume + componentes propios", async () => {
+    await inRollback("nahuel", async (tx) => {
+      const c = await getProductCosts(tx, TODAY);
+      const tap = c.byProductId[(await productByCode(tx, "CH-TAP-500")).id]!;
+      const hor = await productByCode(tx, "EL-HOR-250");
+      const row = c.byProductId[hor.id]!;
+      expect(row.kind).toBe("prepared");
+      expect(row.source).toBe("base");
+      expect(row.baseQty).toBe(0.5);
+      expect(row.baseCost).toBeCloseTo(tap.unitCost! * 0.5, 2);
+      expect(row.unitCost).toBeCloseTo(tap.unitCost! * 0.5, 2);
+
+      // Componente extra (caja para llevar): suma al costo; sin precio, el costo queda faltante.
+      const caja = (
+        await tx
+          .insert(schema.ingredients)
+          .values({ name: "Caja para llevar", category: "packaging", unit: "unit" })
+          .returning()
+      )[0]!;
+      await tx
+        .insert(schema.productComponents)
+        .values({ productId: hor.id, ingredientId: caja.id, qtyPerUnit: 1 });
+      const sinPrecio = (await getProductCosts(tx, TODAY)).byProductId[hor.id]!;
+      expect(sinPrecio.unitCost).toBeNull();
+      expect(sinPrecio.missingPrices).toEqual(["Caja para llevar"]);
+      await tx
+        .insert(schema.ingredientPrices)
+        .values({ ingredientId: caja.id, date: "2026-10-01", unitPriceNet: 200 });
+      const conPrecio = (await getProductCosts(tx, TODAY)).byProductId[hor.id]!;
+      expect(conPrecio.componentsCost).toBe(200);
+      expect(conPrecio.unitCost).toBeCloseTo(tap.unitCost! * 0.5 + 200, 2);
+    });
+  });
+
+  it("los fabricados van primero en la lista de costos", async () => {
+    await inRollback("nahuel", async (tx) => {
+      const kinds = (await getProductCosts(tx, TODAY)).products.map((p) => p.kind);
+      expect(kinds.indexOf("resale")).toBeGreaterThan(kinds.lastIndexOf("manufactured"));
+      expect(kinds.indexOf("prepared")).toBeGreaterThan(kinds.lastIndexOf("resale"));
     });
   });
 });

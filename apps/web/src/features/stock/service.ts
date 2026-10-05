@@ -352,6 +352,7 @@ export function rawLocations(db: Executor) {
 
 export interface ProductMatrixRow {
   productId: string;
+  kind: "manufactured" | "resale" | "prepared";
   code: string;
   name: string;
   netWeightKg: number;
@@ -366,8 +367,9 @@ export interface ProductMatrixRow {
 export async function getProductStockMatrix(db: Executor) {
   const [locations, products, stock] = await Promise.all([
     productLocations(db),
+    // Los elaborados en el local no tienen stock propio (descuentan del producto base).
     db.query.products.findMany({
-      where: eq(schema.products.active, true),
+      where: and(eq(schema.products.active, true), ne(schema.products.kind, "prepared")),
       orderBy: asc(schema.products.code),
     }),
     db
@@ -390,6 +392,7 @@ export async function getProductStockMatrix(db: Executor) {
     const totalUnits = roundQty(Object.values(byLocation).reduce((a, q) => a + q, 0));
     return {
       productId: p.id,
+      kind: p.kind,
       code: p.code,
       name: p.name,
       netWeightKg: p.netWeightKg,
@@ -489,6 +492,11 @@ export async function transferProduct(db: Executor, userId: string | null, input
   }
   const product = await db.query.products.findFirst({ where: eq(schema.products.id, input.productId) });
   if (!product) throw new UserError("El producto no existe.", { productId: ["Producto inválido"] });
+  if (product.kind !== "manufactured")
+    throw new UserError(
+      `"${product.name}" no se transfiere: la reventa entra directo al local y los elaborados no tienen stock propio.`,
+      { productId: ["Solo se transfieren productos fabricados"] },
+    );
 
   let moves: { finishedLotId: string; qty: number; code: string | null }[];
   if (input.finishedLotId) {

@@ -192,6 +192,8 @@ export async function pendingOrderLines(db: Executor, date: IsoDate, windowDays:
     .innerJoin(schema.customers, eq(schema.customers.id, schema.orders.customerId))
     .where(
       and(
+        // Solo fabricados: la reventa y los elaborados del local no salen de la masa.
+        eq(schema.products.kind, "manufactured"),
         inArray(schema.orders.status, [...PENDING_ORDER_STATUSES]),
         lte(schema.orders.promisedDate, addDays(date, windowDays)),
       ),
@@ -211,6 +213,7 @@ export async function suggestPlan(db: Executor, input: { date: IsoDate; windowDa
       })
       .from(schema.productStock)
       .innerJoin(schema.products, eq(schema.products.id, schema.productStock.productId))
+      .where(eq(schema.products.kind, "manufactured"))
       .groupBy(schema.products.id),
     db
       .select({
@@ -219,7 +222,13 @@ export async function suggestPlan(db: Executor, input: { date: IsoDate; windowDa
         units: schema.products.minStockUnits,
       })
       .from(schema.products)
-      .where(and(eq(schema.products.active, true), gte(schema.products.minStockUnits, 1))),
+      .where(
+        and(
+          eq(schema.products.active, true),
+          eq(schema.products.kind, "manufactured"),
+          gte(schema.products.minStockUnits, 1),
+        ),
+      ),
   ]);
   const demands = buildShapeDemands({ pending, stock, minStock });
   const suggestion = suggestDailyPlan({
@@ -786,7 +795,11 @@ export function runSummary(run: RunDetail) {
 export async function packingOptions(db: Executor) {
   const [products, locations] = await Promise.all([
     db.query.products.findMany({
-      where: and(eq(schema.products.active, true), ne(schema.products.shape, "pizzeta")),
+      where: and(
+        eq(schema.products.active, true),
+        eq(schema.products.kind, "manufactured"),
+        ne(schema.products.shape, "pizzeta"),
+      ),
       orderBy: [asc(schema.products.presentation), asc(schema.products.name)],
     }),
     db.query.locations.findMany({

@@ -147,6 +147,15 @@ export async function availableFinishedUnits(db: Executor, excludeOrderId?: stri
 // RF-02: formulario de carga
 // ------------------------------------------------------------------------------------------------
 
+/** Productos que se pueden pedir: fabricados activos con "disponible en pedidos". */
+export function orderableProducts() {
+  return and(
+    eq(schema.products.active, true),
+    eq(schema.products.kind, "manufactured"),
+    eq(schema.products.availableForOrders, true),
+  );
+}
+
 /** Datos para el formulario de carga rápida: clientes, productos, precios vigentes y stock libre. */
 export async function orderFormData(db: Executor, today: IsoDate = todayAR()) {
   const [customers, products, prices, avail] = await Promise.all([
@@ -155,13 +164,16 @@ export async function orderFormData(db: Executor, today: IsoDate = todayAR()) {
       orderBy: asc(schema.customers.legalName),
       with: { zone: true },
     }),
+    // Solo lo que se puede pedir: fabricados activos marcados "disponible en pedidos" (la reventa y los
+    // elaborados del local se venden en el local, no se despachan por lote).
     db.query.products.findMany({
-      where: eq(schema.products.active, true),
+      where: orderableProducts(),
       orderBy: [asc(schema.products.presentation), asc(schema.products.name)],
     }),
     currentPriceMap(db, today),
     availableFinishedUnits(db),
   ]);
+  const orderable = new Set(products.map((p) => p.id));
 
   // Últimos ítems de cada cliente ("repetir último pedido").
   const o = schema.orders;
@@ -186,7 +198,7 @@ export async function orderFormData(db: Executor, today: IsoDate = todayAR()) {
         )
     : [];
   const itemsByOrder = new Map<string, Item[]>();
-  for (const li of lastItems)
+  for (const li of lastItems.filter((x) => orderable.has(x.productId)))
     (itemsByOrder.get(li.orderId) ?? itemsByOrder.set(li.orderId, []).get(li.orderId)!).push(li);
   const lastByCustomer = new Map(lastOrders.map((l) => [l.customerId, itemsByOrder.get(l.id) ?? []]));
 
@@ -320,6 +332,10 @@ async function priceLines(db: Executor, items: Item[], priceListId: string, toda
   return items.map((i) => {
     const p = products.find((x) => x.id === i.productId);
     if (!p || !p.active) throw new UserError("Hay un producto inexistente o inactivo en el pedido.");
+    if (!p.availableForOrders || p.kind !== "manufactured")
+      throw new UserError(`"${p.name}" no está disponible para pedidos.`, {
+        items: [`No disponible para pedidos: ${p.name}`],
+      });
     const unitPrice = prices[p.id];
     if (unitPrice == null)
       throw new UserError(`"${p.name}" no tiene precio vigente en la lista de precios del cliente.`, {

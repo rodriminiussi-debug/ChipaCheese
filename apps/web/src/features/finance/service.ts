@@ -438,7 +438,12 @@ async function noticesFor(db: Executor, from: IsoDate, to: IsoDate) {
   };
 }
 
-/** Costo de materiales (ingredientes + envase y componentes) por unidad de cada producto, a precios actuales. */
+/**
+ * Costo de materiales (sin mano de obra) por unidad de cada producto, a precios actuales:
+ *  - fabricado: ingredientes por kg × kg netos + envase y componentes;
+ *  - reventa: último costo de compra;
+ *  - elaborado en el local: materiales del producto base × unidades que consume + componentes propios.
+ */
 export function materialUnitCosts(
   costs: ProductCosts,
 ): Map<string, { name: string; cost: number; complete: boolean }> {
@@ -446,16 +451,29 @@ export function materialUnitCosts(
     costs.ingredientsCostPerKg ??
     // Con precios faltantes en la receta: lo que se puede costear (se avisa como subestimado).
     roundMoney(costs.ingredients.reduce((a, l) => a + (l.costPerKgProduct ?? 0), 0));
-  return new Map(
-    costs.products.map((p) => [
-      p.productId,
-      {
+  const out = new Map<string, { name: string; cost: number; complete: boolean }>();
+  for (const p of costs.products) {
+    if (p.kind === "manufactured")
+      out.set(p.productId, {
         name: p.name,
         cost: roundMoney(ingredientsPerKg * p.netWeightKg + p.componentsCost),
         complete: p.missingPrices.length === 0,
-      },
-    ]),
-  );
+      });
+  }
+  for (const p of costs.products) {
+    if (p.kind === "resale")
+      out.set(p.productId, { name: p.name, cost: p.unitCost ?? 0, complete: p.unitCost != null });
+  }
+  for (const p of costs.products) {
+    if (p.kind !== "prepared") continue;
+    const base = p.baseProductId ? out.get(p.baseProductId) : undefined;
+    out.set(p.productId, {
+      name: p.name,
+      cost: roundMoney((base?.cost ?? 0) * (p.baseQty ?? 0) + p.componentsCost),
+      complete: !!base && p.missingPrices.length === 0,
+    });
+  }
+  return out;
 }
 
 /**
