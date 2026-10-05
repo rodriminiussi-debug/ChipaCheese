@@ -18,3 +18,4 @@ export * from "./purchasing";
 export * from "./production-plan";
 export * from "./skills";
 export * from "./lot-qr";
+export * from "./dashboard";

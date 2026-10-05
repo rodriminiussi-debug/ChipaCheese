@@ -148,13 +148,20 @@ async function lastPrices(db: Executor): Promise<Map<string, number>> {
   return new Map(rows.map((x) => [x.ingredientId, x.unitPriceNet]));
 }
 
-/** Costo directo por kg y por unidad de cada producto activo (Regla 8). */
-export async function getProductCosts(db: Executor, today: IsoDate = todayAR()): Promise<ProductCosts> {
+/**
+ * Costo directo por kg y por unidad de cada producto activo (Regla 8). `opts.prices` reemplaza el último precio
+ * de compra por otro mapa insumo → precio (lo usa el tablero para reconstruir el costo a fin de cada mes).
+ */
+export async function getProductCosts(
+  db: Executor,
+  today: IsoDate = todayAR(),
+  opts: { prices?: Map<string, number> } = {},
+): Promise<ProductCosts> {
   const [recipe, labor, real, prices, products] = await Promise.all([
     activeRecipe(db),
     readLaborSettings(db),
     realYield(db, today),
-    lastPrices(db),
+    opts.prices ?? lastPrices(db),
     db.query.products.findMany({
       where: eq(schema.products.active, true),
       orderBy: asc(schema.products.code),
