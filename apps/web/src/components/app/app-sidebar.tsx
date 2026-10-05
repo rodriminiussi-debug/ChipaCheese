@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -68,6 +68,12 @@ export function AppSidebar({ user }: { user: { name: string; role: Role } }) {
           </div>
           <div className="text-muted-foreground">{ROLE_LABELS[user.role]}</div>
         </div>
+        <SidebarMenuButton asChild isActive={pathname === "/cuenta"} tooltip="Mi cuenta">
+          <Link href="/cuenta">
+            <UserRound />
+            <span>Mi cuenta</span>
+          </Link>
+        </SidebarMenuButton>
         <ThemeToggle />
         <form action={logoutAction}>
           <SidebarMenuButton type="submit" tooltip="Salir">

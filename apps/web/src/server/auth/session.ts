@@ -48,6 +48,12 @@ export async function destroySession() {
   jar.delete(SESSION_COOKIE);
 }
 
+/** Id (hash) de la sesión actual, para cerrar las demás sin cortar esta. */
+export async function currentSessionId(): Promise<string | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return token ? sha256(token) : null;
+}
+
 /** Usuario de la sesión actual o null. Memoizado por request. */
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
