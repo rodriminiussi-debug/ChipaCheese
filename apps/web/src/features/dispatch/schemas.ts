@@ -1,6 +1,15 @@
 import { z } from "zod";
 import { todayAR } from "@/lib/dates";
-import { clientIdField, decimal, isoDate, optDecimal, optText, optUuid, recordedAtField } from "@/lib/zod";
+import {
+  clientIdField,
+  decimal,
+  int,
+  isoDate,
+  optDecimal,
+  optText,
+  optUuid,
+  recordedAtField,
+} from "@/lib/zod";
 
 /** Estados de pedido que se pueden poner en una ruta (los no listos se marcan en la propuesta). */
 export const ROUTE_ORDER_STATUSES = ["ready", "confirmed", "in_production"] as const;
@@ -146,3 +155,22 @@ export function registryFiltersFromParams(
     ...(producto && UUID.test(producto) ? { productId: producto } : {}),
   };
 }
+
+// --- Rendición del chofer ---------------------------------------------------------------------------------
+
+/** El chofer carga lo que entrega al volver (efectivo y cantidad de cheques); lo esperado lo calcula el sistema. */
+export const registerSettlementInput = z.object({
+  routeId: uuid(),
+  cashDelivered: decimal({
+    min: 0,
+    max: 1_000_000_000,
+    message: "Ingresá el efectivo que entregás (0 si no hay)",
+  }),
+  checksDelivered: int({ min: 0, max: 500 }),
+  notes: optText(),
+});
+export type RegisterSettlementInput = z.input<typeof registerSettlementInput>;
+export type RegisterSettlementData = z.output<typeof registerSettlementInput>;
+
+/** Dirección o la jefa reciben la rendición (confirman que contaron lo que entregó el chofer). */
+export const receiveSettlementInput = z.object({ routeId: uuid(), notes: optText() });

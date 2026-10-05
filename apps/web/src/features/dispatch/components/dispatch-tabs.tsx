@@ -5,7 +5,15 @@ import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import { cn } from "@/lib/utils";
 
-const TABS: { href: Route; label: string; match: (p: string) => boolean }[] = [
+interface Tab {
+  href: Route;
+  label: string;
+  match: (p: string) => boolean;
+  /** Solo para quien recibe las rendiciones (Dirección y la jefa). */
+  settle?: boolean;
+}
+
+const TABS: Tab[] = [
   {
     href: "/despacho",
     label: "Rutas",
@@ -21,14 +29,20 @@ const TABS: { href: Route; label: string; match: (p: string) => boolean }[] = [
     label: "Registro de despacho (BPM)",
     match: (p) => p.startsWith("/despacho/registro"),
   },
+  {
+    href: "/despacho/rendiciones" as Route,
+    label: "Rendiciones",
+    match: (p) => p.startsWith("/despacho/rendiciones"),
+    settle: true,
+  },
 ];
 
 /** Pestañas del módulo de despacho: cada una es una subruta. */
-export function DispatchTabs() {
+export function DispatchTabsNav({ canSettle = false }: { canSettle?: boolean }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Secciones de despacho" className="mb-6 flex gap-1 overflow-x-auto border-b print:hidden">
-      {TABS.map((t) => {
+      {TABS.filter((t) => !t.settle || canSettle).map((t) => {
         const active = t.match(pathname);
         return (
           <Link

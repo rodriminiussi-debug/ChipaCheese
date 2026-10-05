@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { action } from "@/server/action";
 import { UserError } from "@/server/errors";
 import { putFile } from "@/server/storage";
+import { can } from "@/lib/rbac";
 import { clampRecordedAt } from "@/lib/idempotency";
 import {
   addOrdersInput,
@@ -15,6 +16,8 @@ import {
   generateDispatchInput,
   generateRouteDispatchesInput,
   moveStopInput,
+  receiveSettlementInput,
+  registerSettlementInput,
   rejectDispatchInput,
   removeStopInput,
   setStopDoneInput,
@@ -37,6 +40,7 @@ import {
   startRoute,
   updateRoute,
 } from "./service";
+import { receiveSettlement, registerSettlement } from "./settlement";
 
 function revalidateRoute(routeId?: string | null) {
   revalidatePath("/despacho");
@@ -212,6 +216,32 @@ export const rejectDispatchAction = action(
     revalidateRoute();
     revalidatePath("/despacho/rutas/[id]", "page");
     revalidateOrders(res.orderId);
+    return res;
+  },
+);
+
+// --- Rendición del chofer ---------------------------------------------------------------------------------
+
+/** El chofer rinde lo cobrado en la ruta al volver (efectivo y cheques entregados). La diferencia queda registrada. */
+export const registerSettlementAction = action(
+  { permission: "collections:write", schema: registerSettlementInput },
+  async (input, { tx, user }) => {
+    const res = await registerSettlement(tx, user.id, input, {
+      canSettle: can(user.role, "dispatch:settle"),
+    });
+    revalidateRoute(input.routeId);
+    revalidatePath("/despacho/rendiciones");
+    return res;
+  },
+);
+
+/** Dirección o la jefa reciben la rendición. */
+export const receiveSettlementAction = action(
+  { permission: "dispatch:settle", schema: receiveSettlementInput },
+  async (input, { tx, user }) => {
+    const res = await receiveSettlement(tx, user.id, input);
+    revalidateRoute(input.routeId);
+    revalidatePath("/despacho/rendiciones");
     return res;
   },
 );
