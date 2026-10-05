@@ -11,6 +11,7 @@ CREATE TABLE "production_status_changes" (
 );
 --> statement-breakpoint
 ALTER TABLE "dispatches" ADD COLUMN "delivery_client_id" uuid;--> statement-breakpoint
+ALTER TABLE "maintenance_orders" ADD COLUMN "stopped" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "production_status_changes" ADD CONSTRAINT "production_status_changes_run_id_production_runs_id_fk" FOREIGN KEY ("run_id") REFERENCES "public"."production_runs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "production_status_changes" ADD CONSTRAINT "production_status_changes_changed_by_id_users_id_fk" FOREIGN KEY ("changed_by_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "production_status_changes_run_idx" ON "production_status_changes" USING btree ("run_id");--> statement-breakpoint

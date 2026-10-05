@@ -1,5 +1,5 @@
 {
-  "id": "3520eb25-bfef-45b5-b97c-85ae3fe72430",
+  "id": "d3756f37-aab9-4a24-a7d1-00548e77f171",
   "prevId": "b103e8b1-e509-4966-a93f-4b6e09139b19",
   "version": "7",
   "dialect": "postgresql",
@@ -8063,6 +8063,13 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "stopped": {
+          "name": "stopped",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",

@@ -132,6 +132,8 @@ export const maintenanceOrders = pgTable(
     /** Quien avisó la falla (operario, chofer, local) y cuándo. */
     reportedById: uuid().references(() => users.id),
     reportedAt: tstz(),
+    /** La falla avisada deja el equipo parado (no se puede producir o entregar con él). */
+    stopped: boolean().notNull().default(false),
     ...timestamps(),
   },
   (t) => [index("maintenance_orders_equipment_idx").on(t.equipmentId, t.date)],
