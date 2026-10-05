@@ -20,7 +20,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Money } from "@/components/app/format";
 import { useAction } from "@/hooks/use-action";
@@ -47,6 +55,12 @@ export interface ReviewIngredient {
   id: string;
   name: string;
   unit: "kg" | "l" | "unit";
+}
+
+export interface ReviewProduct {
+  id: string;
+  name: string;
+  unitLabel: string;
 }
 
 type Items = InvoiceFormInput["items"];
@@ -106,11 +120,14 @@ export function InvoiceReviewForm({
   initial,
   suppliers,
   ingredients,
+  products,
   extracted,
 }: {
   initial: InvoiceFormInput;
   suppliers: ReviewSupplier[];
   ingredients: ReviewIngredient[];
+  /** Productos de reventa a los que se puede mapear una línea (gaseosas, aguas…). */
+  products: ReviewProduct[];
   /** Proveedor tal como lo leyó la IA (para ofrecer darlo de alta). */
   extracted: { supplierName: string | null; supplierCuit: string | null } | null;
 }) {
@@ -121,6 +138,7 @@ export function InvoiceReviewForm({
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const [acceptDifferences, setAcceptDifferences] = useState(false);
+  const [receiveToStore, setReceiveToStore] = useState(false);
 
   const save = useAction(saveInvoiceAction, {
     success: "Borrador guardado",
@@ -128,9 +146,12 @@ export function InvoiceReviewForm({
   });
   const confirm = useAction(confirmInvoiceAction, {
     success: (r) =>
-      r.pricesRecorded
+      (r.pricesRecorded
         ? `Factura confirmada: ${r.pricesRecorded} precio${r.pricesRecorded === 1 ? "" : "s"} actualizado${r.pricesRecorded === 1 ? "" : "s"}`
-        : "Factura confirmada",
+        : "Factura confirmada") +
+      (r.stockReceived
+        ? ` · ${r.stockReceived} producto${r.stockReceived === 1 ? "" : "s"} ingresado${r.stockReceived === 1 ? "" : "s"} al local`
+        : ""),
     onSuccess: () => router.refresh(),
   });
   const remove_ = useAction(deleteInvoiceDraftAction, {
@@ -170,7 +191,9 @@ export function InvoiceReviewForm({
   const pending = save.pending || confirm.pending || remove_.pending;
   const supplierId = watched.supplierId;
   const supplierMissing = !supplierId;
-  const unmapped = (watched.items ?? []).filter((i) => !i?.ingredientId).length;
+  const unmapped = (watched.items ?? []).filter((i) => !i?.ingredientId && !i?.productId).length;
+  const hasResale =
+    (watched.items ?? []).some((i) => !!i?.productId) && !String(watched.invoiceType).startsWith("NC_");
 
   /** Al cambiar cantidad, precio o alícuota, el IVA de la línea se recalcula con la alícuota de la factura. */
   function recompute(
@@ -187,7 +210,7 @@ export function InvoiceReviewForm({
   }
 
   const submitSave = form.handleSubmit((d) => save.run(d));
-  const submitConfirm = form.handleSubmit((d) => confirm.run({ ...d, acceptDifferences }));
+  const submitConfirm = form.handleSubmit((d) => confirm.run({ ...d, acceptDifferences, receiveToStore }));
 
   return (
     <form onSubmit={submitConfirm} className="grid gap-6" noValidate>
@@ -308,6 +331,7 @@ export function InvoiceReviewForm({
               append({
                 description: "",
                 ingredientId: null,
+                productId: null,
                 qty: "",
                 unit: null,
                 unitPriceNet: "",
@@ -342,35 +366,54 @@ export function InvoiceReviewForm({
                 <Input id={`desc-${i}`} {...form.register(`items.${i}.description`)} />
                 <FieldError>{err(`items.${i}.description`)}</FieldError>
               </Field>
-              <Field className="sm:col-span-3">
-                <FieldLabel htmlFor={`ing-${i}`}>Insumo (línea {n})</FieldLabel>
-                <Controller
-                  control={form.control}
-                  name={`items.${i}.ingredientId`}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value ?? NONE}
-                      onValueChange={(v) => {
-                        field.onChange(v === NONE ? null : v);
-                        const chosen = ingredients.find((x) => x.id === v);
-                        if (chosen && !form.getValues(`items.${i}.unit`))
-                          form.setValue(`items.${i}.unit`, chosen.unit, { shouldDirty: true });
-                      }}
-                    >
-                      <SelectTrigger id={`ing-${i}`} className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NONE}>No es un insumo (flete, otros)</SelectItem>
-                        {ingredients.map((x) => (
-                          <SelectItem key={x.id} value={x.id}>
+              <Field className="sm:col-span-3" data-invalid={!!err(`items.${i}.productId`)}>
+                <FieldLabel htmlFor={`ing-${i}`}>Insumo o producto (línea {n})</FieldLabel>
+                <Select
+                  value={
+                    watched.items?.[i]?.productId
+                      ? `p:${watched.items[i]!.productId}`
+                      : ingId
+                        ? `i:${ingId}`
+                        : NONE
+                  }
+                  onValueChange={(v) => {
+                    const ingredientId = v.startsWith("i:") ? v.slice(2) : null;
+                    const productId = v.startsWith("p:") ? v.slice(2) : null;
+                    form.setValue(`items.${i}.ingredientId`, ingredientId, { shouldDirty: true });
+                    form.setValue(`items.${i}.productId`, productId, { shouldDirty: true });
+                    const chosen = ingredients.find((x) => x.id === ingredientId);
+                    if (chosen && !form.getValues(`items.${i}.unit`))
+                      form.setValue(`items.${i}.unit`, chosen.unit, { shouldDirty: true });
+                    if (productId && !form.getValues(`items.${i}.unit`))
+                      form.setValue(`items.${i}.unit`, "unit", { shouldDirty: true });
+                  }}
+                >
+                  <SelectTrigger id={`ing-${i}`} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>No es un insumo (flete, otros)</SelectItem>
+                    <SelectGroup>
+                      <SelectLabel>Insumos</SelectLabel>
+                      {ingredients.map((x) => (
+                        <SelectItem key={x.id} value={`i:${x.id}`}>
+                          {x.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                    {products.length ? (
+                      <SelectGroup>
+                        <SelectLabel>Productos de reventa</SelectLabel>
+                        {products.map((x) => (
+                          <SelectItem key={x.id} value={`p:${x.id}`}>
                             {x.name}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
+                      </SelectGroup>
+                    ) : null}
+                  </SelectContent>
+                </Select>
+                <FieldError>{err(`items.${i}.productId`)}</FieldError>
               </Field>
               <Field data-invalid={!!err(`items.${i}.qty`)}>
                 <FieldLabel htmlFor={`qty-${i}`}>Cantidad (línea {n})</FieldLabel>
@@ -479,11 +522,22 @@ export function InvoiceReviewForm({
         })}
         {unmapped > 0 && fields.length > 0 ? (
           <p className="text-muted-foreground text-sm">
-            {unmapped} línea{unmapped === 1 ? "" : "s"} sin insumo: no actualiza{unmapped === 1 ? "" : "n"} el
-            historial de precios.
+            {unmapped} línea{unmapped === 1 ? "" : "s"} sin insumo ni producto: no actualiza
+            {unmapped === 1 ? "" : "n"} el historial de precios.
           </p>
         ) : null}
       </section>
+
+      {hasResale ? (
+        <label className="flex items-start gap-2 rounded-lg border p-3 text-sm">
+          <Checkbox checked={receiveToStore} onCheckedChange={(v) => setReceiveToStore(v === true)} />
+          <span>
+            <strong>Ingresar al local</strong> los productos de reventa de esta factura (suma stock en el
+            local). El costo de compra se registra igual. Cargá cantidad y precio por unidad de venta
+            (botella, lata…).
+          </span>
+        </label>
+      ) : null}
 
       {/* Totales */}
       <section className="grid gap-3">

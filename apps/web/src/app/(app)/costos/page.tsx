@@ -33,17 +33,19 @@ export default async function CostsPage() {
       qty: l.qtyPerKgStarch * costs.starchKgPerRun,
       price: l.unitPriceNet,
     })),
-    products: costs.products.map((p) => ({
-      id: p.productId,
-      name: p.name,
-      netWeightKg: p.netWeightKg,
-      components: p.components.map((c) => ({
-        ingredientId: c.ingredientId,
-        name: c.name,
-        qty: c.qtyPerUnit,
-        price: c.unitPriceNet,
+    products: costs.products
+      .filter((p) => p.kind === "manufactured")
+      .map((p) => ({
+        id: p.productId,
+        name: p.name,
+        netWeightKg: p.netWeightKg,
+        components: p.components.map((c) => ({
+          ingredientId: c.ingredientId,
+          name: c.name,
+          qty: c.qtyPerUnit,
+          price: c.unitPriceNet,
+        })),
       })),
-    })),
     priceLists: overview.priceLists.map((l) => ({
       id: l.id,
       name: l.name,

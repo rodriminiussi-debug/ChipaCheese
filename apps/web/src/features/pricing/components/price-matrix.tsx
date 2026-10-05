@@ -33,7 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateText, Money, Num } from "@/components/app/format";
 import { StatusBadge } from "@/components/app/status-badge";
 import { useAction } from "@/hooks/use-action";
-import { CHANNEL } from "@/lib/labels";
+import { CHANNEL, PRODUCT_KIND } from "@/lib/labels";
 import { applySuggestedPricesAction, setPriceAction, updateTargetMarginAction } from "../actions";
 import { PRICE_STATUS } from "../labels";
 import { setPriceInput, targetMarginInput, type SetPriceData, type SetPriceInput } from "../schemas";
@@ -192,7 +192,10 @@ function PriceRowView({
     <TableRow data-status={r.status}>
       <TableCell>
         <div className="font-medium">{r.name}</div>
-        <div className="text-muted-foreground text-xs">{r.code}</div>
+        <div className="text-muted-foreground text-xs">
+          {r.code}
+          {r.kind !== "manufactured" ? ` · ${PRODUCT_KIND[r.kind]?.label ?? r.kind}` : ""}
+        </div>
       </TableCell>
       <TableCell className="text-right">
         <Money value={r.price} />

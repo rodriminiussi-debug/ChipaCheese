@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eq, schema, type Tx } from "@chipa/db";
+import { desc, eq, schema, sql, type Tx } from "@chipa/db";
 import { ingredientTotals } from "@/features/stock/ledger";
 import { inRollback } from "../../../tests/helpers";
 import { MockInvoiceExtractor } from "./ai/mock-extractor";
@@ -29,6 +29,7 @@ import {
   saveInvoice,
   spendByMonth,
   suggestIngredients,
+  suggestResaleProducts,
   updateOrder,
   type InvoiceDetail,
 } from "./service";
@@ -72,6 +73,7 @@ function toFormInput(inv: InvoiceDetail) {
     items: inv.items.map((i) => ({
       description: i.description,
       ingredientId: i.ingredientId,
+      productId: i.productId,
       qty: i.qty,
       unit: i.unit,
       unitPriceNet: i.unitPriceNet,
@@ -823,6 +825,125 @@ describe("gasto mensual (RF-12)", () => {
         ["2026-10", 2],
       ]);
       expect((await monthlySpend(tx, "2026-09")).totals.total).toBe(0);
+    });
+  });
+});
+
+describe("factura con líneas de reventa", () => {
+  const resaleInvoice = async (tx: Tx, productId: string, extra: Record<string, unknown> = {}) => {
+    const x = await ids(tx);
+    const draft = await createManualDraft(tx);
+    return invoiceInput.parse({
+      id: draft.id,
+      supplierId: x.leo,
+      invoiceType: "A",
+      pointOfSale: "7",
+      number: "123",
+      issueDate: "2026-10-01",
+      items: [
+        {
+          description: "Gaseosa cola 500 ml",
+          productId,
+          qty: 24,
+          unit: "unit",
+          unitPriceNet: 1200,
+          vatRate: 21,
+        },
+        {
+          description: "Fécula",
+          ingredientId: x.fecula,
+          qty: 10,
+          unit: "kg",
+          unitPriceNet: 1790,
+          vatRate: 10.5,
+        },
+      ],
+      ...extra,
+    });
+  };
+  const localStock = async (tx: Tx, productId: string) => {
+    const [r] = await tx.execute<{ qty: string | null }>(sql`
+      select sum(v.qty) as qty from v_product_stock v join locations l on l.id = v.location_id
+      where v.product_id = ${productId} and l.code = 'LOCAL'`);
+    return Number(r?.qty ?? 0);
+  };
+
+  it("registra el costo de la línea y, si se marca, ingresa el stock al local", async () => {
+    await inRollback("nahuel", async (tx, userId) => {
+      const gas = (await tx.query.products.findFirst({ where: eq(schema.products.code, "RV-GAS-500") }))!;
+      const before = await localStock(tx, gas.id);
+      const input = await resaleInvoice(tx, gas.id);
+      const res = await confirmInvoice(tx, { ...input, receiveToStore: true }, { userId });
+      expect(res).toMatchObject({ pricesRecorded: 2, stockReceived: 1, unmappedLines: 0 });
+      expect(await localStock(tx, gas.id)).toBe(before + 24);
+      const cost = await tx.query.productCosts.findFirst({
+        where: eq(schema.productCosts.productId, gas.id),
+        orderBy: desc(schema.productCosts.createdAt),
+      });
+      expect(cost).toMatchObject({ unitCostNet: 1200, date: "2026-10-01" });
+      expect(cost!.invoiceItemId).not.toBeNull();
+      const mov = await tx.query.stockMovements.findFirst({
+        where: eq(schema.stockMovements.refTable, "purchase_invoices"),
+      });
+      expect(mov).toMatchObject({ productId: gas.id, qty: 24, refId: input.id });
+      const last = await tx
+        .select()
+        .from(schema.productLastCost)
+        .where(eq(schema.productLastCost.productId, gas.id));
+      expect(last[0]?.unitCostNet).toBe(1200);
+    });
+  });
+
+  it("sin 'ingresar al local' solo registra el costo; las líneas de insumo siguen igual", async () => {
+    await inRollback("nahuel", async (tx, userId) => {
+      const x = await ids(tx);
+      const gas = (await tx.query.products.findFirst({ where: eq(schema.products.code, "RV-GAS-500") }))!;
+      const before = await localStock(tx, gas.id);
+      const res = await confirmInvoice(tx, await resaleInvoice(tx, gas.id), { userId });
+      expect(res.stockReceived).toBe(0);
+      expect(await localStock(tx, gas.id)).toBe(before);
+      const prices = await tx.query.ingredientPrices.findMany({
+        where: eq(schema.ingredientPrices.ingredientId, x.fecula),
+      });
+      expect(prices.some((p) => p.unitPriceNet === 1790)).toBe(true);
+    });
+  });
+
+  it("rechaza línea mapeada a un producto que no es de reventa o a insumo y producto a la vez", async () => {
+    await inRollback("nahuel", async (tx) => {
+      const x = await ids(tx);
+      const tap = (await tx.query.products.findFirst({ where: eq(schema.products.code, "CH-TAP-500") }))!;
+      await expect(confirmInvoice(tx, await resaleInvoice(tx, tap.id))).rejects.toThrow(
+        /no es un producto de reventa/,
+      );
+      expect(
+        invoiceInput.safeParse({
+          id: "00000000-0000-4000-8000-000000000000",
+          invoiceType: "A",
+          items: [
+            {
+              description: "x",
+              ingredientId: x.fecula,
+              productId: tap.id,
+              qty: 1,
+              unitPriceNet: 1,
+              vatRate: 21,
+            },
+          ],
+        }).success,
+      ).toBe(false);
+    });
+  });
+
+  it("sugiere el producto de reventa por nombre y por historial del proveedor", async () => {
+    await inRollback("nahuel", async (tx, userId) => {
+      const x = await ids(tx);
+      const gas = (await tx.query.products.findFirst({ where: eq(schema.products.code, "RV-GAS-500") }))!;
+      expect(await suggestResaleProducts(tx, x.leo, ["GASEOSA 500 ML", "Flete"])).toEqual([gas.id, null]);
+      const input = await resaleInvoice(tx, gas.id);
+      input.items[0]!.description = "COCA X 500";
+      await confirmInvoice(tx, input, { userId });
+      expect(await suggestResaleProducts(tx, x.leo, ["COCA X 500"])).toEqual([gas.id]);
     });
   });
 });

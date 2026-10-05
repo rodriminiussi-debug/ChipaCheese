@@ -22,6 +22,8 @@ import { todayAR } from "@/lib/dates";
  *    el esperado de la receta. Nunca la suma de ingredientes (error 1 del Excel).
  *  - Mano de obra por kg = costo de una producción ÷ kg producidos por receta (75 kg de fécula × rendimiento).
  *  - Costo por unidad = costo/kg × peso neto + componentes (envase, jamón, queso feteado…).
+ *  - Reventa (gaseosas…): último costo de compra sin IVA (`v_product_last_cost`).
+ *  - Elaborado en el local: costo unitario del producto base × unidades que consume + sus componentes.
  *  - Si falta el precio de un insumo o componente NO se asume $0 (error 8 del Excel): se marca
  *    "precio faltante" y el costo de ese producto queda en `null`.
  */
@@ -54,14 +56,25 @@ export interface ComponentCostLine {
   cost: number | null;
 }
 
+export type CostSource = "recipe" | "purchase" | "base";
+
 export interface ProductCost {
   productId: string;
   code: string;
   name: string;
   presentation: string;
+  kind: "manufactured" | "resale" | "prepared";
+  /** De dónde sale el costo: receta (fabricado), última compra (reventa) o producto base (elaborado). */
+  source: CostSource;
+  /** Elaborado: producto base y cuántas unidades consume. */
+  baseProductId: string | null;
+  baseName: string | null;
+  baseQty: number | null;
   netWeightKg: number;
-  /** Masa: costo por kg × peso neto (null si el costo por kg está incompleto). */
+  /** Masa: costo por kg × peso neto (null si el costo por kg está incompleto o no es un fabricado). */
   doughCost: number | null;
+  /** Elaborado: costo del producto base × unidades consumidas (null si falta). Reventa: costo de compra. */
+  baseCost: number | null;
   /** Suma de componentes con precio conocido. */
   componentsCost: number;
   components: ComponentCostLine[];
@@ -148,6 +161,14 @@ async function lastPrices(db: Executor): Promise<Map<string, number>> {
   return new Map(rows.map((x) => [x.ingredientId, x.unitPriceNet]));
 }
 
+/** Último costo de compra sin IVA por producto de reventa. */
+async function lastProductCosts(db: Executor): Promise<Map<string, number>> {
+  const rows = await db.select().from(schema.productLastCost);
+  return new Map(rows.map((x) => [x.productId, x.unitCostNet]));
+}
+
+const KIND_RANK = { manufactured: 0, resale: 1, prepared: 2 } as const;
+
 /**
  * Costo directo por kg y por unidad de cada producto activo (Regla 8). `opts.prices` reemplaza el último precio
  * de compra por otro mapa insumo → precio (lo usa el tablero para reconstruir el costo a fin de cada mes).
@@ -157,17 +178,20 @@ export async function getProductCosts(
   today: IsoDate = todayAR(),
   opts: { prices?: Map<string, number> } = {},
 ): Promise<ProductCosts> {
-  const [recipe, labor, real, prices, products] = await Promise.all([
+  const [recipe, labor, real, prices, purchaseCosts, activeProducts] = await Promise.all([
     activeRecipe(db),
     readLaborSettings(db),
     realYield(db, today),
     opts.prices ?? lastPrices(db),
+    lastProductCosts(db),
     db.query.products.findMany({
       where: eq(schema.products.active, true),
       orderBy: asc(schema.products.code),
       with: { components: { with: { ingredient: true } } },
     }),
   ]);
+  // Fabricados primero (el resto de los cálculos y las pantallas los toman como "los productos de chipá").
+  const products = [...activeProducts].sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
 
   const useReal = real.runs > 0 && real.starchKg > 0;
   const yieldPerKgStarch = useReal ? real.weighedKg / real.starchKg : recipe.expectedYieldPerKgStarch;
@@ -218,8 +242,8 @@ export async function getProductCosts(
     };
   });
 
-  const productCosts: ProductCost[] = products.map((p) => {
-    const components: ComponentCostLine[] = p.components.map((c) => {
+  const componentLines = (p: (typeof products)[number]): ComponentCostLine[] =>
+    p.components.map((c) => {
       const price = prices.get(c.ingredientId) ?? null;
       return {
         ingredientId: c.ingredientId,
@@ -230,6 +254,26 @@ export async function getProductCosts(
         cost: price == null ? null : roundMoney(c.qtyPerUnit * price),
       };
     });
+  const empty = {
+    doughCost: null,
+    baseCost: null,
+    baseProductId: null,
+    baseName: null,
+    baseQty: null,
+  } as const;
+  const head = (p: (typeof products)[number]) => ({
+    productId: p.id,
+    code: p.code,
+    name: p.name,
+    presentation: p.presentation,
+    kind: p.kind,
+    netWeightKg: p.netWeightKg,
+  });
+
+  const costed = new Map<string, ProductCost>();
+  // 1) Fabricados: masa (receta) + componentes.
+  for (const p of products.filter((x) => x.kind === "manufactured")) {
+    const components = componentLines(p);
     const componentsCost = roundMoney(components.reduce((a, c) => a + (c.cost ?? 0), 0));
     const missingPrices = [...missing, ...components.filter((c) => c.cost == null).map((c) => c.name)];
     const doughCost = perKg == null ? null : roundMoney(perKg * p.netWeightKg);
@@ -237,19 +281,62 @@ export async function getProductCosts(
       perKg == null || missingPrices.length > 0
         ? null
         : costPerBag({ costPerKg: perKg, bagKg: p.netWeightKg, packagingCostPerBag: componentsCost });
-    return {
-      productId: p.id,
-      code: p.code,
-      name: p.name,
-      presentation: p.presentation,
-      netWeightKg: p.netWeightKg,
+    costed.set(p.id, {
+      ...head(p),
+      ...empty,
+      source: "recipe",
       doughCost,
       componentsCost,
       components,
       unitCost,
       missingPrices,
-    };
-  });
+    });
+  }
+  // 2) Reventa: último costo de compra. Sin compra cargada no hay costo (nunca $0).
+  for (const p of products.filter((x) => x.kind === "resale")) {
+    const cost = purchaseCosts.get(p.id) ?? null;
+    costed.set(p.id, {
+      ...head(p),
+      ...empty,
+      source: "purchase",
+      baseCost: cost,
+      componentsCost: 0,
+      components: [],
+      unitCost: cost,
+      missingPrices: cost == null ? [`${p.name} (costo de compra)`] : [],
+    });
+  }
+  // 3) Elaborados en el local: costo del producto base × unidades que consume + componentes propios.
+  for (const p of products.filter((x) => x.kind === "prepared")) {
+    const base = p.baseProductId ? costed.get(p.baseProductId) : undefined;
+    const baseProduct = p.baseProductId ? products.find((x) => x.id === p.baseProductId) : undefined;
+    const components = componentLines(p);
+    const componentsCost = roundMoney(components.reduce((a, c) => a + (c.cost ?? 0), 0));
+    const missingPrices: string[] = [];
+    if (!p.baseProductId || p.baseQty == null || !(p.baseQty > 0)) missingPrices.push("Producto base");
+    else if (!base || base.kind !== "manufactured")
+      missingPrices.push(`${baseProduct?.name ?? "Producto base"} (inactivo o no fabricado)`);
+    else missingPrices.push(...base.missingPrices);
+    missingPrices.push(...components.filter((c) => c.cost == null).map((c) => c.name));
+    const baseCost =
+      base?.unitCost != null && p.baseQty != null && p.baseQty > 0
+        ? roundMoney(base.unitCost * p.baseQty)
+        : null;
+    costed.set(p.id, {
+      ...head(p),
+      ...empty,
+      source: "base",
+      baseProductId: p.baseProductId,
+      baseName: baseProduct?.name ?? null,
+      baseQty: p.baseQty,
+      baseCost,
+      componentsCost,
+      components,
+      unitCost: baseCost == null || missingPrices.length > 0 ? null : roundMoney(baseCost + componentsCost),
+      missingPrices: [...new Set(missingPrices)],
+    });
+  }
+  const productCosts = products.map((p) => costed.get(p.id)!);
 
   return {
     recipe: { id: recipe.id, name: recipe.name, version: recipe.version },

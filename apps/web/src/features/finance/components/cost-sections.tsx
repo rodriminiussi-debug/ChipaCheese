@@ -23,7 +23,9 @@ import type { CostOverview } from "../service";
 export function CostHeadline({ overview }: { overview: CostOverview }) {
   const { costs } = overview;
   const y = costs.yield;
-  const bag = costs.products.find((p) => p.netWeightKg === 0.5 && p.unitCost != null) ?? null;
+  const bag =
+    costs.products.find((p) => p.kind === "manufactured" && p.netWeightKg === 0.5 && p.unitCost != null) ??
+    null;
   return (
     <section aria-label="Costo directo" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <StatCard
@@ -215,7 +217,7 @@ export function ProductCostTable({ overview }: { overview: CostOverview }) {
           <TableHeader>
             <TableRow>
               <TableHead>Producto</TableHead>
-              <TableHead className="text-right">Masa</TableHead>
+              <TableHead className="text-right">Masa / base / compra</TableHead>
               <TableHead className="text-right">Envase y componentes</TableHead>
               <TableHead className="text-right">Costo directo por unidad</TableHead>
             </TableRow>
@@ -226,11 +228,20 @@ export function ProductCostTable({ overview }: { overview: CostOverview }) {
                 <TableCell>
                   <div className="font-medium">{p.name}</div>
                   <div className="text-muted-foreground text-xs">
-                    <Num value={p.netWeightKg} decimals={p.netWeightKg < 1 ? 2 : 0} suffix="kg netos" />
+                    {p.kind === "resale" ? (
+                      "Reventa · último costo de compra"
+                    ) : p.kind === "prepared" ? (
+                      <>
+                        Elaborado · <Num value={p.baseQty ?? 0} decimals={2} /> ×{" "}
+                        {p.baseName ?? "producto base"}
+                      </>
+                    ) : (
+                      <Num value={p.netWeightKg} decimals={p.netWeightKg < 1 ? 2 : 0} suffix="kg netos" />
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Money value={p.doughCost} />
+                  {p.kind === "manufactured" ? <Money value={p.doughCost} /> : <Money value={p.baseCost} />}
                 </TableCell>
                 <TableCell className="text-right">
                   <Money value={p.componentsCost} />

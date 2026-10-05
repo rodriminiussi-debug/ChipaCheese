@@ -17,6 +17,7 @@ import {
 } from "@chipa/domain";
 import { toIsoDateAR } from "@/lib/dates";
 import { UserError } from "@/server/errors";
+import { receiveResaleProducts } from "@/features/stock/resale";
 import type { ExtractedInvoice } from "./ai/extraction";
 import type { InvoiceFormData } from "./schemas";
 
@@ -133,6 +134,50 @@ export async function suggestIngredients(db: Executor, supplierId: string | null
   });
 }
 
+/**
+ * Sugiere el producto de reventa de cada línea: historial del proveedor (misma descripción) y luego
+ * similitud de nombre (primero sus productos habituales, después todos los de reventa activos).
+ */
+export async function suggestResaleProducts(db: Executor, supplierId: string | null, descriptions: string[]) {
+  const products = await db.query.products.findMany({
+    where: and(eq(schema.products.kind, "resale"), eq(schema.products.active, true)),
+  });
+  const history = supplierId
+    ? await db
+        .select({
+          description: schema.purchaseInvoiceItems.description,
+          productId: schema.purchaseInvoiceItems.productId,
+        })
+        .from(schema.purchaseInvoiceItems)
+        .innerJoin(
+          schema.purchaseInvoices,
+          eq(schema.purchaseInvoices.id, schema.purchaseInvoiceItems.invoiceId),
+        )
+        .where(
+          and(
+            eq(schema.purchaseInvoices.supplierId, supplierId),
+            eq(schema.purchaseInvoices.status, "confirmed"),
+          ),
+        )
+        .orderBy(desc(schema.purchaseInvoices.issueDate), desc(schema.purchaseInvoiceItems.createdAt))
+    : [];
+  const known = new Set(products.map((p) => p.id));
+  const byHistory = new Map<string, string>();
+  for (const h of history) {
+    const key = normalizeText(h.description);
+    if (h.productId && known.has(h.productId) && !byHistory.has(key)) byHistory.set(key, h.productId);
+  }
+  const cands = (list: typeof products) => list.map((p) => ({ id: p.id, names: [p.name] }));
+  const mine = products.filter((p) => supplierId && p.defaultSupplierId === supplierId);
+  return descriptions.map(
+    (d) =>
+      byHistory.get(normalizeText(d)) ??
+      bestNameMatch(d, cands(mine), 0.5)?.id ??
+      bestNameMatch(d, cands(products), 0.6)?.id ??
+      null,
+  );
+}
+
 // --- Altas -------------------------------------------------------------------------------
 
 async function assertNotDuplicate(
@@ -164,6 +209,7 @@ async function insertItems(
   items: {
     description: string;
     ingredientId: string | null;
+    productId?: string | null;
     qty: number;
     unit: "kg" | "l" | "unit" | null;
     unitPriceNet: number;
@@ -186,6 +232,7 @@ async function insertItems(
       return {
         invoiceId,
         ingredientId: it.ingredientId,
+        productId: it.productId ?? null,
         description: it.description,
         qty: it.qty,
         unit: it.unit,
@@ -248,6 +295,11 @@ export async function createDraftFromExtraction(
     supplierId,
     x.items.map((i) => i.description),
   );
+  const productSuggestions = await suggestResaleProducts(
+    db,
+    supplierId,
+    x.items.map((i) => i.description),
+  );
   const ingredientIds = suggestions.filter((s): s is string => !!s);
   const units = new Map(
     ingredientIds.length
@@ -262,6 +314,7 @@ export async function createDraftFromExtraction(
     x.items.map((it, idx) => ({
       description: it.description,
       ingredientId: suggestions[idx] ?? null,
+      productId: suggestions[idx] ? null : (productSuggestions[idx] ?? null),
       qty: it.qty,
       unit: it.unit ?? (suggestions[idx] ? (units.get(suggestions[idx]!) ?? null) : null),
       unitPriceNet: it.unitPriceNet,
@@ -356,7 +409,11 @@ const FIELD_LABEL = { net: "neto", vat: "IVA", total: "total" } as const;
  * insumo. Escribe el historial de precios (neto unitario, fecha de emisión, proveedor) de las líneas
  * mapeadas, salvo en notas de crédito.
  */
-export async function confirmInvoice(db: Executor, input: InvoiceFormData & { acceptDifferences?: boolean }) {
+export async function confirmInvoice(
+  db: Executor,
+  input: InvoiceFormData & { acceptDifferences?: boolean; receiveToStore?: boolean },
+  opts: { userId?: string | null } = {},
+) {
   await saveInvoice(db, input);
   const invoice = (await getInvoice(db, input.id))!;
   const fail = (msg: string, field?: string) => new UserError(msg, field ? { [field]: [msg] } : undefined);
@@ -376,7 +433,22 @@ export async function confirmInvoice(db: Executor, input: InvoiceFormData & { ac
     ? await db.query.ingredients.findMany({ where: inArray(schema.ingredients.id, ingredientIds) })
     : [];
   const byId = new Map(ingredients.map((i) => [i.id, i]));
+  const productIds = [...new Set(invoice.items.map((i) => i.productId).filter((x): x is string => !!x))];
+  const productRows = productIds.length
+    ? await db.query.products.findMany({ where: inArray(schema.products.id, productIds) })
+    : [];
+  const productById = new Map(productRows.map((p) => [p.id, p]));
   for (const [idx, it] of invoice.items.entries()) {
+    if (it.ingredientId && it.productId)
+      throw fail(`La línea ${idx + 1} es un insumo o un producto, no los dos.`, `items.${idx}.productId`);
+    if (it.productId) {
+      const p = productById.get(it.productId);
+      if (!p || p.kind !== "resale")
+        throw fail(
+          `La línea ${idx + 1} está mapeada a "${p?.name ?? "un producto inexistente"}", que no es un producto de reventa.`,
+          `items.${idx}.productId`,
+        );
+    }
     const ing = it.ingredientId ? byId.get(it.ingredientId) : null;
     if (ing && it.unit && it.unit !== ing.unit)
       throw fail(
@@ -389,6 +461,7 @@ export async function confirmInvoice(db: Executor, input: InvoiceFormData & { ac
     items: invoice.items.map((i) => ({
       description: i.description,
       ingredientId: i.ingredientId,
+      productId: i.productId,
       qty: i.qty,
       unit: i.unit,
       unitPriceNet: i.unitPriceNet,
@@ -438,6 +511,33 @@ export async function confirmInvoice(db: Executor, input: InvoiceFormData & { ac
       })),
     );
 
+  // Reventa: el costo de compra de cada línea (y, si se pidió, el ingreso de stock al local).
+  const resaleLines = isCreditNote ? [] : invoice.items.filter((i) => i.productId);
+  let stockReceived = 0;
+  if (resaleLines.length) {
+    if (input.receiveToStore) {
+      await receiveResaleProducts(db, opts.userId ?? null, {
+        items: resaleLines.map((i) => ({ productId: i.productId!, qty: i.qty, unitCostNet: i.unitPriceNet })),
+        supplierId: invoice.supplierId,
+        date: invoice.issueDate,
+        refTable: "purchase_invoices",
+        refId: invoice.id,
+        invoiceItemIds: resaleLines.map((i) => i.id),
+      });
+      stockReceived = resaleLines.length;
+    } else {
+      await db.insert(schema.productCosts).values(
+        resaleLines.map((i) => ({
+          productId: i.productId!,
+          supplierId: invoice.supplierId,
+          date: invoice.issueDate!,
+          unitCostNet: i.unitPriceNet,
+          invoiceItemId: i.id,
+        })),
+      );
+    }
+  }
+
   // Si el proveedor no tenía CUIT cargado y la factura lo trae (válido y libre), se completa.
   const extracted = (invoice.aiExtraction as { extracted?: { supplierCuit?: string | null } } | null)
     ?.extracted;
@@ -450,8 +550,9 @@ export async function confirmInvoice(db: Executor, input: InvoiceFormData & { ac
 
   return {
     id: invoice.id,
-    pricesRecorded: priced.length,
-    unmappedLines: invoice.items.length - priced.length,
+    pricesRecorded: priced.length + resaleLines.length,
+    stockReceived,
+    unmappedLines: invoice.items.length - priced.length - resaleLines.length,
     differences: check.diffs,
   };
 }

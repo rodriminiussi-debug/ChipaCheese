@@ -52,7 +52,9 @@ export default async function FinishedStockPage() {
           <h2 className="text-lg font-semibold">Producto × ubicación</h2>
           {canWrite ? (
             <TransferDialog
-              products={matrix.rows.map((r) => ({ id: r.productId, name: r.name, code: r.code }))}
+              products={matrix.rows
+                .filter((r) => r.kind === "manufactured")
+                .map((r) => ({ id: r.productId, name: r.name, code: r.code }))}
               locations={matrix.locations.map((l) => ({ id: l.id, code: l.code, name: l.name }))}
               lots={lotOptions}
             />

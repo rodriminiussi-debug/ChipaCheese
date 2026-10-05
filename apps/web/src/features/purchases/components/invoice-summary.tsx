@@ -9,9 +9,11 @@ import type { InvoiceDetail } from "../invoices";
 export function InvoiceSummary({
   invoice,
   ingredientNames,
+  productNames,
 }: {
   invoice: InvoiceDetail;
   ingredientNames: Map<string, string>;
+  productNames: Map<string, string>;
 }) {
   return (
     <div className="grid gap-6">
@@ -48,7 +50,7 @@ export function InvoiceSummary({
           <TableHeader>
             <TableRow>
               <TableHead>Descripción</TableHead>
-              <TableHead>Insumo</TableHead>
+              <TableHead>Insumo / producto</TableHead>
               <TableHead className="text-right">Cantidad</TableHead>
               <TableHead className="text-right">Neto unit.</TableHead>
               <TableHead className="text-right">IVA</TableHead>
@@ -64,6 +66,8 @@ export function InvoiceSummary({
                     <Link href={`/compras/precios/${i.ingredientId}`} className="hover:underline">
                       {ingredientNames.get(i.ingredientId) ?? "Insumo"}
                     </Link>
+                  ) : i.productId ? (
+                    <span>{productNames.get(i.productId) ?? "Producto"} (reventa)</span>
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}

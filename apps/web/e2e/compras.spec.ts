@@ -58,9 +58,9 @@ test.describe("Compras y proveedores (M2)", () => {
     await expect(page.getByLabel("Punto de venta")).toHaveValue("0003");
     await expect(page.getByLabel("Número", { exact: true })).toHaveValue("00004567");
     await expect(page.getByLabel("Descripción (línea 1)")).toHaveValue("QUESO TYBO BARRA X KG");
-    await expect(page.getByLabel("Insumo (línea 1)")).toContainText("Queso barra (Tybo/Maki)");
-    await expect(page.getByLabel("Insumo (línea 2)")).toContainText("Queso reggianito");
-    await expect(page.getByLabel("Insumo (línea 3)")).toContainText("Fécula de mandioca");
+    await expect(page.getByLabel("Insumo o producto (línea 1)")).toContainText("Queso barra (Tybo/Maki)");
+    await expect(page.getByLabel("Insumo o producto (línea 2)")).toContainText("Queso reggianito");
+    await expect(page.getByLabel("Insumo o producto (línea 3)")).toContainText("Fécula de mandioca");
     await expect(page.getByText("Los totales coinciden con la factura.")).toBeVisible();
 
     // El IVA es el de la factura: si un renglón no cierra, la diferencia se ve y no deja confirmar
@@ -73,10 +73,10 @@ test.describe("Compras y proveedores (M2)", () => {
     await expect(page.getByText("Los totales coinciden con la factura.")).toBeVisible();
 
     // Mapeo editable: sacar y volver a elegir el insumo de la línea 3
-    await page.getByLabel("Insumo (línea 3)").click();
+    await page.getByLabel("Insumo o producto (línea 3)").click();
     await page.getByRole("option", { name: "No es un insumo (flete, otros)" }).click();
     await expect(page.getByText("1 línea sin insumo")).toBeVisible();
-    await page.getByLabel("Insumo (línea 3)").click();
+    await page.getByLabel("Insumo o producto (línea 3)").click();
     await page.getByRole("option", { name: "Fécula de mandioca" }).click();
 
     await page.getByRole("button", { name: "Confirmar factura" }).click();
@@ -334,5 +334,39 @@ test.describe("Compras: celular", () => {
     // sin scroll horizontal
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
+  });
+});
+
+test.describe("Compras de reventa", () => {
+  test.use({ storageState: asRole("admin") });
+
+  test("una línea de factura mapeada a una gaseosa registra su costo e ingresa stock al local", async ({
+    page,
+    sql,
+  }) => {
+    await page.goto("/compras/facturas/nueva");
+    await page.getByRole("button", { name: /Cargar a mano|Carga manual/ }).click();
+    await expect(page).toHaveURL(/\/compras\/facturas\/[0-9a-f-]{36}$/);
+    await page.getByLabel("Proveedor *").click();
+    await page.getByRole("option", { name: /Leo Pelle/ }).click();
+    await page.getByLabel("Punto de venta").fill("9");
+    await page.getByLabel("Número", { exact: true }).fill("777");
+    await page.getByLabel("Fecha de emisión").fill("2026-10-01");
+    await page.getByLabel("Descripción (línea 1)").fill("GASEOSA 500 ML");
+    await page.getByLabel("Insumo o producto (línea 1)").click();
+    await page.getByRole("option", { name: "Gaseosa 500 ml" }).click();
+    await page.getByLabel("Cantidad (línea 1)").fill("24");
+    await page.getByLabel("Precio neto unitario (línea 1)").fill("1200");
+    await page.getByLabel("Ingresar al local").check();
+    await page.getByRole("button", { name: "Confirmar factura" }).click();
+    await expectToast(page, /1 producto ingresado al local/);
+    const [cost] = await sql`
+      select unit_cost_net::float8 as c from v_product_last_cost
+      where product_id = (select id from products where code = 'RV-GAS-500')`;
+    expect(cost!.c).toBe(1200);
+    const [mov] = await sql`
+      select count(*)::int as n from stock_movements where ref_table = 'purchase_invoices'
+        and product_id = (select id from products where code = 'RV-GAS-500')`;
+    expect(mov!.n).toBe(1);
   });
 });
