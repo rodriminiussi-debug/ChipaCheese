@@ -23,7 +23,7 @@ import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
 import { useAction } from "@/hooks/use-action";
 import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { cn } from "@/lib/utils";
-import { orderKg, orderTotal, roundQty } from "@chipa/domain";
+import { formatARS, orderKg, orderTotal, roundQty } from "@chipa/domain";
 import {
   createOrderInput,
   updateOrderInput,
@@ -60,10 +60,13 @@ export function OrderForm({
   data,
   defaultCustomerId,
   initial,
+  overdueByCustomer = {},
 }: {
   data: OrderFormData;
   defaultCustomerId?: string;
   initial?: Initial;
+  /** Clientes con deuda vencida: importe (si quien carga ve finanzas) o `true` (solo el aviso). */
+  overdueByCustomer?: Record<string, number | true>;
 }) {
   const router = useRouter();
   const editing = !!initial;
@@ -225,6 +228,19 @@ export function OrderForm({
           <p className="text-muted-foreground text-xs">
             {customer.zone ? `Zona ${customer.zone} · ` : ""}
             {priceListId && priced.length ? `${priced.length} productos con precio` : "Sin lista de precios"}
+          </p>
+        ) : null}
+        {customer && overdueByCustomer[customer.id] ? (
+          <p
+            role="status"
+            data-testid="overdue-warning"
+            className="rounded-lg border border-amber-500 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          >
+            Este cliente tiene deuda vencida
+            {typeof overdueByCustomer[customer.id] === "number"
+              ? ` (${formatARS(overdueByCustomer[customer.id] as number)})`
+              : ""}
+            . Consultá con Dirección antes de comprometer la entrega.
           </p>
         ) : null}
       </Field>

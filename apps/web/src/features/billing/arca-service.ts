@@ -3,6 +3,7 @@ import { ne, schema, type Executor } from "@chipa/db";
 import { UserError } from "@/server/errors";
 import { INVOICE_TYPE_LABEL } from "./labels";
 import { invoiceKey, parseArcaCsv, type ArcaKind, type ArcaRow } from "./arca";
+import { autoLinkInvoices } from "./service";
 
 /**
  * RF-32: importación de "Mis Comprobantes" de ARCA.
@@ -202,37 +203,57 @@ export async function previewArca(db: Executor, kind: ArcaKind, text: string): P
  * Importa los comprobantes emitidos nuevos como `sales_invoices` (idempotente: lo ya cargado se
  * reporta como duplicado). Con recibidos solo concilia. Devuelve el mismo reporte que la vista previa.
  */
-export async function importArca(db: Executor, kind: ArcaKind, text: string) {
+export async function importArca(db: Executor, kind: ArcaKind, text: string, userId: string | null = null) {
   const parsed = parseArcaCsv(text, kind);
   if (kind === "received") {
-    return { ...finish(kind, parsed, await reconcileReceived(db, parsed)), imported: 0 };
+    return {
+      ...finish(kind, parsed, await reconcileReceived(db, parsed)),
+      imported: 0,
+      linked: 0,
+      ambiguous: 0,
+    };
   }
   const { rows, toImport } = await classifyIssued(db, parsed);
+  let inserted: { id: string }[] = [];
   if (toImport.length > 0) {
-    await db.insert(schema.salesInvoices).values(
-      toImport.map(({ row, customer }) => ({
-        customerId: customer.id,
-        invoiceType: row.type!,
-        pointOfSale: row.pointOfSale,
-        number: row.number,
-        issueDate: row.date,
-        dueDate: addDays(row.date, customer.paymentTermsDays),
-        netTotal: row.net,
-        vatTotal: row.vat,
-        total: row.total,
-        cae: row.cae,
-        status: "confirmed" as const,
-        source: "arca_import" as const,
-      })),
-    );
+    inserted = await db
+      .insert(schema.salesInvoices)
+      .values(
+        toImport.map(({ row, customer }) => ({
+          customerId: customer.id,
+          invoiceType: row.type!,
+          pointOfSale: row.pointOfSale,
+          number: row.number,
+          issueDate: row.date,
+          dueDate: addDays(row.date, customer.paymentTermsDays),
+          netTotal: row.net,
+          vatTotal: row.vat,
+          total: row.total,
+          cae: row.cae,
+          status: "confirmed" as const,
+          source: "arca_import" as const,
+        })),
+      )
+      .returning({ id: schema.salesInvoices.id });
   }
-  return { ...finish(kind, parsed, rows), imported: toImport.length };
+  // Cada factura importada se vincula sola a su pedido entregado cuando la coincidencia es única.
+  const link = await autoLinkInvoices(
+    db,
+    userId,
+    inserted.map((i) => i.id),
+  );
+  return {
+    ...finish(kind, parsed, rows),
+    imported: toImport.length,
+    linked: link.linked,
+    ambiguous: link.ambiguous,
+  };
 }
 
 export async function previewArcaFile(db: Executor, kind: ArcaKind, file: File) {
   return previewArca(db, kind, await readArcaText(file));
 }
 
-export async function importArcaFile(db: Executor, kind: ArcaKind, file: File) {
-  return importArca(db, kind, await readArcaText(file));
+export async function importArcaFile(db: Executor, kind: ArcaKind, file: File, userId: string | null = null) {
+  return importArca(db, kind, await readArcaText(file), userId);
 }

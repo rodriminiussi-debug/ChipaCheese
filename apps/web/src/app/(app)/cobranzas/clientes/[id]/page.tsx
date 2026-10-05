@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { InvoiceDialog } from "@/features/billing/components/invoice-dialog";
 import { PaymentDialog } from "@/features/billing/components/payment-dialog";
+import { LinkOrder } from "@/features/billing/components/link-order";
 import { AGING_LABELS, INVOICE_STATE } from "@/features/billing/labels";
 import { deliveredOrdersToInvoice, getCustomerAccount } from "@/features/billing/service";
 import { todayAR } from "@/lib/dates";
@@ -133,6 +134,11 @@ export default async function CustomerAccountPage(props: PageProps<"/cobranzas/c
                       >
                         Pedido #{i.orderNumber}
                       </Link>
+                    ) : canInvoice && orders.length ? (
+                      <LinkOrder
+                        invoiceId={i.id}
+                        orders={orders.map((o) => ({ id: o.id, number: o.number, total: o.total }))}
+                      />
                     ) : null}
                   </TableCell>
                   <TableCell>
