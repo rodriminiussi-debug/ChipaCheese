@@ -77,6 +77,21 @@
   --chart-3: oklch(0.73 0.15 22);
   --chart-4: oklch(0.4 0.02 255);
   --chart-5: oklch(0.7 0.02 80);
+  /* Gráficos (guía dataviz): categóricos en orden fijo azul → aqua → amarillo → violeta, validados con
+     scripts/validate_palette.js sobre la tarjeta; el rojo de marca es la serie única (--viz-brand). */
+  --viz-1: #2a78d6;
+  --viz-2: #1baf7a;
+  --viz-3: #eda100;
+  --viz-4: #4a3aa7;
+  --viz-brand: var(--chart-1);
+  --viz-good: #0ca30c;
+  --viz-bad: #d03b3b;
+  --viz-ink: var(--foreground);
+  --viz-text: var(--muted-foreground);
+  --viz-muted: oklch(0.62 0.01 255);
+  --viz-grid: var(--border);
+  --viz-axis: var(--input);
+  --viz-surface: var(--card);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0.012 92);
   --sidebar-foreground: oklch(0.27 0.012 255);
@@ -112,6 +127,11 @@
   --chart-3: oklch(0.78 0.12 22);
   --chart-4: oklch(0.8 0.02 255);
   --chart-5: oklch(0.6 0.02 80);
+  --viz-1: #3987e5;
+  --viz-2: #199e70;
+  --viz-3: #c98500;
+  --viz-4: #9085e9;
+  --viz-muted: oklch(0.65 0.01 255);
   --sidebar: oklch(0.225 0.012 255);
   --sidebar-foreground: oklch(0.97 0.004 85);
   --sidebar-primary: oklch(0.72 0.16 38);
