@@ -20,22 +20,25 @@ Lista de control funcional: cada tarea real de cada persona, en qué pantalla se
 | Eventual | Cheque rechazado: reabrir la deuda                                                                                        | `/cobranzas/cheques`                    | ✅                 |
 | Mes      | Cargar gastos fijos, ver el resultado y si cubre los retiros                                                              | `/costos/gastos`, `/costos/resultado`   | ✅                 |
 | Mes      | Exportar compras y ventas para la contadora                                                                               | `/compras`, `/cobranzas`                | ✅                 |
+| Mes      | Importar "Mis Comprobantes" de ARCA: las facturas se vinculan solas a sus pedidos entregados                              | `/cobranzas/importar`                   | ✅                 |
+| Día      | Saber qué pedidos entregados falta facturar                                                                               | `/cobranzas`                            | ✅                 |
+| Día      | Enterarse de lotes por vencer, entregas de proveedores atrasadas, aumentos de precio y pedidos de mañana sin preparar     | `/tablero`                              | ⚠️ en curso        |
 
 ## Jefa de producción — A.F. (tablet y celular)
 
-| Momento  | Tarea                                                                              | Pantalla                                             | Estado                           |
-| -------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------- |
-| Apertura | Revisar temperaturas de la noche y alertas de calidad                              | `/calidad`                                           | ✅                               |
-| Apertura | Asignar tareas del día; cubrir ausencias con reemplazos sugeridos                  | `/personas`                                          | ✅                               |
-| Apertura | Plan del día según pedidos, stock y capacidad                                      | `/produccion`                                        | ✅                               |
-| Día      | Recibir pedidos por WhatsApp y cargarlos                                           | `/pedidos/nuevo`                                     | ✅                               |
-| Día      | Hoja de envasado del día; marcar pedidos listos                                    | `/pedidos/envasado`, `/pedidos/[id]`                 | ✅                               |
-| Día      | Ver cobertura de insumos; armar orden de compra; recibir mercadería                | `/stock`, `/compras/ordenes`, `/compras/recepciones` | ✅                               |
-| Día      | Reponer el local cuando pide (transferencia F3/F4 → Local)                         | `/stock/producto-terminado`                          | ⚠️ sin pedido del local ni aviso |
-| Día      | Registrar merma, recorte para pizzetas, donaciones                                 | `/stock/insumos/[id]` (ajuste)                       | ✅                               |
-| Semana   | Inventario físico                                                                  | `/stock/inventario`                                  | ✅                               |
-| Eventual | Nueva versión de receta                                                            | `/produccion/receta`                                 | ✅                               |
-| Eventual | Corte de luz / freezer fuera de rango: registrar acción correctiva y retener lotes | `/planta/temperaturas`, `/calidad/reclamos`          | ✅                               |
+| Momento  | Tarea                                                                                  | Pantalla                                             | Estado                           |
+| -------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------- |
+| Apertura | Revisar temperaturas de la noche y alertas de calidad                                  | `/calidad`                                           | ✅                               |
+| Apertura | Asignar tareas del día; cubrir ausencias con reemplazos sugeridos                      | `/personas`                                          | ✅                               |
+| Apertura | Plan del día según pedidos, stock y capacidad                                          | `/produccion`                                        | ✅                               |
+| Día      | Recibir pedidos por WhatsApp y cargarlos (con aviso si el cliente tiene deuda vencida) | `/pedidos/nuevo`                                     | ✅                               |
+| Día      | Hoja de envasado del día; marcar pedidos listos                                        | `/pedidos/envasado`, `/pedidos/[id]`                 | ✅                               |
+| Día      | Ver cobertura de insumos; armar orden de compra; recibir mercadería                    | `/stock`, `/compras/ordenes`, `/compras/recepciones` | ✅                               |
+| Día      | Reponer el local cuando pide (transferencia F3/F4 → Local)                             | `/stock/producto-terminado`                          | ⚠️ sin pedido del local ni aviso |
+| Día      | Registrar merma, recorte para pizzetas, donaciones                                     | `/stock/insumos/[id]` (ajuste)                       | ✅                               |
+| Semana   | Inventario físico                                                                      | `/stock/inventario`                                  | ✅                               |
+| Eventual | Nueva versión de receta                                                                | `/produccion/receta`                                 | ✅                               |
+| Eventual | Corte de luz / freezer fuera de rango: registrar acción correctiva y retener lotes     | `/planta/temperaturas`, `/calidad/reclamos`          | ✅                               |
 
 ## Operarios — J.T., S.G., E.A., S.R. (tablet de planta, con guantes)
 
