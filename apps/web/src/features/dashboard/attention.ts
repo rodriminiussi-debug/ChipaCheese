@@ -61,7 +61,8 @@ export async function getExpiryAlerts(
     db
       .select({
         lot: schema.finishedLots.code,
-        name: schema.products.name,
+        // Un lote lleva varios productos: se cuenta el lote, no cada producto.
+        name: sql<string>`case when count(distinct ${schema.products.id}) = 1 then min(${schema.products.name}) else count(distinct ${schema.products.id}) || ' productos' end`,
         expiryDate: schema.finishedLots.expiryDate,
         qty: sql<number>`sum(${schema.productStock.qty})::float8`,
       })
@@ -69,12 +70,7 @@ export async function getExpiryAlerts(
       .innerJoin(schema.finishedLots, eq(schema.finishedLots.id, schema.productStock.finishedLotId))
       .innerJoin(schema.products, eq(schema.products.id, schema.productStock.productId))
       .where(sql`${schema.finishedLots.expiryDate} <= ${addDays(today, opts.finishedDays)}::date`)
-      .groupBy(
-        schema.finishedLots.id,
-        schema.finishedLots.code,
-        schema.products.name,
-        schema.finishedLots.expiryDate,
-      ),
+      .groupBy(schema.finishedLots.id, schema.finishedLots.code, schema.finishedLots.expiryDate),
     db
       .select({
         lot: sql<string>`coalesce(${schema.rawLots.supplierLotCode}, '')`,
