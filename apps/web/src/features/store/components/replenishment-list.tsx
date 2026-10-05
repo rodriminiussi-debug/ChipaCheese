@@ -30,8 +30,7 @@ export function ReplenishmentList({
     onSuccess: () => router.refresh(),
   });
 
-  if (rows.length === 0)
-    return <p className="text-muted-foreground text-sm">{empty}</p>;
+  if (rows.length === 0) return <p className="text-muted-foreground text-sm">{empty}</p>;
   return (
     <ul className="grid gap-3" aria-label="Pedidos de reposición">
       {rows.map((r) => {
@@ -51,7 +50,8 @@ export function ReplenishmentList({
             <ul className="text-sm">
               {r.items.map((i) => (
                 <li key={i.id}>
-                  {r.status === "requested" || i.qtySent == null ? i.qtyRequested : i.qtySent} × {i.product.name}
+                  {r.status === "requested" || i.qtySent == null ? i.qtyRequested : i.qtySent} ×{" "}
+                  {i.product.name}
                   {i.qtySent != null && i.qtySent !== i.qtyRequested ? (
                     <span className="text-muted-foreground"> (pedidas {i.qtyRequested})</span>
                   ) : null}

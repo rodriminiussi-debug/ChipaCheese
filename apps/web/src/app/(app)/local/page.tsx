@@ -104,7 +104,7 @@ export default async function StorePage() {
         <TabsContent value="ventas" className="mt-4 grid min-w-0 gap-8 [&>*]:min-w-0">
           <section aria-label="Ventas de hoy">
             <h2 className="mb-2 text-lg font-semibold">Ventas de hoy</h2>
-            <div className="rounded-lg border">
+            <div className="min-w-0 rounded-lg border">
               <Table aria-label="Ventas de hoy">
                 <TableHeader>
                   <TableRow>
@@ -125,7 +125,11 @@ export default async function StorePage() {
                     const summary = `${[...byProduct].map(([n, q]) => `${q} × ${n}`).join(", ")} (${formatTimeAR(s.soldAt)})`;
                     const canVoid = canSell && !voided && (isDirector || !day.closing);
                     return (
-                      <TableRow key={s.id} data-voided={voided || undefined} className={voided ? "opacity-70" : ""}>
+                      <TableRow
+                        key={s.id}
+                        data-voided={voided || undefined}
+                        className={voided ? "opacity-70" : ""}
+                      >
                         <TableCell className="tabular-nums">{formatTimeAR(s.soldAt)}</TableCell>
                         <TableCell>
                           <div className={voided ? "line-through" : ""}>
@@ -190,7 +194,7 @@ export default async function StorePage() {
 
           <section aria-label="Ventas del mes">
             <h2 className="mb-2 text-lg font-semibold">Ventas del mes</h2>
-            <div className="rounded-lg border">
+            <div className="min-w-0 rounded-lg border">
               <Table aria-label="Ventas por día del mes">
                 <TableHeader>
                   <TableRow>
@@ -319,9 +323,9 @@ export default async function StorePage() {
         </TabsContent>
 
         <TabsContent value="stock" className="mt-4 grid min-w-0 gap-8 [&>*]:min-w-0">
-          <section aria-label="Cobertura por producto" className="grid gap-2">
+          <section aria-label="Cobertura por producto" className="grid min-w-0 gap-2">
             <h2 className="text-lg font-semibold">Stock y días de cobertura</h2>
-            <div className="rounded-lg border">
+            <div className="min-w-0 rounded-lg border">
               <Table aria-label="Stock del local por producto">
                 <TableHeader>
                   <TableRow>
@@ -351,7 +355,9 @@ export default async function StorePage() {
                         {r.daysLeft == null ? "—" : <Num value={r.daysLeft} decimals={1} />}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge tone={STORE_STATUS[r.status].tone}>{STORE_STATUS[r.status].label}</StatusBadge>
+                        <StatusBadge tone={STORE_STATUS[r.status].tone}>
+                          {STORE_STATUS[r.status].label}
+                        </StatusBadge>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -378,9 +384,9 @@ export default async function StorePage() {
             </div>
           </section>
 
-          <section aria-label="Stock por lote" className="grid gap-2">
+          <section aria-label="Stock por lote" className="grid min-w-0 gap-2">
             <h2 className="text-lg font-semibold">Stock por lote y vencimiento</h2>
-            <div className="rounded-lg border">
+            <div className="min-w-0 rounded-lg border">
               <Table aria-label="Stock del local por lote">
                 <TableHeader>
                   <TableRow>

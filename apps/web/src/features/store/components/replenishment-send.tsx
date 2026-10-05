@@ -28,7 +28,9 @@ export function ReplenishmentSend({
 }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, string>>(() =>
-    Object.fromEntries(rep.items.map((i) => [i.id, String(Math.min(i.qtyRequested, plantStock[i.productId] ?? 0))])),
+    Object.fromEntries(
+      rep.items.map((i) => [i.id, String(Math.min(i.qtyRequested, plantStock[i.productId] ?? 0))]),
+    ),
   );
   const send = useAction(sendReplenishmentAction, {
     success: (r) => `Pedido #${r.number} enviado: ${r.sentUnits} unidades pasaron al local`,
@@ -42,11 +44,18 @@ export function ReplenishmentSend({
   const total = rep.items.reduce((a, i) => a + (Number(qty[i.id]) || 0), 0);
 
   return (
-    <article className="bg-card grid gap-3 rounded-xl border p-4" aria-label={`Pedido de reposición ${rep.number}`}>
+    <article
+      className="bg-card grid gap-3 rounded-xl border p-4"
+      aria-label={`Pedido de reposición ${rep.number}`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold">Pedido #{rep.number}</h3>
-          {overdue ? <StatusBadge tone="bad">Vencido</StatusBadge> : <StatusBadge tone="warn">Pedido</StatusBadge>}
+          {overdue ? (
+            <StatusBadge tone="bad">Vencido</StatusBadge>
+          ) : (
+            <StatusBadge tone="warn">Pedido</StatusBadge>
+          )}
         </div>
         <span className="text-muted-foreground text-sm">
           {formatDateTimeAR(rep.requestedAt)}
@@ -96,7 +105,10 @@ export function ReplenishmentSend({
           onClick={() =>
             send.run({
               id: rep.id,
-              items: rep.items.map((i) => ({ itemId: i.id, qty: Math.max(0, Math.floor(Number(qty[i.id]) || 0)) })),
+              items: rep.items.map((i) => ({
+                itemId: i.id,
+                qty: Math.max(0, Math.floor(Number(qty[i.id]) || 0)),
+              })),
             })
           }
         >

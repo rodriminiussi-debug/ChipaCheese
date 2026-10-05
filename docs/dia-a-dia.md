@@ -62,15 +62,15 @@ Lista de control funcional: cada tarea real de cada persona, en qué pantalla se
 
 ## Local — 2 empleadas (celular o PC)
 
-| Momento   | Tarea                                                               | Pantalla | Estado                     |
-| --------- | ------------------------------------------------------------------- | -------- | -------------------------- |
-| Apertura  | Ver stock del local y **qué se está por agotar según la demanda**   | `/local` | ❌ alertas                 |
-| Apertura  | **Pedir reposición a la planta**                                    | —        | ❌                         |
-| Venta     | Vender chipá **y otros productos** (gaseosas, elaborados con chipá) | `/local` | ⚠️ solo productos de chipá |
-| Venta     | Cobrar en efectivo, transferencia, **tarjeta o QR**                 | `/local` | ❌ tarjeta/QR              |
-| Venta     | **Anular una venta cargada por error**                              | —        | ❌                         |
-| Recepción | **Ingresar mercadería de reventa** (gaseosas) que trae el proveedor | —        | ❌                         |
-| Cierre    | Cierre de caja por medio de pago                                    | `/local` | ⚠️ sin tarjeta/QR          |
+| Momento   | Tarea                                                                      | Pantalla | Estado |
+| --------- | -------------------------------------------------------------------------- | -------- | ------ |
+| Apertura  | Ver stock del local y **qué se está por agotar según la demanda**          | `/local` | ✅     |
+| Apertura  | **Pedir reposición a la planta** (la jefa la envía en `/stock/reposicion`) | `/local` | ✅     |
+| Venta     | Vender chipá **y otros productos** (gaseosas, elaborados con chipá)        | `/local` | ✅     |
+| Venta     | Cobrar en efectivo, transferencia, **tarjeta o QR**                        | `/local` | ✅     |
+| Venta     | **Anular una venta cargada por error**                                     | `/local` | ✅     |
+| Recepción | **Ingresar mercadería de reventa** (gaseosas) que trae el proveedor        | `/local` | ✅     |
+| Cierre    | Cierre de caja por medio de pago                                           | `/local` | ✅     |
 
 ## Responsable técnico (PC, solo lectura)
 

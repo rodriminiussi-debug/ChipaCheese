@@ -27,8 +27,8 @@ export default async function ReplenishmentPage() {
         <div>
           <h2 className="text-lg font-semibold">Pedidos del local para enviar</h2>
           <p className="text-muted-foreground text-sm">
-            Al enviar, el producto pasa de F3 / F4 al local (el más próximo a vencer primero). El local confirma
-            cuando lo recibe.
+            Al enviar, el producto pasa de F3 / F4 al local (el más próximo a vencer primero). El local
+            confirma cuando lo recibe.
           </p>
         </div>
         {pending.length === 0 ? (

@@ -26,18 +26,13 @@ function when(r: StoreStockAlerts["rows"][number]) {
  * qué se agota, cuándo y cuánto pedir. Desde acá se arma el pedido de reposición a la planta con las
  * cantidades sugeridas (editables) y la fecha en que se necesita.
  */
-export function StockAlertsPanel({
-  alerts,
-  canRequest,
-}: {
-  alerts: StoreStockAlerts;
-  canRequest: boolean;
-}) {
+export function StockAlertsPanel({ alerts, canRequest }: { alerts: StoreStockAlerts; canRequest: boolean }) {
   const router = useRouter();
   const urgent = alerts.rows.filter((r) => r.status === "out" || r.status === "reorder");
   const requestable = urgent.filter((r) => r.fromPlant && r.suggestedQty > 0);
   const [qty, setQty] = useState<Record<string, string>>({});
-  const qtyOf = (r: { productId: string; suggestedQty: number }) => qty[r.productId] ?? String(r.suggestedQty);
+  const qtyOf = (r: { productId: string; suggestedQty: number }) =>
+    qty[r.productId] ?? String(r.suggestedQty);
   const [skip, setSkip] = useState<Record<string, boolean>>({});
   const [neededBy, setNeededBy] = useState(() => addDays(alerts.today, alerts.leadDays));
   const act = useAction(requestReplenishmentAction, {
@@ -66,8 +61,8 @@ export function StockAlertsPanel({
           Qué se está por agotar
         </h2>
         <p className="text-muted-foreground text-xs">
-          Venta diaria promedio de los últimos {alerts.observedDays || 30} días · cubrir {alerts.targetDays} días ·
-          reposición en {alerts.leadDays} día{alerts.leadDays === 1 ? "" : "s"}
+          Venta diaria promedio de los últimos {alerts.observedDays || 30} días · cubrir {alerts.targetDays}{" "}
+          días · reposición en {alerts.leadDays} día{alerts.leadDays === 1 ? "" : "s"}
         </p>
       </div>
 
@@ -113,7 +108,8 @@ export function StockAlertsPanel({
                     ) : null}
                     {!r.fromPlant ? (
                       <p className="text-muted-foreground text-sm">
-                        Reventa: se repone con el proveedor (sugerido {r.suggestedQty}). Cargalo en Mercadería.
+                        Reventa: se repone con el proveedor (sugerido {r.suggestedQty}). Cargalo en
+                        Mercadería.
                       </p>
                     ) : null}
                   </div>

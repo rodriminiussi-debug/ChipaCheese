@@ -142,9 +142,7 @@ export function StorePos({
 
   const customerResults =
     customerQuery.trim().length >= 2 && !customer
-      ? customers
-          .filter((c) => c.name.toLowerCase().includes(customerQuery.trim().toLowerCase()))
-          .slice(0, 6)
+      ? customers.filter((c) => c.name.toLowerCase().includes(customerQuery.trim().toLowerCase())).slice(0, 6)
       : [];
 
   return (
@@ -172,7 +170,10 @@ export function StorePos({
             />
             <p
               role="status"
-              className={cn("min-h-4 text-xs", scanMsg?.ok ? "text-emerald-700 dark:text-emerald-400" : "text-destructive")}
+              className={cn(
+                "min-h-4 text-xs",
+                scanMsg?.ok ? "text-emerald-700 dark:text-emerald-400" : "text-destructive",
+              )}
             >
               {scanMsg?.text ?? ""}
             </p>
@@ -234,7 +235,9 @@ export function StorePos({
             );
           })}
           {shown.length === 0 ? (
-            <p className="text-muted-foreground col-span-full text-sm">Ningún producto coincide con la búsqueda.</p>
+            <p className="text-muted-foreground col-span-full text-sm">
+              Ningún producto coincide con la búsqueda.
+            </p>
           ) : null}
         </div>
       </section>
@@ -299,7 +302,9 @@ export function StorePos({
         </div>
 
         {lines.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Tocá un producto o escaneá su código para agregarlo.</p>
+          <p className="text-muted-foreground text-sm">
+            Tocá un producto o escaneá su código para agregarlo.
+          </p>
         ) : (
           <ul className="grid gap-3" aria-label="Productos de la venta">
             {lines.map((p) => (
@@ -404,11 +409,7 @@ export function StorePos({
               </p>
             </div>
           ) : (
-            <div
-              role="radiogroup"
-              aria-labelledby="pos-method-label"
-              className="grid grid-cols-2 gap-2"
-            >
+            <div role="radiogroup" aria-labelledby="pos-method-label" className="grid grid-cols-2 gap-2">
               {STORE_METHOD_OPTIONS.map((m) => (
                 <Button
                   key={m.value}

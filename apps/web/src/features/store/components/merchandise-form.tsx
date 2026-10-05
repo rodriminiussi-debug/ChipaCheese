@@ -31,7 +31,8 @@ export function MerchandiseForm({
   const [lines, setLines] = useState<Line[]>([empty()]);
   const [supplierId, setSupplierId] = useState("");
   const act = useAction(receiveMerchandiseAction, {
-    success: (r) => `Ingreso registrado: ${r.items} producto${r.items === 1 ? " sumado" : "s sumados"} al local`,
+    success: (r) =>
+      `Ingreso registrado: ${r.items} producto${r.items === 1 ? " sumado" : "s sumados"} al local`,
     onSuccess: () => {
       setLines([empty()]);
       setSupplierId("");
@@ -62,7 +63,10 @@ export function MerchandiseForm({
     >
       <div className="grid gap-3">
         {lines.map((l, i) => (
-          <div key={i} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_90px_130px_auto] sm:items-end">
+          <div
+            key={i}
+            className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_90px_130px_auto] sm:items-end"
+          >
             <label className="grid gap-1 text-sm">
               <span className="font-medium">Producto</span>
               <NativeSelect

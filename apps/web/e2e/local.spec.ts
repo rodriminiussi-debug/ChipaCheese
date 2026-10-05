@@ -56,7 +56,9 @@ test.describe("Local (RF-33)", () => {
     await expect(page.getByRole("button", { name: `Agregar ${TAP}` })).toBeDisabled();
     await expect(page.getByRole("button", { name: `Agregar ${HOR}` })).toBeDisabled();
     await expect(page.getByRole("button", { name: `Agregar ${GAS}` })).toContainText("48 en el local");
-    await expect(page.getByTestId("store-alerts")).toContainText("Todavía no hay ventas para medir la demanda");
+    await expect(page.getByTestId("store-alerts")).toContainText(
+      "Todavía no hay ventas para medir la demanda",
+    );
     await page.getByRole("tab", { name: "Stock del local" }).click();
     await expect(page.getByText("No hay producto en el local")).toHaveCount(0); // hay gaseosas y aguas
     await expect(page.getByRole("table", { name: "Stock del local por producto" })).toContainText(TAP);
@@ -132,7 +134,9 @@ test.describe("Local (RF-33)", () => {
     // Un código desconocido avisa y no agrega nada.
     await scan.fill("0000000000000");
     await scan.press("Enter");
-    await expect(page.getByRole("status").filter({ hasText: "No hay ningún producto con el código" })).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: "No hay ningún producto con el código" }),
+    ).toBeVisible();
     await expect(page.getByTestId("pos-total")).toHaveText("$ 3.600");
 
     await page.getByRole("radio", { name: "QR / billetera" }).click();
@@ -140,7 +144,8 @@ test.describe("Local (RF-33)", () => {
     await expectToast(page, "Venta registrada: $ 3.600");
     const [sale] = await sql`select id, method from store_sales order by created_at desc limit 1`;
     expect(sale!.method).toBe("qr");
-    const moves = await sql`select type, qty::float8 as qty, finished_lot_id from stock_movements where ref_id = ${sale!.id}`;
+    const moves =
+      await sql`select type, qty::float8 as qty, finished_lot_id from stock_movements where ref_id = ${sale!.id}`;
     expect(moves).toEqual([{ type: "store_sale", qty: -2, finished_lot_id: null }]);
     expect(await localQty(sql, "RV-GAS-500")).toBe(46);
   });
@@ -166,15 +171,16 @@ test.describe("Local (RF-33)", () => {
     await expect(page.getByTestId("pos-total")).toHaveText("$ 9.600");
 
     await page.getByLabel("Dividir el pago").check();
-    await page.getByLabel("Medio 1").selectOption({ label: "Efectivo" });
+    await page.getByLabel("Medio 1", { exact: true }).selectOption({ label: "Efectivo" });
     await page.getByLabel("Monto medio 1").fill("2000");
-    await page.getByLabel("Medio 2").selectOption({ label: "Transferencia" });
+    await page.getByLabel("Medio 2", { exact: true }).selectOption({ label: "Transferencia" });
     await expect(page.getByTestId("pos-remainder")).toHaveText("$ 7.600");
     await page.getByRole("button", { name: /^Cobrar/ }).click();
     await expectToast(page, "Venta registrada: $ 9.600");
 
     const [s] = await sql`select id from store_sales order by created_at desc limit 1`;
-    const pays = await sql`select method, amount::float8 as amount from store_sale_payments where sale_id = ${s!.id} order by method`;
+    const pays =
+      await sql`select method, amount::float8 as amount from store_sale_payments where sale_id = ${s!.id} order by method`;
     expect(pays).toEqual([
       { method: "cash", amount: 2000 },
       { method: "transfer", amount: 7600 },
@@ -207,13 +213,17 @@ test.describe("Local (RF-33)", () => {
     await expectToast(page, "Venta anulada: volvieron 2 unidades al stock");
 
     await expect(today.getByRole("row", { name: new RegExp(`2 × ${GAS}`) })).toContainText("Anulada");
-    await expect(today.getByRole("row", { name: new RegExp(`2 × ${GAS}`) })).toContainText("Cargué mal el producto");
+    await expect(today.getByRole("row", { name: new RegExp(`2 × ${GAS}`) })).toContainText(
+      "Cargué mal el producto",
+    );
     await expect(page.getByTestId("stat-today")).toContainText("$ 34.900");
     expect(await localQty(sql, "RV-GAS-500")).toBe(48);
-    const [v] = await sql`select voided_at is not null as voided, void_reason, voided_by_id is not null as by_user
+    const [v] =
+      await sql`select voided_at is not null as voided, void_reason, voided_by_id is not null as by_user
       from store_sales where void_reason is not null`;
     expect(v).toEqual({ voided: true, void_reason: "Cargué mal el producto", by_user: true });
-    const returns = await sql`select qty::float8 as qty from stock_movements where type = 'return' and note like 'Anulación de venta%'`;
+    const returns =
+      await sql`select qty::float8 as qty from stock_movements where type = 'return' and note like 'Anulación de venta%'`;
     expect(returns).toEqual([{ qty: 2 }]);
   });
 
@@ -280,7 +290,10 @@ test.describe("Local (RF-33)", () => {
     await expect(card).toContainText(`Se necesita para el ${ar(demoDay(2))}`);
   });
 
-  test("ingreso de mercadería de reventa: suma stock al local con costo y proveedor", async ({ page, sql }) => {
+  test("ingreso de mercadería de reventa: suma stock al local con costo y proveedor", async ({
+    page,
+    sql,
+  }) => {
     await page.goto("/local");
     await page.getByRole("tab", { name: "Mercadería" }).click();
     await page.getByLabel("Producto 1").selectOption({ label: GAS });
@@ -321,7 +334,8 @@ test.describe("La planta envía la reposición", () => {
       where product_id = (select id from products where code = 'CH-TAP-500')
         and location_id in (select id from locations where code in ('F3','F4'))`;
     expect(after!.qty).toBe(before!.qty - 20);
-    const moves = await sql`select count(*)::int as n from stock_movements where type = 'transfer' and note = 'Reposición del local #1'`;
+    const moves =
+      await sql`select count(*)::int as n from stock_movements where type = 'transfer' and note = 'Reposición del local #1'`;
     expect(moves[0]!.n).toBeGreaterThanOrEqual(4);
     const [rep] = await sql`select status, sent_by_id is not null as sent from store_replenishments`;
     expect(rep).toEqual({ status: "sent", sent: true });
@@ -332,7 +346,10 @@ test.describe("La planta envía la reposición", () => {
 test.describe("El local recibe y cierra la caja", () => {
   test.use({ storageState: asRole("store") });
 
-  test("el local ve el pedido enviado y confirma la recepción; las alertas se actualizan", async ({ page, sql }) => {
+  test("el local ve el pedido enviado y confirma la recepción; las alertas se actualizan", async ({
+    page,
+    sql,
+  }) => {
     await page.goto("/local");
     await expect(page.getByTestId("store-alerts")).toContainText("Todo en orden");
     await page.getByRole("tab", { name: /^Reposición/ }).click();
@@ -345,11 +362,16 @@ test.describe("El local recibe y cierra la caja", () => {
     expect(rep).toEqual({ status: "received", received: true });
     await page.getByRole("tab", { name: "Stock del local" }).click();
     const stock = page.getByRole("table", { name: "Stock del local por producto" });
-    await expect(stock.getByRole("row", { name: new RegExp(TAP) })).toContainText("OK");
-    await expect(stock.getByRole("row", { name: new RegExp(HOR) })).toContainText("Se arma al vender");
+    await expect(stock.getByRole("row", { name: /^Chipá tapitas 0,5 kg Chipá de la planta/ })).toContainText(
+      "OK",
+    );
+    await expect(stock.getByRole("row", { name: HOR })).toContainText("Se arma al vender");
   });
 
-  test("historial del día y del mes, y cierre de caja por medio de pago con diferencia", async ({ page, sql }) => {
+  test("historial del día y del mes, y cierre de caja por medio de pago con diferencia", async ({
+    page,
+    sql,
+  }) => {
     await page.goto("/local");
     // Sin la anulada: efectivo 14.400 + 2.000, transferencia 7.600, tarjeta 9.600, QR 1.300.
     await expect(page.getByTestId("stat-today")).toContainText("$ 34.900");
@@ -357,7 +379,7 @@ test.describe("El local recibe y cierra la caja", () => {
     const today = page.getByRole("table", { name: "Ventas de hoy" });
     await expect(today.getByRole("row", { name: /3 × Chipá tapitas 0,5 kg/ })).toContainText("Efectivo");
     await expect(today.getByRole("row", { name: /2 × Chipá lengüitas 0,5 kg/ })).toContainText("Tarjeta");
-    const split = today.getByRole("row", { name: new RegExp(`3 × ${HOR}`) });
+    const split = today.getByRole("row", { name: `3 × ${HOR}`, exact: false });
     await expect(split).toContainText("Efectivo");
     await expect(split).toContainText("Transferencia");
     const month = page.getByRole("table", { name: "Ventas por día del mes" });
@@ -381,11 +403,20 @@ test.describe("El local recibe y cierra la caja", () => {
       await sql`select date::text as date, expected_cash::float8 as cash, counted_cash::float8 as counted,
       expected_transfer::float8 as transfer, expected_card::float8 as card, expected_qr::float8 as qr
       from cash_closings where created_at >= ${startedAt}`;
-    expect(closing).toEqual({ date: demoDay(0), cash: 16400, counted: 16000, transfer: 7600, card: 9600, qr: 1300 });
+    expect(closing).toEqual({
+      date: demoDay(0),
+      cash: 16400,
+      counted: 16000,
+      transfer: 7600,
+      card: 9600,
+      qr: 1300,
+    });
 
     // Uno por día: no hay formulario para volver a cerrar y el historial lo marca.
     await page.getByRole("tab", { name: "Ventas" }).click();
-    await expect(page.getByRole("table", { name: "Ventas por día del mes" })).toContainText("Cerrada con diferencia");
+    await expect(page.getByRole("table", { name: "Ventas por día del mes" })).toContainText(
+      "Cerrada con diferencia",
+    );
   });
 
   test("con la caja cerrada la empleada ya no puede anular ventas", async ({ page }) => {
@@ -398,11 +429,19 @@ test.describe("El local recibe y cierra la caja", () => {
   test("las pantallas del local no tienen scroll horizontal en el celular", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/local");
-    for (const tab of ["Vender", "Ventas", /^Reposición/, "Mercadería", "Cierre de caja", "Stock del local"]) {
+    for (const tab of [
+      "Vender",
+      "Ventas",
+      /^Reposición/,
+      "Mercadería",
+      "Cierre de caja",
+      "Stock del local",
+    ]) {
       await page.getByRole("tab", { name: tab }).click();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), String(tab)).toBe(
-        true,
-      );
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        String(tab),
+      ).toBe(true);
     }
   });
 
@@ -421,7 +460,10 @@ test.describe("El local recibe y cierra la caja", () => {
 test.describe("Permisos del local", () => {
   test.describe("Dirección", () => {
     test.use({ storageState: asRole("admin") });
-    test("puede anular una venta aunque la caja esté cerrada y el cierre queda marcado", async ({ page, sql }) => {
+    test("puede anular una venta aunque la caja esté cerrada y el cierre queda marcado", async ({
+      page,
+      sql,
+    }) => {
       await page.goto("/local");
       await page.getByRole("tab", { name: "Ventas" }).click();
       const row = page
@@ -433,7 +475,9 @@ test.describe("Permisos del local", () => {
       await expectToast(page, "Venta anulada: volvió 1 unidad al stock");
       expect(await localQty(sql, "RV-AGU-500")).toBe(24);
       await page.getByRole("tab", { name: "Cierre de caja" }).click();
-      await expect(page.getByRole("alert").filter({ hasText: "Hubo ventas o anulaciones después del cierre" })).toBeVisible();
+      await expect(
+        page.getByRole("alert").filter({ hasText: "Hubo ventas o anulaciones después del cierre" }),
+      ).toBeVisible();
     });
   });
 
