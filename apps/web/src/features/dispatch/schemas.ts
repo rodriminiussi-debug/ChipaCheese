@@ -96,6 +96,9 @@ export const deliverDispatchInput = z.object({
   dispatchId: uuid(),
   receivedByName: z.string().trim().min(2, "Ingresá el nombre de quien recibe"),
   proof: z.custom<File>((v) => typeof File !== "undefined" && v instanceof File).optional(),
+  /** Entrega cargada sin señal: uuid del celular (idempotencia) y momento real de la entrega. */
+  clientId: clientIdField().optional(),
+  recordedAt: recordedAtField().optional(),
   /** Entrega parcial: cantidad real por línea del remito, como JSON (viaja en FormData). */
   quantities: z
     .string()

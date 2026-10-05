@@ -112,23 +112,23 @@ export type RecordWeighingsInput = z.input<typeof recordWeighingsInput>;
 
 export const deleteWeighingInput = z.object({ id: uuid() });
 
-export const setRunStatusInput = z
-  .object({
-    runId: uuid(),
-    status: z.enum(["in_progress", "freezing", "packed", "closed", "cancelled"]),
-    freezerCodes: z.array(z.enum(["F1", "F2"])).default([]),
-    /** HH:mm de entrada al abatidor; vacío = ahora. */
-    frozenTime: z
-      .string()
-      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora inválida")
-      .nullish()
-      .transform((v) => v ?? null),
-  })
-  .superRefine((v, ctx) => {
-    if (v.status === "freezing" && v.freezerCodes.length === 0) {
-      ctx.addIssue({ code: "custom", path: ["freezerCodes"], message: "Elegí F1, F2 o ambos" });
-    }
-  });
+const setRunStatusShape = {
+  runId: uuid(),
+  status: z.enum(["in_progress", "freezing", "packed", "closed", "cancelled"]),
+  freezerCodes: z.array(z.enum(["F1", "F2"])).default([]),
+  /** HH:mm de entrada al abatidor; vacío = ahora. */
+  frozenTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora inválida")
+    .nullish()
+    .transform((v) => v ?? null),
+};
+const freezingNeedsFreezer = (v: { status: string; freezerCodes: string[] }, ctx: z.RefinementCtx) => {
+  if (v.status === "freezing" && v.freezerCodes.length === 0) {
+    ctx.addIssue({ code: "custom", path: ["freezerCodes"], message: "Elegí F1, F2 o ambos" });
+  }
+};
+export const setRunStatusInput = z.object(setRunStatusShape).superRefine(freezingNeedsFreezer);
 export type SetRunStatusInput = z.input<typeof setRunStatusInput>;
 
 export const recordPackingInput = z.object({
@@ -150,3 +150,8 @@ export const recordWeighingsPayload = recordWeighingsInput.extend(offlineStamp);
 export type RecordWeighingsPayload = z.input<typeof recordWeighingsPayload>;
 export const recordPackingPayload = recordPackingInput.extend(offlineStamp);
 export type RecordPackingPayload = z.input<typeof recordPackingPayload>;
+/** Cambio de estado (iniciar, congelado…) encolable: lleva `clientId` y `recordedAt`. */
+export const setRunStatusPayload = z
+  .object({ ...setRunStatusShape, ...offlineStamp })
+  .superRefine(freezingNeedsFreezer);
+export type SetRunStatusPayload = z.input<typeof setRunStatusPayload>;

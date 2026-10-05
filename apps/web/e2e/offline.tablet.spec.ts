@@ -188,4 +188,47 @@ test.describe("Planta sin señal (RF-20)", () => {
     expect(moves).toHaveLength(consumptions.length); // un movimiento por consumo, sin reversiones
     expect(moves.every((m) => m.qty < 0)).toBe(true);
   });
+
+  test("iniciar y pasar a congelado sin señal: queda en cola y se aplica una sola vez, con la hora de la carga", async ({
+    page,
+    context,
+    sql,
+  }) => {
+    const runId = await createRun(sql);
+    await sql`update production_runs set status = 'planned' where id = ${runId}`;
+    await page.goto(`/planta/produccion?id=${runId}`);
+    await expect(page.getByRole("button", { name: "Iniciar elaboración" })).toBeVisible();
+
+    await context.setOffline(true);
+    await page.getByRole("button", { name: "Iniciar elaboración" }).click();
+    await expect(page.getByTestId("status-pending")).toContainText("pendiente de enviar");
+    await expect(page.getByTestId("offline-indicator")).toContainText("1 pendiente");
+    expect((await sql`select status from production_runs where id = ${runId}`)[0]!.status).toBe("planned");
+
+    await context.setOffline(false);
+    await expect
+      .poll(async () => (await sql`select status from production_runs where id = ${runId}`)[0]!.status, {
+        timeout: 20_000,
+      })
+      .toBe("in_progress");
+    await expect(page.getByTestId("status-pending")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Pasar a congelado" })).toBeVisible();
+
+    // Congelado, también sin señal.
+    await context.setOffline(true);
+    await page.getByRole("button", { name: "Pasar a congelado" }).click();
+    await page.getByRole("button", { name: "Confirmar congelado" }).click();
+    await expect(page.getByTestId("status-pending")).toBeVisible();
+    await context.setOffline(false);
+    await expect
+      .poll(async () => (await sql`select status from production_runs where id = ${runId}`)[0]!.status, {
+        timeout: 20_000,
+      })
+      .toBe("freezing");
+    const log =
+      await sql`select status, c.client_id from production_status_changes c where run_id = ${runId} order by changed_at`;
+    expect(log.map((l) => l.status)).toEqual(["in_progress", "freezing"]);
+    const [run] = await sql`select freezer_codes from production_runs where id = ${runId}`;
+    expect(run!.freezer_codes).toEqual(["F1", "F2"]);
+  });
 });

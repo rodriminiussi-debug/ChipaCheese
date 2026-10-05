@@ -140,6 +140,69 @@ test.describe("Salida de ruta sin señal (RF-26)", () => {
   });
 });
 
+test.describe("Entrega con conformidad sin señal (RF-25)", () => {
+  test.use({ storageState: asRole("logistics") });
+
+  test("la entrega con foto queda en el celular y se registra una sola vez al volver la señal", async ({
+    page,
+    context,
+    sql,
+    request,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const [o] = await sql`insert into orders (customer_id, promised_date, status, total)
+      values ((select id from customers where legal_name = 'Club Náutico'), ${demoDay()}, 'ready', 6000)
+      returning id`;
+    await sql`insert into order_items (order_id, product_id, qty_units, unit_price)
+      values (${o!.id}, (select id from products where name = 'Chipá lengüitas 0,5 kg'), 6, 1000)`;
+    const [route] = await sql`insert into routes (date, vehicle_id, driver_id, status, km_start)
+      values (${demoDay()}, (select id from vehicles limit 1), (select id from users where username = 'logistica'), 'in_progress', 100)
+      returning id`;
+    await sql`insert into route_stops (route_id, seq, kind, order_id, customer_id)
+      select ${route!.id}, 1, 'delivery', ${o!.id}, customer_id from orders where id = ${o!.id}`;
+    await page.goto(`/despacho/rutas/${route!.id}`);
+    await page.getByRole("button", { name: "Generar remito", exact: true }).first().click();
+    await expect(page.getByRole("button", { name: "Entregar" })).toBeVisible();
+
+    await context.setOffline(true);
+    await page.getByRole("button", { name: "Entregar" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Recibió (nombre y apellido)").fill("Pedro Díaz");
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    await dialog.getByLabel("Foto de la conformidad").setInputFiles({
+      name: "remito.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+    await dialog.getByRole("button", { name: "Confirmar entrega" }).click();
+    await expect(page.getByTestId("delivery-pending")).toContainText("pendiente de enviar");
+    await expect(page.getByTestId("offline-indicator")).toContainText("1 pendiente");
+    const [still] = await sql`select status from dispatches where order_id = ${o!.id}`;
+    expect(still!.status).toBe("prepared");
+
+    await context.setOffline(false);
+    await expect
+      .poll(async () => (await sql`select status from dispatches where order_id = ${o!.id}`)[0]!.status, {
+        timeout: 20_000,
+      })
+      .toBe("delivered");
+    await expect(page.getByTestId("offline-indicator")).toHaveCount(0);
+    const [d] =
+      await sql`select received_by_name, proof_file_key, delivery_client_id from dispatches where order_id = ${o!.id}`;
+    expect(d).toMatchObject({ received_by_name: "Pedro Díaz" });
+    expect(d!.delivery_client_id).toBeTruthy();
+    expect(d!.proof_file_key).toMatch(/\.jpg$/);
+    await expect(async () => {
+      const res = await request.get(`/api/files/${d!.proof_file_key}`);
+      expect(res.status()).toBe(200);
+    }).toPass({ timeout: 30_000 });
+    expect((await sql`select status from orders where id = ${o!.id}`)[0]!.status).toBe("delivered");
+  });
+});
+
 test.describe("Inventario físico sin señal (RF-15)", () => {
   test.use({ storageState: asRole("admin") });
 

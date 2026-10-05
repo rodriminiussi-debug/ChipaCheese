@@ -15,11 +15,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAction } from "@/hooks/use-action";
+import { CloudOff } from "lucide-react";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
+import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { cn } from "@/lib/utils";
 import { setRunStatusAction } from "../actions";
 import { nextRunStatuses, type RunStatus } from "@chipa/domain";
 import { FREEZER_CODES, RUN_STATUS_ACTION } from "../labels";
+import type { SetRunStatusPayload } from "../schemas";
 
 /**
  * Botones de transición de estado (planned → in_progress → freezing → packed → closed). Pasar a congelado
@@ -41,13 +44,40 @@ export function RunStatusControls({
   const [freezers, setFreezers] = useState<string[]>(["F1", "F2"]);
   const [time, setTime] = useState("");
   const [askFreezing, setAskFreezing] = useState(false);
-  const change = useAction(setRunStatusAction, {
+  // Sin señal el cambio queda en la cola de la tablet y se envía al volver la conexión (idempotente por clientId).
+  const offline = useOfflineAction(OFFLINE_ACTION.runStatus, setRunStatusAction, {
     success: "Estado actualizado",
-    onSuccess: () => {
+    onSuccess: (_d, queued) => {
       setAskFreezing(false);
-      router.refresh();
+      if (!queued) router.refresh();
     },
   });
+  const change = {
+    pending: offline.pending,
+    run: (i: { runId: string; status: string; freezerCodes?: ("F1" | "F2")[]; frozenTime?: string | null }) =>
+      offline.run({
+        ...i,
+        status: i.status as SetRunStatusPayload["status"],
+        clientId: crypto.randomUUID(),
+        recordedAt: new Date().toISOString(),
+      }),
+  };
+  const queued = useQueuedItems<SetRunStatusPayload>(OFFLINE_ACTION.runStatus).filter(
+    (q) => q.payload.runId === runId,
+  );
+  if (queued.length)
+    return (
+      <p
+        className={cn(
+          "flex items-center gap-2 rounded-lg border border-amber-500 bg-amber-50 p-3 font-medium text-amber-900 dark:bg-amber-950/30 dark:text-amber-200",
+          plant ? "text-lg" : "text-sm",
+        )}
+        role="status"
+        data-testid="status-pending"
+      >
+        <CloudOff className="size-4" /> Cambio de estado guardado en este equipo, pendiente de enviar.
+      </p>
+    );
   const next = nextRunStatuses(status).filter((s) => canManage || (s !== "closed" && s !== "cancelled"));
   if (!next.length) return null;
   const size = plant ? "lg" : "default";

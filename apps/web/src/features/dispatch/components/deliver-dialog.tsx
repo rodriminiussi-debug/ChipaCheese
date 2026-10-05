@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAction } from "@/hooks/use-action";
+import { CloudOff } from "lucide-react";
+import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
+import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { deliverDispatchAction } from "../actions";
 import { SignaturePad, type SignaturePadHandle } from "./signature-pad";
 
@@ -64,35 +66,51 @@ export function DeliverDialog({
   const invalid = items.some((i) => !Number.isInteger(qtyOf(i)) || qtyOf(i) < 0 || qtyOf(i) > i.qtyUnits);
   const returned = items.reduce((a, i) => a + (Number.isInteger(qtyOf(i)) ? i.qtyUnits - qtyOf(i) : 0), 0);
   const totalDelivered = items.reduce((a, i) => a + qtyOf(i), 0);
-  const act = useAction(deliverDispatchAction, {
+  // Sin señal la entrega (con su foto o firma) queda en la cola del celular y se envía al volver la conexión.
+  const act = useOfflineAction(OFFLINE_ACTION.deliver, deliverDispatchAction, {
     success: (r) =>
       r.partial ? `Entrega parcial registrada: ${r.returnedUnits} u. vuelven al stock` : "Entrega registrada",
-    onSuccess: () => {
+    onSuccess: (_d, queued) => {
       setOpen(false);
-      router.refresh();
+      if (!queued) router.refresh();
     },
   });
+  const queued = useQueuedItems<{ dispatchId: string }>(OFFLINE_ACTION.deliver).filter(
+    (q) => q.payload.dispatchId === dispatchId,
+  );
 
   async function submit() {
     setBusy(true);
     try {
-      const fd = new FormData();
-      fd.set("dispatchId", dispatchId);
-      fd.set("receivedByName", name);
       const changed = items
         .filter((i) => qtyOf(i) !== i.qtyUnits)
         .map((i) => ({ dispatchItemId: i.id, qty: qtyOf(i) }));
-      if (changed.length) fd.set("quantities", JSON.stringify(changed));
       const signature = await pad.current?.toFile();
       const proof = signature ?? (photo ? await shrinkImage(photo) : null);
-      if (proof) fd.set("proof", proof);
-      await act.run(fd);
+      act.run({
+        dispatchId,
+        receivedByName: name,
+        ...(changed.length ? { quantities: JSON.stringify(changed) } : {}),
+        ...(proof ? { proof } : {}),
+        clientId: crypto.randomUUID(),
+        recordedAt: new Date().toISOString(),
+      });
     } finally {
       setBusy(false);
     }
   }
 
   const err = act.fieldErrors.receivedByName?.[0];
+  if (queued.length)
+    return (
+      <p
+        className="flex items-center gap-1.5 rounded-md border border-amber-500 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+        role="status"
+        data-testid="delivery-pending"
+      >
+        <CloudOff className="size-4" /> Entrega guardada, pendiente de enviar
+      </p>
+    );
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { schema, type Executor } from "@chipa/db";
+import { eq, schema, type Executor } from "@chipa/db";
 import { inRollback } from "../../../tests/helpers";
 import { ingredientTotals } from "../stock/ledger";
 import {
@@ -8,6 +8,7 @@ import {
   recordPackingInput,
   recordWeighingsInput,
   setRunStatusInput,
+  setRunStatusPayload,
 } from "./schemas";
 import {
   consumptionSuggestions,
@@ -208,5 +209,57 @@ describe("envasado sin señal (RF-22)", () => {
       expect(moves.every((m) => m.occurredAt.getTime() === recordedAt.getTime())).toBe(true);
       expect(await stockOf(tx, i("Bolsa 0,5"))).toBe(bags - 30);
     });
+  });
+});
+
+describe("cambio de estado sin señal (RF-20)", () => {
+  it("reenviar el mismo cambio no repite el efecto ni falla por la transición ya hecha", async () => {
+    await inRollback("jt", async (tx, userId) => {
+      const run = await newRun(tx);
+      const A = crypto.randomUUID();
+      const recordedAt = new Date("2026-10-02T09:15:00-03:00");
+      const payload = (clientId: string, over: Record<string, unknown> = {}) =>
+        setRunStatusPayload.parse({
+          runId: run.id,
+          status: "in_progress",
+          clientId,
+          recordedAt: recordedAt.toISOString(),
+          ...over,
+        });
+      const first = await setRunStatus(tx, payload(A), { clientId: A, recordedAt, userId });
+      expect(first).toMatchObject({ status: "in_progress", duplicate: false });
+      // el reenvío (se perdió la respuesta) no falla con "no se puede pasar de En elaboración a En elaboración"
+      const again = await setRunStatus(tx, payload(A), { clientId: A, recordedAt, userId });
+      expect(again).toMatchObject({ status: "in_progress", duplicate: true });
+
+      // congelado sin señal: la hora de entrada al abatidor es la de la carga, no la de la sincronización
+      const B = crypto.randomUUID();
+      const frozen = await setRunStatus(tx, payload(B, { status: "freezing", freezerCodes: ["F1", "F2"] }), {
+        clientId: B,
+        recordedAt,
+        userId,
+      });
+      expect(frozen.status).toBe("freezing");
+      expect(frozen.frozenAt!.getTime()).toBe(recordedAt.getTime());
+      // el reenvío tardío del primer cambio ya no puede hacer nada aunque la producción avanzó
+      const late = await setRunStatus(tx, payload(A), { clientId: A, recordedAt, userId });
+      expect(late).toMatchObject({ status: "freezing", duplicate: true });
+      const log = await tx.query.productionStatusChanges.findMany({
+        where: eq(schema.productionStatusChanges.runId, run.id),
+      });
+      expect(log.map((l) => l.status).sort()).toEqual(["freezing", "in_progress"]);
+      expect(log.every((l) => l.changedById === userId)).toBe(true);
+    });
+  });
+
+  it("congelado exige el abatidor también en el envío encolado", () => {
+    const base = {
+      runId: "00000000-0000-4000-8000-000000000001",
+      status: "freezing",
+      clientId: crypto.randomUUID(),
+      recordedAt: new Date().toISOString(),
+    };
+    expect(setRunStatusPayload.safeParse(base).success).toBe(false);
+    expect(setRunStatusPayload.safeParse({ ...base, freezerCodes: ["F2"] }).success).toBe(true);
   });
 });

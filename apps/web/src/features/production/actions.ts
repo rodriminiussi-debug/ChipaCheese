@@ -17,7 +17,7 @@ import {
   recordPackingPayload,
   recordWeighingsPayload,
   savePlanInput,
-  setRunStatusInput,
+  setRunStatusPayload,
 } from "./schemas";
 import {
   activateRecipe,
@@ -113,16 +113,20 @@ export const recordConsumptionsAction = action(
   },
 );
 
+/**
+ * Cambio de estado (encolable offline: "production.runStatus"; idempotente por clientId). Desde el escritorio
+ * `clientId`/`recordedAt` son opcionales.
+ */
 export const setRunStatusAction = action(
-  { permission: [...WRITE_OR_RECORD], schema: setRunStatusInput },
+  { permission: [...WRITE_OR_RECORD], schema: setRunStatusPayload },
   async (input, { tx, user }) => {
     // Cerrar o cancelar es decisión de la jefa; el operario solo avanza la elaboración.
     if (["closed", "cancelled"].includes(input.status) && !can(user.role, "production:write")) {
       throw new UserError("Solo la jefa de producción puede cerrar o cancelar una producción.");
     }
-    const run = await setRunStatus(tx, input);
+    const run = await setRunStatus(tx, input, { ...stamp(input), userId: user.id });
     revalidateProduction(run.id);
-    return { id: run.id, status: run.status };
+    return { id: run.id, status: run.status, duplicate: run.duplicate };
   },
 );
 
