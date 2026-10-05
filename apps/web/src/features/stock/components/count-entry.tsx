@@ -21,6 +21,7 @@ import { OFFLINE_ACTION } from "@/components/pwa/offline-actions";
 import { useAction } from "@/hooks/use-action";
 import { useOfflineAction, useQueuedItems } from "@/hooks/use-offline-action";
 import { UNIT } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 import { confirmInventoryCountAction, saveInventoryCountAction, voidInventoryCountAction } from "../actions";
 import type { CountItemRow } from "../inventory";
 import type { SaveCountPayload } from "../schemas";
@@ -29,7 +30,20 @@ import type { SaveCountPayload } from "../schemas";
  * RF-15: pantalla de carga del conteo, pensada para tablet: inputs grandes, agrupada por ubicación,
  * se puede guardar parcial y confirmar al final (las posiciones sin contar no se ajustan).
  */
-export function CountEntry({ countId, items }: { countId: string; items: CountItemRow[] }) {
+export function CountEntry({
+  countId,
+  items,
+  variant = "desk",
+  canConfirm = true,
+}: {
+  countId: string;
+  items: CountItemRow[];
+  /** `plant`: tablet de planta (controles grandes). */
+  variant?: "desk" | "plant";
+  /** Confirmar o anular el conteo (ajusta el stock): solo con `stock:write`. El operario solo cuenta y guarda. */
+  canConfirm?: boolean;
+}) {
+  const plant = variant === "plant";
   const router = useRouter();
   // Avance guardado sin señal y todavía sin enviar: se retoma encima de lo que trajo el servidor.
   const queued = useQueuedItems<SaveCountPayload>(OFFLINE_ACTION.inventoryCountSave).filter(
@@ -87,13 +101,14 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
   return (
     <div className="grid gap-6">
       <div className="bg-background sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b py-3">
-        <p className="text-sm" aria-live="polite">
+        <p className={cn("text-sm", plant && "text-xl")} aria-live="polite">
           Contadas: <strong>{filled}</strong> de {items.length}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
             size="lg"
             variant="outline"
+            className={plant ? "h-16 text-xl" : undefined}
             disabled={pending}
             onClick={() =>
               save.run({ ...payload(), clientId: crypto.randomUUID(), recordedAt: new Date().toISOString() })
@@ -101,37 +116,43 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
           >
             <Save /> Guardar avance
           </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="lg" disabled={pending || unsent || filled === 0}>
-                <CheckCheck /> Confirmar inventario
+          {canConfirm ? (
+            <>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="lg" disabled={pending || unsent || filled === 0}>
+                    <CheckCheck /> Confirmar inventario
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Confirmar el inventario?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Se registrará un ajuste por cada diferencia entre lo contado y el sistema.
+                      {items.length - filled > 0
+                        ? ` Las ${items.length - filled} posiciones sin contar no se modifican.`
+                        : ""}{" "}
+                      Esta acción no se puede deshacer.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Seguir contando</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => confirm.run(payload())}>
+                      Sí, confirmar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button
+                size="lg"
+                variant="ghost"
+                disabled={pending || unsent}
+                onClick={() => voidCount.run({ countId })}
+              >
+                Anular
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Confirmar el inventario?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Se registrará un ajuste por cada diferencia entre lo contado y el sistema.
-                  {items.length - filled > 0
-                    ? ` Las ${items.length - filled} posiciones sin contar no se modifican.`
-                    : ""}{" "}
-                  Esta acción no se puede deshacer.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Seguir contando</AlertDialogCancel>
-                <AlertDialogAction onClick={() => confirm.run(payload())}>Sí, confirmar</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button
-            size="lg"
-            variant="ghost"
-            disabled={pending || unsent}
-            onClick={() => voidCount.run({ countId })}
-          >
-            Anular
-          </Button>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -142,13 +163,13 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
           data-testid="count-pending"
         >
           <CloudOff className="size-4" /> Avance guardado en este equipo, pendiente de enviar. Podés seguir
-          contando; para confirmar o anular esperá a que se envíe.
+          contando{canConfirm ? "; para confirmar o anular esperá a que se envíe" : ""}.
         </p>
       ) : null}
 
       {groups.map((g) => (
         <section key={g.name} className="grid gap-3">
-          <h2 className="text-lg font-semibold">{g.name}</h2>
+          <h2 className={cn("font-semibold", plant ? "text-2xl" : "text-lg")}>{g.name}</h2>
           <ul className="grid gap-3">
             {g.rows.map((i) => {
               const raw = values[i.id]?.trim() ?? "";
@@ -157,16 +178,19 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
               return (
                 <li
                   key={i.id}
-                  className="grid items-center gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_auto_12rem]"
+                  className={cn(
+                    "grid items-center gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_auto_12rem]",
+                    plant && "sm:grid-cols-[1fr_auto_14rem]",
+                  )}
                 >
                   <div>
-                    <p className="text-base font-medium">{i.itemName}</p>
-                    <p className="text-muted-foreground text-sm">
+                    <p className={cn("font-medium", plant ? "text-xl" : "text-base")}>{i.itemName}</p>
+                    <p className={cn("text-muted-foreground", plant ? "text-lg" : "text-sm")}>
                       {i.lotCode ? `Lote ${i.lotCode}` : "Sin lote"}
                       {i.expiryDate ? ` · vence ${formatDateAR(i.expiryDate)}` : ""}
                     </p>
                   </div>
-                  <p className="text-sm sm:text-right">
+                  <p className={cn("sm:text-right", plant ? "text-lg" : "text-sm")}>
                     Sistema:{" "}
                     <strong className="tabular-nums">
                       {formatNumber(i.systemQty, i.unit === "unit" ? 0 : 2)} {UNIT[i.unit]}
@@ -189,7 +213,10 @@ export function CountEntry({ countId, items }: { countId: string; items: CountIt
                     placeholder="Contado"
                     value={values[i.id] ?? ""}
                     onChange={(e) => setEdited((v) => ({ ...v, [i.id]: e.target.value }))}
-                    className="h-14 text-right text-xl tabular-nums md:text-xl"
+                    className={cn(
+                      "text-right tabular-nums md:text-xl",
+                      plant ? "h-16 text-2xl md:text-2xl" : "h-14 text-xl",
+                    )}
                   />
                 </li>
               );

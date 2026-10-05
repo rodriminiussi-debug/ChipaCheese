@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import {
+  ClipboardCheck,
   ClipboardList,
   GraduationCap,
   Package,
@@ -59,6 +60,13 @@ const TILES: { title: string; href: Route; icon: typeof Scale; permission: Permi
     icon: Truck,
     permission: "purchases:receive",
     testId: "tile-recepcion",
+  },
+  {
+    title: "Contar inventario",
+    href: "/planta/inventario" as Route,
+    icon: ClipboardCheck,
+    permission: "stock:count",
+    testId: "tile-inventario",
   },
   {
     title: "Avisar una falla",

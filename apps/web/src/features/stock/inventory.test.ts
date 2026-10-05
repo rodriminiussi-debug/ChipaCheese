@@ -157,3 +157,26 @@ describe("inventario físico guiado (RF-15)", () => {
     });
   });
 });
+
+describe("conteo desde la tablet de planta", () => {
+  it("el operario cuenta y guarda el avance sin mover stock; después la jefa confirma y recién ahí se ajusta", async () => {
+    await inRollback("jt", async (tx, jt) => {
+      const af = (await tx.query.users.findFirst({ where: eq(schema.users.username, "af") }))!.id;
+      const { id } = await createInventoryCount(tx, jt, { itemKind: "ingredient", notes: null });
+      const detail = (await getInventoryCount(tx, id))!;
+      const sal = detail.items.find((i) => i.itemName === "Sal")!;
+      const totals = await ingredientTotals(tx);
+
+      await saveCountItems(tx, jt, id, [{ id: sal.id, countedQty: 6 }]);
+      const saved = (await getInventoryCount(tx, id))!;
+      expect(saved.count).toMatchObject({ status: "draft", countedById: jt });
+      expect(saved.summary).toMatchObject({ counted: 1, withDiff: 1 });
+      expect(await ingredientTotals(tx)).toEqual(totals); // todavía no hay ajuste
+
+      const res = await confirmInventoryCount(tx, af, id);
+      expect(res).toEqual({ adjusted: 1, counted: 1, pending: detail.items.length - 1 });
+      expect((await ingredientTotals(tx))[sal.itemId]).toBe(6);
+      expect((await getInventoryCount(tx, id))!.count.countedById).toBe(af);
+    });
+  });
+});

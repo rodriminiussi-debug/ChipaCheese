@@ -225,4 +225,57 @@ test.describe("Modo planta en tablet (M4)", () => {
     await expect(panel).toContainText("Avisada por J.T.");
     await jefa.close();
   });
+
+  test("el operario cuenta el inventario en la tablet y guarda el avance; solo la jefa lo confirma", async ({
+    page,
+    sql,
+    browser,
+  }) => {
+    await page.goto("/planta");
+    await page.getByTestId("tile-inventario").click();
+    await expect(page.getByRole("heading", { name: "Contar inventario" })).toBeVisible();
+    await expect(page.getByText("No hay conteos abiertos")).toBeVisible();
+    const start = page.getByRole("button", { name: "Contar materia prima" });
+    expect((await start.boundingBox())!.height).toBeGreaterThanOrEqual(64);
+    await start.click();
+    await expect(page.getByRole("heading", { name: "Inventario de materia prima" })).toBeVisible();
+
+    // Botones grandes; el operario no ve confirmar ni anular.
+    const saveBtn = page.getByRole("button", { name: "Guardar avance" });
+    expect((await saveBtn.boundingBox())!.height).toBeGreaterThanOrEqual(64);
+    await expect(page.getByRole("button", { name: "Confirmar inventario" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Anular" })).toHaveCount(0);
+    const first = page.getByRole("spinbutton").first();
+    expect((await first.boundingBox())!.height).toBeGreaterThanOrEqual(64);
+    await first.fill("12.5");
+    await saveBtn.click();
+    await expectToast(page, "Avance guardado");
+
+    const [count] = await sql`select c.id, c.status, u.username, count(i.counted_qty)::int as counted
+      from inventory_counts c join users u on u.id = c.counted_by_id
+      join inventory_count_items i on i.count_id = c.id group by c.id, c.status, u.username`;
+    expect(count).toMatchObject({ status: "draft", username: "jt", counted: 1 });
+    // El stock no se movió: el ajuste lo hace la jefa al confirmar.
+    const [adj] = await sql`select count(*)::int as n from stock_movements where type = 'adjustment'`;
+    expect(adj!.n).toBe(0);
+
+    // Volver al inicio de inventario: figura como conteo en curso, sin poder abrir otro de lo mismo.
+    await page.getByRole("link", { name: "Inventarios" }).click();
+    await expect(page.getByTestId("open-count")).toContainText("Contadas 1 de");
+    await expect(page.getByRole("button", { name: "Contar materia prima" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Contar producto terminado" })).toBeVisible();
+
+    // La jefa abre el mismo conteo en el escritorio y lo confirma: recién ahí se ajusta el stock.
+    const jefa = await browser.newContext({ storageState: asRole("production_manager") });
+    const jefaPage = await jefa.newPage();
+    await jefaPage.goto(`/stock/inventario/${count!.id}`);
+    await jefaPage.getByRole("button", { name: "Confirmar inventario" }).click();
+    await jefaPage.getByRole("button", { name: "Sí, confirmar" }).click();
+    await expect(
+      jefaPage.locator("[data-sonner-toast]").filter({ hasText: /Inventario confirmado/ }),
+    ).toBeVisible();
+    const [after] = await sql`select count(*)::int as n from stock_movements where type = 'adjustment'`;
+    expect(after!.n).toBe(1);
+    await jefa.close();
+  });
 });
