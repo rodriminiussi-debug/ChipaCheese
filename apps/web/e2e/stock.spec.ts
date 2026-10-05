@@ -304,18 +304,11 @@ test.describe("Permisos de stock", () => {
 
   test.describe("local", () => {
     test.use({ storageState: asRole("store") });
-    test("puede consultar pero no ajustar, transferir ni contar", async ({ page }) => {
-      await page.goto("/stock/producto-terminado");
-      await expect(
-        page.getByRole("table", { name: "Stock de producto terminado por ubicación" }),
-      ).toBeVisible();
-      await expect(page.getByRole("button", { name: "Transferir" })).toHaveCount(0);
-      await page.goto("/stock/inventario");
-      await expect(page.getByRole("button", { name: /Nuevo conteo/ })).toHaveCount(0);
-      await page.goto("/stock");
-      await page.getByRole("link", { name: "Leche" }).click();
-      await expect(page.getByRole("button", { name: "Registrar ajuste" })).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "Guardar niveles" })).toHaveCount(0);
+    test("no ve el stock general: el local resuelve su stock en /local", async ({ page }) => {
+      for (const url of ["/stock", "/stock/producto-terminado", "/stock/inventario", "/stock/reposicion"]) {
+        await page.goto(url);
+        await expect(page, url).toHaveURL(/sin-permiso/);
+      }
     });
   });
 
