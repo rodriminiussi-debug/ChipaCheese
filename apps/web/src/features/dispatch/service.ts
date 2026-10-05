@@ -1031,6 +1031,8 @@ export async function deliverDispatch(
     receivedByName: string;
     proofFileKey?: string | null;
     quantities?: { dispatchItemId: string; qty: number }[];
+    /** Entrega cargada sin señal: reenviar el mismo `clientId` no repite el efecto. */
+    clientId?: string | null;
   },
   now: Date = new Date(),
 ) {
@@ -1038,6 +1040,16 @@ export async function deliverDispatch(
   if (name.length < 2)
     throw new UserError("Ingresá el nombre de quien recibe.", { receivedByName: ["Requerido"] });
   const d = await lockDispatch(db, input.dispatchId);
+  if (input.clientId && d.deliveryClientId === input.clientId)
+    return {
+      id: d.id,
+      number: d.number,
+      orderId: d.orderId,
+      partial: false,
+      deliveredUnits: 0,
+      returnedUnits: 0,
+      duplicate: true as const,
+    };
   if (d.status !== "prepared")
     throw new UserError(
       `El remito ${formatDispatchNumber(d.number)} está ${DISPATCH_STATUS_TEXT[d.status]}: solo se entrega un remito preparado.`,
@@ -1091,6 +1103,7 @@ export async function deliverDispatch(
       deliveredAt: now,
       receivedByName: name,
       proofFileKey: input.proofFileKey ?? null,
+      deliveryClientId: input.clientId ?? null,
     })
     .where(eq(schema.dispatches.id, d.id));
   const totalUnits = items.reduce((a, i) => a + i.qtyUnits, 0);
@@ -1116,6 +1129,7 @@ export async function deliverDispatch(
     partial: partial.length > 0,
     deliveredUnits,
     returnedUnits: totalUnits - deliveredUnits,
+    duplicate: false as const,
   };
 }
 

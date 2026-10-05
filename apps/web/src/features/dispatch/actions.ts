@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { action } from "@/server/action";
 import { UserError } from "@/server/errors";
 import { putFile } from "@/server/storage";
+import { can } from "@/lib/rbac";
 import { clampRecordedAt } from "@/lib/idempotency";
 import {
   addOrdersInput,
@@ -15,6 +16,8 @@ import {
   generateDispatchInput,
   generateRouteDispatchesInput,
   moveStopInput,
+  receiveSettlementInput,
+  registerSettlementInput,
   rejectDispatchInput,
   removeStopInput,
   setStopDoneInput,
@@ -37,6 +40,7 @@ import {
   startRoute,
   updateRoute,
 } from "./service";
+import { receiveSettlement, registerSettlement } from "./settlement";
 
 function revalidateRoute(routeId?: string | null) {
   revalidatePath("/despacho");
@@ -168,7 +172,10 @@ export const generateRouteDispatchesAction = action(
 
 const MAX_PROOF_BYTES = 8 * 1024 * 1024;
 
-/** Entrega con conformidad: nombre de quien recibe + foto o firma (PNG/JPG). Acepta FormData. */
+/**
+ * Entrega con conformidad: nombre de quien recibe + foto o firma (PNG/JPG). Acepta FormData u objeto con la
+ * imagen (encolable offline: "dispatch.deliver"; idempotente por clientId).
+ */
 export const deliverDispatchAction = action(
   { permission: "dispatch:write", schema: deliverDispatchInput },
   async (input, { tx, user }) => {
@@ -179,12 +186,18 @@ export const deliverDispatchAction = action(
       if (input.proof.size > MAX_PROOF_BYTES) throw new UserError("La imagen pesa demasiado (máximo 8 MB).");
       proofFileKey = (await putFile("remitos", input.proof, input.proof.name || "conformidad.jpg")).key;
     }
-    const res = await deliverDispatch(tx, user.id, {
-      dispatchId: input.dispatchId,
-      receivedByName: input.receivedByName,
-      proofFileKey,
-      quantities: input.quantities,
-    });
+    const res = await deliverDispatch(
+      tx,
+      user.id,
+      {
+        dispatchId: input.dispatchId,
+        receivedByName: input.receivedByName,
+        proofFileKey,
+        quantities: input.quantities,
+        clientId: input.clientId,
+      },
+      input.recordedAt ? clampRecordedAt(new Date(input.recordedAt)) : new Date(),
+    );
     revalidateRoute();
     revalidatePath("/despacho/rutas/[id]", "page");
     revalidateOrders(res.orderId);
@@ -212,6 +225,32 @@ export const rejectDispatchAction = action(
     revalidateRoute();
     revalidatePath("/despacho/rutas/[id]", "page");
     revalidateOrders(res.orderId);
+    return res;
+  },
+);
+
+// --- Rendición del chofer ---------------------------------------------------------------------------------
+
+/** El chofer rinde lo cobrado en la ruta al volver (efectivo y cheques entregados). La diferencia queda registrada. */
+export const registerSettlementAction = action(
+  { permission: "collections:write", schema: registerSettlementInput },
+  async (input, { tx, user }) => {
+    const res = await registerSettlement(tx, user.id, input, {
+      canSettle: can(user.role, "dispatch:settle"),
+    });
+    revalidateRoute(input.routeId);
+    revalidatePath("/despacho/rendiciones");
+    return res;
+  },
+);
+
+/** Dirección o la jefa reciben la rendición. */
+export const receiveSettlementAction = action(
+  { permission: "dispatch:settle", schema: receiveSettlementInput },
+  async (input, { tx, user }) => {
+    const res = await receiveSettlement(tx, user.id, input);
+    revalidateRoute(input.routeId);
+    revalidatePath("/despacho/rendiciones");
     return res;
   },
 );

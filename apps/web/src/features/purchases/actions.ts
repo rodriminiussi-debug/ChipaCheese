@@ -181,10 +181,12 @@ export const changeOrderStatusAction = action(
 
 // --- Recepción ---
 
+/** Recibe mercadería: Compras (escritorio) o el operario desde la tablet de planta (`purchases:receive`). */
 export const createReceptionAction = action(
-  { permission: "purchases:write", schema: receptionInput },
+  { permission: ["purchases:write", "purchases:receive"], schema: receptionInput },
   async (input, { tx, user }) => {
     const result = await createReception(tx, user.id, input);
+    revalidatePath("/planta/recepcion");
     revalidatePath("/compras/recepciones");
     revalidatePath("/compras/ordenes");
     revalidatePath("/stock");

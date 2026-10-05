@@ -46,24 +46,27 @@ export const transferProductAction = action(
   },
 );
 
+/** Crear un conteo: Stock (jefa) o el operario desde la tablet (`stock:count`). Confirmar sigue siendo `stock:write`. */
 export const createInventoryCountAction = action(
-  { permission: "stock:write", schema: createCountInput },
+  { permission: ["stock:write", "stock:count"], schema: createCountInput },
   async (input, { tx, user }) => {
     const res = await createInventoryCount(tx, user.id, input);
     revalidateStock();
+    revalidatePath("/planta/inventario");
     return res;
   },
 );
 
 /** Guardar avance del conteo (encolable offline: "stock.inventoryCountSave"; idempotente por clientId). */
 export const saveInventoryCountAction = action(
-  { permission: "stock:write", schema: saveCountPayload },
+  { permission: ["stock:write", "stock:count"], schema: saveCountPayload },
   async ({ countId, items, clientId, recordedAt }, { tx, user }) => {
     const res = await saveCountItems(tx, user.id, countId, items, {
       clientId,
       recordedAt: clampRecordedAt(new Date(recordedAt)),
     });
     revalidatePath(`/stock/inventario/${countId}`);
+    revalidatePath("/planta/inventario");
     return res;
   },
 );

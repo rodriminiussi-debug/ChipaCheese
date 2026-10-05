@@ -1,11 +1,12 @@
 "use client";
 
 import { registerOfflineAction } from "@/lib/offline-queue";
-import { finishRouteAction, startRouteAction } from "@/features/dispatch/actions";
+import { deliverDispatchAction, finishRouteAction, startRouteAction } from "@/features/dispatch/actions";
 import { createOrderAction } from "@/features/orders/actions";
 import {
   recordConsumptionsAction,
   recordPackingAction,
+  setRunStatusAction,
   recordWeighingsAction,
 } from "@/features/production/actions";
 import { recordCleaningAction, recordTemperatureAction } from "@/features/quality/actions";
@@ -23,10 +24,12 @@ export const OFFLINE_ACTION = {
   consumptions: "production.consumptions",
   weighings: "production.weighings",
   packing: "production.packing",
+  runStatus: "production.runStatus",
   inventoryCountSave: "stock.inventoryCountSave",
   orderCreate: "orders.create",
   routeStart: "dispatch.routeStart",
   routeFinish: "dispatch.routeFinish",
+  deliver: "dispatch.deliver",
 } as const;
 
 registerOfflineAction(OFFLINE_ACTION.cleaning, recordCleaningAction as never);
@@ -34,7 +37,9 @@ registerOfflineAction(OFFLINE_ACTION.temperature, recordTemperatureAction as nev
 registerOfflineAction(OFFLINE_ACTION.consumptions, recordConsumptionsAction as never);
 registerOfflineAction(OFFLINE_ACTION.weighings, recordWeighingsAction as never);
 registerOfflineAction(OFFLINE_ACTION.packing, recordPackingAction as never);
+registerOfflineAction(OFFLINE_ACTION.runStatus, setRunStatusAction as never);
 registerOfflineAction(OFFLINE_ACTION.inventoryCountSave, saveInventoryCountAction as never);
 registerOfflineAction(OFFLINE_ACTION.orderCreate, createOrderAction as never);
 registerOfflineAction(OFFLINE_ACTION.routeStart, startRouteAction as never);
 registerOfflineAction(OFFLINE_ACTION.routeFinish, finishRouteAction as never);
+registerOfflineAction(OFFLINE_ACTION.deliver, deliverDispatchAction as never);

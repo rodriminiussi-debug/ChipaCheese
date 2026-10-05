@@ -13,7 +13,7 @@ import { requirePermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { can } from "@/lib/rbac";
 import { todayAR } from "@/lib/dates";
-import { DispatchTabs } from "@/features/dispatch/components/dispatch-tabs";
+import { DispatchTabs } from "@/features/dispatch/components/dispatch-tabs-server";
 import { listRoutes, readyOrdersWithoutRoute, type RouteSummary } from "@/features/dispatch/service";
 import { ROUTE_STATUS, weekdayDate } from "@/features/dispatch/labels";
 

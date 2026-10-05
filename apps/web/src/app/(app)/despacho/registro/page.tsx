@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { DispatchTabs } from "@/features/dispatch/components/dispatch-tabs";
+import { DispatchTabs } from "@/features/dispatch/components/dispatch-tabs-server";
 import { listDispatchRegistry, registryProducts } from "@/features/dispatch/service";
 import { registryFiltersFromParams } from "@/features/dispatch/schemas";
 import { formatDispatchNumber } from "@/features/dispatch/labels";

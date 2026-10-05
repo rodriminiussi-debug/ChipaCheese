@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { eq, schema, type Tx } from "@chipa/db";
 import { inRollback } from "../../../tests/helpers";
-import { closeCorrectiveInput, correctiveInput, planInput, registerPreventiveInput } from "./schemas";
+import {
+  closeCorrectiveInput,
+  correctiveInput,
+  planInput,
+  registerPreventiveInput,
+  reportFaultInput,
+} from "./schemas";
 import {
   closeCorrective,
   createCorrective,
@@ -9,9 +15,13 @@ import {
   equipmentHistory,
   equipmentSummaries,
   getMaintenanceAlerts,
+  faultEquipmentOptions,
+  listOpenFaultReports,
+  listOrders,
   listPlans,
   preventiveCompliance,
   registerPreventive,
+  reportFault,
   updatePlan,
 } from "./service";
 
@@ -248,6 +258,107 @@ describe("preventivos cumplidos del mes y alertas (RF-37, M8)", () => {
         preventiveCompliancePct: 0,
         openCorrectives: 1,
       });
+    });
+  });
+});
+
+describe("aviso de falla (operario, chofer, local)", () => {
+  it("el operario avisa una falla de la Biscomatic: queda una correctiva abierta, avisada por él y parada", async () => {
+    await inRollback("jt", async (tx, jt) => {
+      const bisco = await equip(tx, "BISCOMATIC");
+      const now = new Date("2026-10-02T11:30:00-03:00");
+      const res = await reportFault(
+        tx,
+        jt,
+        reportFaultInput.parse({
+          equipmentId: bisco.id,
+          description: "  Se cortó el alambre  ",
+          stopped: true,
+        }),
+        now,
+        TODAY,
+      );
+      expect(res).toMatchObject({ equipmentName: bisco.name, stopped: true });
+
+      const [order] = await tx.query.maintenanceOrders.findMany({
+        where: eq(schema.maintenanceOrders.id, res.id),
+      });
+      expect(order).toMatchObject({
+        type: "corrective",
+        status: "open",
+        activity: "Se cortó el alambre",
+        date: TODAY,
+        equipmentId: bisco.id,
+        reportedById: jt,
+        stopped: true,
+        doneAt: null,
+      });
+      expect(order!.reportedAt!.toISOString()).toBe(now.toISOString());
+      // cuenta como correctivo abierto y la jefa lo ve en los avisos, con quién avisó
+      expect((await getMaintenanceAlerts(tx, TODAY)).openCorrectives).toBe(2);
+      const reports = await listOpenFaultReports(tx);
+      expect(reports).toHaveLength(1);
+      expect(reports[0]).toMatchObject({ id: res.id, reportedBy: { username: "jt" }, stopped: true });
+      const listed = (await listOrders(tx, { type: "corrective", status: "open" })).find(
+        (o) => o.id === res.id,
+      );
+      expect(listed!.reportedBy!.name).toBe("J.T.");
+    });
+  });
+
+  it("el chofer avisa del equipo de frío del vehículo; sin descripción o equipo inexistente no se crea", async () => {
+    await inRollback("logistica", async (tx, uid) => {
+      const equipment = await faultEquipmentOptions(tx);
+      expect(equipment.map((e) => e.code)).toEqual(
+        expect.arrayContaining(["VEH-FRIO", "F1", "F3", "HELADERA"]),
+      );
+      const veh = await equip(tx, "VEH-FRIO");
+      const ok = await reportFault(
+        tx,
+        uid,
+        reportFaultInput.parse({ equipmentId: veh.id, description: "No enfría", stopped: false }),
+        new Date(),
+        TODAY,
+      );
+      expect(ok.stopped).toBe(false);
+      expect((await listOpenFaultReports(tx)).map((r) => r.id)).toContain(ok.id);
+
+      expect(
+        reportFaultInput.safeParse({ equipmentId: veh.id, description: "", stopped: true }).success,
+      ).toBe(false);
+      expect(reportFaultInput.safeParse({ equipmentId: veh.id, description: "No enfría" }).success).toBe(
+        false,
+      );
+      await expect(
+        reportFault(
+          tx,
+          uid,
+          reportFaultInput.parse({
+            equipmentId: "00000000-0000-4000-8000-000000000000",
+            description: "algo",
+            stopped: true,
+          }),
+        ),
+      ).rejects.toThrow(/no existe/);
+    });
+  });
+
+  it("una falla cerrada deja de figurar entre los avisos abiertos", async () => {
+    await inRollback("jt", async (tx, jt) => {
+      const f1 = await equip(tx, "F1");
+      const res = await reportFault(
+        tx,
+        jt,
+        reportFaultInput.parse({ equipmentId: f1.id, description: "Pierde frío", stopped: false }),
+        new Date(),
+        TODAY,
+      );
+      await closeCorrective(
+        tx,
+        closeCorrectiveInput.parse({ id: res.id, doneAt: TODAY, activity: "Se cambió el burlete" }),
+        TODAY,
+      );
+      expect(await listOpenFaultReports(tx)).toHaveLength(0);
     });
   });
 });

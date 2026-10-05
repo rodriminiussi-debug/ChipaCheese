@@ -22,9 +22,14 @@ export default async function PlantLayout({ children }: LayoutProps<"/">) {
         <div className="flex items-center gap-3">
           <OfflineQueueIndicator />
           <ThemeToggle compact className="size-12" />
-          <span className="text-lg font-semibold" data-testid="current-user">
+          <Link
+            href="/cuenta"
+            className="text-lg font-semibold underline-offset-4 hover:underline"
+            data-testid="current-user"
+            aria-label="Mi cuenta"
+          >
             {user.initials}
-          </span>
+          </Link>
           <form action={logoutAction}>
             <Button type="submit" variant="secondary" size="lg" className="h-12">
               <LogOut /> Salir

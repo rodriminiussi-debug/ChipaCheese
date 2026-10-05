@@ -1,6 +1,16 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ClipboardList, GraduationCap, Package, Scale, SprayCan, Thermometer } from "lucide-react";
+import {
+  ClipboardCheck,
+  ClipboardList,
+  GraduationCap,
+  Package,
+  Scale,
+  SprayCan,
+  Thermometer,
+  Truck,
+  Wrench,
+} from "lucide-react";
 import { requireUser } from "@/server/auth/session";
 import { can, type Permission } from "@/lib/rbac";
 
@@ -43,6 +53,27 @@ const TILES: { title: string; href: Route; icon: typeof Scale; permission: Permi
     icon: Thermometer,
     permission: "quality:record",
     testId: "tile-temperaturas",
+  },
+  {
+    title: "Recibir mercadería",
+    href: "/planta/recepcion" as Route,
+    icon: Truck,
+    permission: "purchases:receive",
+    testId: "tile-recepcion",
+  },
+  {
+    title: "Contar inventario",
+    href: "/planta/inventario" as Route,
+    icon: ClipboardCheck,
+    permission: "stock:count",
+    testId: "tile-inventario",
+  },
+  {
+    title: "Avisar una falla",
+    href: "/planta/falla" as Route,
+    icon: Wrench,
+    permission: "maintenance:report",
+    testId: "tile-falla",
   },
   {
     title: "Capacitación",

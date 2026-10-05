@@ -1,8 +1,8 @@
 import { asc, desc, eq, inArray, schema, type Executor } from "@chipa/db";
-import { isTemperatureAlert, poStatusAfterReception, roundQty } from "@chipa/domain";
+import { isTemperatureAlert, poStatusAfterReception, roundQty, type IsoDate } from "@chipa/domain";
 import { UserError } from "@/server/errors";
 import { recordIngredientMovements } from "@/features/stock/ledger";
-import { getOrder, receivedByIngredient } from "./orders";
+import { getOrder, expectedDeliveries, receivedByIngredient } from "./orders";
 import type { ReceptionData } from "./schemas";
 
 /**
@@ -192,3 +192,32 @@ export async function listReceptions(db: Executor, limit = 50) {
   return receptions.map((r) => ({ ...r, lots: lots.filter((l) => l.receptionId === r.id) }));
 }
 export type ReceptionRow = Awaited<ReturnType<typeof listReceptions>>[number];
+
+/**
+ * Órdenes de compra que se pueden recibir (enviadas o parcialmente recibidas), con lo pendiente de cada
+ * línea, para elegirlas desde la tablet de planta. Las de hoy y las atrasadas van primero.
+ */
+export async function receivableOrders(db: Executor, today: IsoDate) {
+  const deliveries = await expectedDeliveries(db, today);
+  const out = [];
+  for (const { order, timing } of deliveries) {
+    const detail = await getOrder(db, order.id);
+    const lines = (detail?.items ?? [])
+      .map((i) => ({
+        name: i.ingredient.name,
+        unit: i.ingredient.unit,
+        pending: roundQty(Math.max(0, i.qty - i.received)),
+      }))
+      .filter((l) => l.pending > 0);
+    out.push({
+      id: order.id,
+      number: order.number,
+      supplier: order.supplier.legalName,
+      expectedAt: order.expectedAt,
+      timing,
+      lines,
+    });
+  }
+  return out;
+}
+export type ReceivableOrder = Awaited<ReturnType<typeof receivableOrders>>[number];

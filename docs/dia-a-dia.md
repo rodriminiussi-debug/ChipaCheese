@@ -15,7 +15,7 @@ Lista de control funcional: cada tarea real de cada persona, en qué pantalla se
 | Eventual | **Dar de alta un producto nuevo** (chipá, reventa como gaseosas, elaborados del local) con su equivalente en chipá o masa | —                                       | ❌                 |
 | Eventual | Dar de alta un insumo nuevo, una zona de reparto, un vehículo, un equipo, una lista de precios para un canal nuevo        | —                                       | ❌                 |
 | Eventual | Dar de alta un usuario, resetear contraseña o PIN                                                                         | `/admin`                                | ✅                 |
-| Eventual | Cambiar su propia contraseña                                                                                              | —                                       | ❌                 |
+| Eventual | Cambiar su propia contraseña                                                                                              | `/cuenta`                               | ✅                 |
 | Eventual | Cliente nuevo; proveedor nuevo                                                                                            | `/clientes/nuevo`, `/proveedores/nuevo` | ✅                 |
 | Eventual | Cheque rechazado: reabrir la deuda                                                                                        | `/cobranzas/cheques`                    | ✅                 |
 | Mes      | Cargar gastos fijos, ver el resultado y si cubre los retiros                                                              | `/costos/gastos`, `/costos/resultado`   | ✅                 |
@@ -42,16 +42,16 @@ Lista de control funcional: cada tarea real de cada persona, en qué pantalla se
 
 ## Operarios — J.T., S.G., E.A., S.R. (tablet de planta, con guantes)
 
-| Momento         | Tarea                                                                 | Pantalla                                   | Estado            |
-| --------------- | --------------------------------------------------------------------- | ------------------------------------------ | ----------------- |
-| Inicio          | Entrar con PIN; ver mis tareas                                        | `/login/planta`, `/planta/tareas`          | ✅                |
-| Producción      | Consumos por lote, pesadas, envasado, etiquetas (también sin señal)   | `/planta/produccion`, `/planta/envasado`   | ✅                |
-| Producción      | Iniciar / pasar a congelado sin señal                                 | `/planta/produccion`                       | ⚠️ solo con señal |
-| Limpieza y frío | Registrar limpieza y temperaturas                                     | `/planta/limpieza`, `/planta/temperaturas` | ✅                |
-| Eventual        | **Recibir mercadería** del proveedor (lote, vencimiento, temperatura) | — (solo escritorio, sin permiso)           | ❌                |
-| Eventual        | **Avisar una falla** de la Biscomatic u otro equipo                   | —                                          | ❌                |
-| Semana          | **Contar el inventario** en la tablet                                 | — (sin permiso)                            | ❌                |
-| Siempre         | Capacitación de mi puesto y de otros                                  | `/capacitacion`                            | ✅                |
+| Momento         | Tarea                                                                 | Pantalla                                   | Estado |
+| --------------- | --------------------------------------------------------------------- | ------------------------------------------ | ------ |
+| Inicio          | Entrar con PIN; ver mis tareas                                        | `/login/planta`, `/planta/tareas`          | ✅     |
+| Producción      | Consumos por lote, pesadas, envasado, etiquetas (también sin señal)   | `/planta/produccion`, `/planta/envasado`   | ✅     |
+| Producción      | Iniciar / pasar a congelado sin señal                                 | `/planta/produccion`                       | ✅     |
+| Limpieza y frío | Registrar limpieza y temperaturas                                     | `/planta/limpieza`, `/planta/temperaturas` | ✅     |
+| Eventual        | **Recibir mercadería** del proveedor (lote, vencimiento, temperatura) | `/planta/recepcion`                        | ✅     |
+| Eventual        | **Avisar una falla** de la Biscomatic u otro equipo                   | `/planta/falla`                            | ✅     |
+| Semana          | **Contar el inventario** en la tablet                                 | `/planta/inventario`                       | ✅     |
+| Siempre         | Capacitación de mi puesto y de otros                                  | `/capacitacion`                            | ✅     |
 
 ## Logística — chofer (celular)
 
@@ -61,7 +61,8 @@ Lista de control funcional: cada tarea real de cada persona, en qué pantalla se
 | Entregas | Remito con lotes, firma o foto; rechazo y entrega parcial; cambio de lote con motivo | `/despacho/remitos/[id]`    | ✅     |
 | Entregas | Cobrar en ruta (efectivo, transferencia, cheque)                                     | `/cobranzas/ruta/[routeId]` | ✅     |
 | Regreso  | Cerrar ruta (km, combustible, temperatura)                                           | `/despacho/rutas/[id]`      | ✅     |
-| Regreso  | **Rendir el efectivo y los cheques cobrados** contra lo registrado                   | —                           | ❌     |
+| Regreso  | **Rendir el efectivo y los cheques cobrados** contra lo registrado                   | `/despacho/rutas/[id]`      | ✅     |
+| Eventual | Avisar una falla del equipo de frío del vehículo                                     | `/avisar-falla`             | ✅     |
 
 ## Local — 2 empleadas (celular o PC)
 
@@ -96,7 +97,7 @@ Lista de control funcional: cada tarea real de cada persona, en qué pantalla se
 | Tarea                                                    | Estado     |
 | -------------------------------------------------------- | ---------- |
 | Modo noche                                               | ✅         |
-| Cambiar mi contraseña / mi PIN                           | ❌         |
+| Cambiar mi contraseña / mi PIN                           | ✅         |
 | Cada rol ve solo lo que necesita (ver "Accesos por rol") | ⚠️ revisar |
 
 ## Accesos por rol (revisión)
@@ -110,3 +111,9 @@ obtiene dentro de su propia pantalla (p. ej. el local elige un cliente desde la 
 | Logística        | Sin Cobranzas ni Stock general: cobra desde la ruta; ve pedidos y direcciones                    |
 | Operario         | + recibir mercadería, avisar fallas y contar inventario desde la tablet                          |
 | Local, Logística | + avisar fallas (vehículo, freezer del local)                                                    |
+
+## Cierre del sprint de planta, reparto y cuenta
+
+- Operario: recibir mercadería (`purchases:receive`), avisar fallas (`maintenance:report`) y contar inventario (`stock:count`; confirmar el ajuste sigue siendo de la jefa, `stock:write`).
+- Chofer: rinde lo cobrado al cerrar la ruta (`collections:write`); Dirección y la jefa reciben y ven el listado (`/despacho/rendiciones`, permiso nuevo `dispatch:settle`: son quienes reciben el efectivo y los cheques).
+- Todos los roles: `/cuenta` (contraseña con la actual y cierre de las otras sesiones, PIN de 4 a 6 dígitos, rol y permisos en palabras).

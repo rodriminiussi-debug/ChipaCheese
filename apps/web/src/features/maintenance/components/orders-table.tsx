@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { StatusBadge } from "@/components/app/status-badge";
 import { DateText, Money } from "@/components/app/format";
+import { formatDateTimeAR } from "@/lib/dates";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { downtimeLabel, ORDER_STATUS, ORDER_TYPE } from "../labels";
 import type { MaintenanceFormOptions, OrderRow } from "../service";
@@ -57,7 +58,20 @@ export function OrdersTable({
                   {ORDER_TYPE[o.type]}
                 </StatusBadge>
               </TableCell>
-              <TableCell className="max-w-64">{o.activity}</TableCell>
+              <TableCell className="max-w-64">
+                {o.activity}
+                {o.reportedBy ? (
+                  <span className="text-muted-foreground mt-0.5 block text-xs" data-testid="reported-by">
+                    Avisada por {o.reportedBy.name}
+                    {o.reportedAt ? ` · ${formatDateTimeAR(o.reportedAt)}` : ""}
+                  </span>
+                ) : null}
+                {o.stopped && o.status === "open" ? (
+                  <StatusBadge tone="bad" className="mt-1">
+                    Equipo parado
+                  </StatusBadge>
+                ) : null}
+              </TableCell>
               <TableCell>{o.cause ?? "—"}</TableCell>
               <TableCell className="hidden lg:table-cell">{o.spareParts ?? "—"}</TableCell>
               <TableCell className="hidden text-right md:table-cell">

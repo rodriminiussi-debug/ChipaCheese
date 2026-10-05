@@ -44,6 +44,7 @@ export const PERMISSIONS = [
   "recipes:write",
   "dispatch:read",
   "dispatch:write",
+  "dispatch:settle", // recibir la rendición del chofer (efectivo y cheques cobrados en ruta)
   "billing:read", // cuentas corrientes, facturas, cheques
   "billing:write",
   "collections:write", // cobros en ruta

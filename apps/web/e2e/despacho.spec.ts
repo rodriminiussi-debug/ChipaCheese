@@ -544,6 +544,142 @@ test.describe("Despacho y reparto (logística)", () => {
   });
 });
 
+/** Ruta cerrada con cobros (fixture SQL: este bloque prueba la rendición, no el cobro en ruta). */
+async function closedRouteWithCollections(sql: Sql) {
+  const [{ id: driver }] = await sql`select id from users where username = 'logistica'`;
+  const [route] = await sql`insert into routes (date, driver_id, status, notes, km_start, km_end)
+    values (${DAY}, ${driver}, 'done', 'RENDICION-E2E', 100, 160) returning id`;
+  const pay = async (customer: string, method: string, amount: number) => {
+    const [p] = await sql`insert into customer_payments (customer_id, date, amount, method, route_id)
+      values ((select id from customers where legal_name = ${customer}), ${DAY}, ${amount}, ${method}::payment_method, ${route!.id})
+      returning id`;
+    return p!.id as string;
+  };
+  await pay("Supermercado Arcoiris", "cash", 80000);
+  await pay("Club Náutico", "cash", 30000);
+  await pay("Club Náutico", "transfer", 45000);
+  const withChecks = await pay("Supermercado Arcoiris", "check", 100000);
+  await sql`insert into checks (payment_id, bank, number, amount, cash_date) values
+    (${withChecks}, 'Banco Nación', 'E2E-1', 40000, '2026-10-30'), (${withChecks}, 'Galicia', 'E2E-2', 60000, '2026-11-15')`;
+  return route!.id as string;
+}
+const settlementRoute = async (sql: Sql) =>
+  ((await sql`select id from routes where notes = 'RENDICION-E2E'`)[0]?.id as string | undefined) ??
+  (await closedRouteWithCollections(sql));
+
+test.describe("Rendición del chofer al cerrar la ruta", () => {
+  test.describe("chofer", () => {
+    test.use({ storageState: asRole("logistics") });
+
+    test("ve lo cobrado en la ruta, carga lo que entrega y la diferencia queda registrada", async ({
+      page,
+      sql,
+    }) => {
+      const routeId = await settlementRoute(sql);
+      await page.goto(`/despacho/rutas/${routeId}`);
+      const panel = page.getByTestId("settlement-panel");
+      await expect(panel).toContainText("Rendición de lo cobrado");
+      await expect(page.getByTestId("expected-cash")).toContainText("$ 110.000");
+      await expect(page.getByTestId("expected-checks")).toContainText("2");
+      await expect(panel).toContainText("Transferencias (ya en el banco)");
+      await expect(panel.getByRole("list", { name: "Cheques de la ruta" })).toContainText("Galicia N° E2E-2");
+
+      // Entrega de menos: la diferencia se ve al instante y pide el motivo.
+      await page.getByLabel("Efectivo que entrego ($)").fill("108.500");
+      await page.getByLabel("Cheques que entrego (cantidad)").fill("1");
+      await expect(page.getByTestId("live-diff")).toContainText("efectivo −$ 1.500");
+      await expect(page.getByTestId("live-diff")).toContainText("cheques −1");
+      await page.getByRole("button", { name: "Registrar rendición" }).click();
+      await expect(
+        page.locator("[data-sonner-toast]").filter({ hasText: /contá a qué se debe/ }),
+      ).toBeVisible();
+      expect((await sql`select 1 from route_settlements where route_id = ${routeId}`).length).toBe(0);
+
+      await page.getByLabel(/Observaciones/).fill("Dejé un cheque en el local");
+      await page.getByRole("button", { name: "Registrar rendición" }).click();
+      await expectToast(page, "Rendición registrada con diferencia");
+      const summary = page.getByTestId("settlement-summary");
+      await expect(summary).toContainText("Falta");
+      await expect(page.getByTestId("settlement-diff")).toContainText("efectivo −$ 1.500");
+      await expect(summary).toContainText("Pendiente de que la reciba Dirección o la jefa");
+      await expect(summary.getByRole("button", { name: "Confirmar recepción" })).toHaveCount(0);
+
+      const [row] =
+        await sql`select cash_expected::float8 as ce, cash_delivered::float8 as cd, checks_expected as ke,
+        checks_delivered as kd, transfers_expected::float8 as te, received_by_id from route_settlements where route_id = ${routeId}`;
+      expect(row).toMatchObject({ ce: 110000, cd: 108500, ke: 2, kd: 1, te: 45000, received_by_id: null });
+    });
+
+    test("no ve el listado de rendiciones (lo reciben Dirección y la jefa)", async ({ page }) => {
+      await page.goto("/despacho");
+      await expect(page.getByRole("link", { name: "Rendiciones" })).toHaveCount(0);
+      await page.goto("/despacho/rendiciones");
+      await expect(page).toHaveURL(/sin-permiso/);
+    });
+
+    test("el enlace para avisar una falla lleva el equipo de frío del vehículo", async ({ page, sql }) => {
+      const routeId = await settlementRoute(sql);
+      await page.goto(`/despacho/rutas/${routeId}`);
+      await expect(page.getByRole("link", { name: "Avisar una falla" })).toHaveAttribute(
+        "href",
+        new RegExp(`^/avisar-falla\\?volver=/despacho/rutas/${routeId}`),
+      );
+    });
+  });
+
+  test.describe("jefa de producción", () => {
+    test.use({ storageState: asRole("production_manager") });
+
+    test("ve la rendición con diferencia en el listado y la recibe", async ({ page, sql }) => {
+      const routeId = await settlementRoute(sql);
+      await page.goto("/despacho");
+      await page.getByRole("link", { name: "Rendiciones" }).click();
+      await expect(page).toHaveURL(/\/despacho\/rendiciones/);
+      await page.goto("/despacho/rendiciones?mes=2026-10");
+      await expect(page.getByTestId("sum-settlements")).toContainText("1");
+      await expect(page.getByTestId("sum-diff")).toContainText("1");
+      await expect(page.getByTestId("sum-missing")).toContainText("$ 1.500");
+      const row = page.getByTestId("settlement-row");
+      await expect(row).toHaveAttribute("data-status", "short");
+      await expect(row).toContainText("Falta");
+      await expect(row).toContainText("Efectivo −$ 1.500");
+      await expect(row).toContainText("Cheques −1");
+      await expect(row).toContainText("Dejé un cheque en el local");
+      await expect(row).toContainText("1 / 2");
+
+      await row.getByRole("link", { name: /Pendiente: abrir y recibir/ }).click();
+      await expect(page).toHaveURL(new RegExp(`/despacho/rutas/${routeId}$`));
+      await expect(page.getByRole("button", { name: "Corregir rendición" })).toHaveCount(0); // la jefa no rinde
+      await page.getByLabel("Observaciones de la recepción (opcional)").fill("Contado con Nahuel");
+      await page.getByRole("button", { name: "Confirmar recepción" }).click();
+      await expectToast(page, "Rendición recibida");
+      await expect(page.getByTestId("settlement-summary")).toContainText("Recibida por A.F.");
+      const [r] =
+        await sql`select u.username from route_settlements s join users u on u.id = s.received_by_id`;
+      expect(r!.username).toBe("af");
+    });
+  });
+
+  test.describe("chofer, después de la recepción", () => {
+    test.use({ storageState: asRole("logistics") });
+    test("ya no puede corregir la rendición recibida", async ({ page, sql }) => {
+      const routeId = await settlementRoute(sql);
+      await page.goto(`/despacho/rutas/${routeId}`);
+      await expect(page.getByTestId("settlement-summary")).toContainText("Recibida por A.F.");
+      await expect(page.getByRole("button", { name: "Corregir rendición" })).toHaveCount(0);
+    });
+  });
+
+  test.describe("Dirección", () => {
+    test.use({ storageState: asRole("admin") });
+    test("ve el mismo listado con quién la recibió", async ({ page }) => {
+      await page.goto("/despacho/rendiciones?mes=2026-10");
+      await expect(page.getByTestId("settlement-row")).toContainText("A.F. (Jefa de producción)");
+      await expect(page.getByTestId("sum-open")).toContainText("0");
+    });
+  });
+});
+
 test.describe("Permisos del módulo", () => {
   test.describe("local", () => {
     test.use({ storageState: asRole("store") });

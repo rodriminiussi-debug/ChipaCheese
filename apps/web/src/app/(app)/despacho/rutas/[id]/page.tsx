@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Route } from "next";
-import { ChevronLeft, Printer, Wallet } from "lucide-react";
+import { ChevronLeft, Printer, Wallet, Wrench } from "lucide-react";
 import { routeHours } from "@chipa/domain";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
@@ -19,6 +19,8 @@ import {
 } from "@/features/dispatch/components/route-panels";
 import { StopCard } from "@/features/dispatch/components/stop-card";
 import { dispatchFormOptions, getRoute, lastKmEnd } from "@/features/dispatch/service";
+import { settlementView } from "@/features/dispatch/settlement";
+import { SettlementPanel } from "@/features/dispatch/components/settlement-panel";
 import { ROUTE_STATUS, weekdayDate } from "@/features/dispatch/labels";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -42,9 +44,15 @@ export default async function RoutePage(props: PageProps<"/despacho/rutas/[id]">
 
   const canWrite = can(user.role, "dispatch:write");
   const open = route.status === "planned" || route.status === "in_progress";
-  const [options, suggestedKmStart] = await Promise.all([
+  // Rendición de lo cobrado: con la ruta cerrada, la ve el chofer (que cobra) y quien la recibe.
+  const canRegisterSettlement = can(user.role, "collections:write");
+  const canReceiveSettlement = can(user.role, "dispatch:settle");
+  const [options, suggestedKmStart, settlement] = await Promise.all([
     canWrite && open ? dispatchFormOptions(db) : null,
     route.vehicleId && route.status === "planned" ? lastKmEnd(db, route.vehicleId) : null,
+    route.status === "done" && (canRegisterSettlement || canReceiveSettlement)
+      ? settlementView(db, route.id)
+      : null,
   ]);
   const st = ROUTE_STATUS[route.status];
   // Chofer y vehículo van arriba solo si falta alguno; si no, después de las paradas.
@@ -99,6 +107,17 @@ export default async function RoutePage(props: PageProps<"/despacho/rutas/[id]">
                 <Printer /> Hoja de ruta
               </Link>
             </Button>
+            {can(user.role, "maintenance:report") ? (
+              <Button asChild variant="outline" className="h-11">
+                <Link
+                  href={
+                    `/avisar-falla?volver=/despacho/rutas/${route.id}${route.vehicle?.equipmentId ? `&equipo=${route.vehicle.equipmentId}` : ""}` as Route
+                  }
+                >
+                  <Wrench /> Avisar una falla
+                </Link>
+              </Button>
+            ) : null}
             {can(user.role, "collections:write") ? (
               <Button asChild variant="outline" className="h-11">
                 <Link href={`/cobranzas/ruta/${route.id}` as Route}>
@@ -130,6 +149,24 @@ export default async function RoutePage(props: PageProps<"/despacho/rutas/[id]">
         ) : null}
 
         {route.status !== "in_progress" ? <RouteRunPanel route={runRoute} canWrite={canWrite} /> : null}
+
+        {settlement ? (
+          <SettlementPanel
+            routeId={route.id}
+            canRegister={canRegisterSettlement}
+            canReceive={canReceiveSettlement}
+            data={{
+              expected: settlement.expected,
+              settlement: settlement.settlement && {
+                cashDelivered: settlement.settlement.cashDelivered,
+                checksDelivered: settlement.settlement.checksDelivered,
+                notes: settlement.settlement.notes,
+                settledAt: settlement.settlement.settledAt.toISOString(),
+                receivedByName: settlement.settlement.receivedBy?.name ?? null,
+              },
+            }}
+          />
+        ) : null}
 
         {canWrite && open && withoutDispatch > 0 ? (
           <div>

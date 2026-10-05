@@ -13,7 +13,7 @@ import { requirePermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { todayAR } from "@/lib/dates";
 import { cn } from "@/lib/utils";
-import { DispatchTabs } from "@/features/dispatch/components/dispatch-tabs";
+import { DispatchTabs } from "@/features/dispatch/components/dispatch-tabs-server";
 import {
   costByMonth,
   costByZone,

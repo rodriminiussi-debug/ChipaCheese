@@ -691,8 +691,25 @@ export async function recordConsumptions(
   return { rows, outOfRange: rows.filter((r) => r.outOfRange).length, duplicate: false as const };
 }
 
-/** Cambia el estado respetando las transiciones válidas (planned → in_progress → freezing → packed → closed). */
-export async function setRunStatus(db: Executor, input: SetRunStatusInput & { freezerCodes?: string[] }) {
+/**
+ * Cambia el estado respetando las transiciones válidas (planned → in_progress → freezing → packed → closed).
+ * Idempotente por `opts.clientId` (cola offline): cada cambio queda en `production_status_changes` y reenviarlo
+ * devuelve la producción sin repetir el efecto ni fallar por la transición ya hecha. `recordedAt` es la hora real.
+ */
+export async function setRunStatus(
+  db: Executor,
+  input: SetRunStatusInput & { freezerCodes?: string[] },
+  opts: OfflineStamp & { userId?: string | null } = {},
+) {
+  if (opts.clientId) {
+    const dup = await db.query.productionStatusChanges.findFirst({
+      where: eq(schema.productionStatusChanges.clientId, opts.clientId),
+    });
+    if (dup) {
+      const run = await requireRun(db, dup.runId);
+      return Object.assign(run, { duplicate: true as const });
+    }
+  }
   const run = await requireRun(db, input.runId);
   const to = input.status as RunStatus;
   if (!canTransitionRun(run.status, to)) {
@@ -700,11 +717,12 @@ export async function setRunStatus(db: Executor, input: SetRunStatusInput & { fr
       `No se puede pasar de "${RUN_STATUS[run.status]?.label}" a "${RUN_STATUS[to]?.label}".`,
     );
   }
+  const at = opts.recordedAt ?? new Date();
   const patch: Partial<typeof schema.productionRuns.$inferInsert> = { status: to };
   if (to === "freezing") {
     const time = input.frozenTime;
     patch.freezerCodes = input.freezerCodes ?? [];
-    patch.frozenAt = time ? new Date(`${run.date}T${time}:00-03:00`) : new Date();
+    patch.frozenAt = time ? new Date(`${run.date}T${time}:00-03:00`) : at;
   }
   if (to === "packed" && run.lots.every((l) => l.packings.length === 0)) {
     throw new UserError("Cargá el envasado antes de marcar la producción como envasada.");
@@ -714,7 +732,15 @@ export async function setRunStatus(db: Executor, input: SetRunStatusInput & { fr
     .set(patch)
     .where(eq(schema.productionRuns.id, run.id))
     .returning();
-  return row!;
+  if (opts.clientId)
+    await db.insert(schema.productionStatusChanges).values({
+      runId: run.id,
+      status: to,
+      clientId: opts.clientId,
+      changedById: opts.userId ?? null,
+      changedAt: at,
+    });
+  return Object.assign(row!, { duplicate: false as const });
 }
 
 // ===========================================================================================

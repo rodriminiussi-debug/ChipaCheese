@@ -68,3 +68,15 @@ export const closeCorrectiveInput = z.object({
 });
 export type CloseCorrectiveInput = z.input<typeof closeCorrectiveInput>;
 export type CloseCorrectiveData = z.output<typeof closeCorrectiveInput>;
+
+// --- Aviso de falla (operario, chofer, local, jefa) ------------------------------------------------------
+
+/** Avisar que un equipo (o el equipo de frío del vehículo) tiene una falla: crea una correctiva abierta. */
+export const reportFaultInput = z.object({
+  equipmentId: z.string().uuid("Elegí el equipo"),
+  description: z.string().trim().min(3, "Contá qué pasa").max(500, "Máximo 500 caracteres"),
+  /** ¿Está parado? Hay que contestarlo: no se asume. */
+  stopped: z.boolean(),
+});
+export type ReportFaultInput = z.input<typeof reportFaultInput>;
+export type ReportFaultData = z.output<typeof reportFaultInput>;

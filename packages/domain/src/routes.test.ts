@@ -6,6 +6,7 @@ import {
   isSmallRoute,
   routeCost,
   routeHours,
+  settlementDifference,
   SMALL_ROUTE_KG,
   zoneDeliversOn,
 } from "./routes";
@@ -106,5 +107,30 @@ describe("costo parcial y reparto por zona (RF-27)", () => {
   it("sin kg entregados no reparte nada", () => {
     expect(allocateCostByKg(500, [{ key: "a", kg: 0 }]).map((x) => x.cost)).toEqual([0]);
     expect(allocateCostByKg(500, [])).toEqual([]);
+  });
+});
+
+describe("rendición del chofer", () => {
+  const base = { cashExpected: 150000, cashDelivered: 150000, checksExpected: 2, checksDelivered: 2 };
+  it("sin diferencia cuando entrega lo registrado", () => {
+    expect(settlementDifference(base)).toEqual({ cash: 0, checks: 0, status: "ok" });
+  });
+  it("falta efectivo o falta un cheque: short", () => {
+    expect(settlementDifference({ ...base, cashDelivered: 148500.5 })).toEqual({
+      cash: -1499.5,
+      checks: 0,
+      status: "short",
+    });
+    expect(settlementDifference({ ...base, checksDelivered: 1 })).toMatchObject({
+      checks: -1,
+      status: "short",
+    });
+  });
+  it("sobra efectivo: over; si falta algo, gana short", () => {
+    expect(settlementDifference({ ...base, cashDelivered: 151000 }).status).toBe("over");
+    expect(settlementDifference({ ...base, cashDelivered: 151000, checksDelivered: 1 }).status).toBe("short");
+  });
+  it("ignora errores de punto flotante", () => {
+    expect(settlementDifference({ ...base, cashExpected: 0.1 + 0.2, cashDelivered: 0.3 }).status).toBe("ok");
   });
 });
