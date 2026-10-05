@@ -4,10 +4,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, OctagonAlert } from "lucide-re
 import { Kg, Money, Num } from "@/components/app/format";
 import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { monthLabel } from "@/features/finance/format";
-import { CHANNEL } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { DashboardAlert, FinancialDashboard, OperationalDashboard } from "../service";
 
@@ -238,93 +235,5 @@ export function ResultSummary({ fin }: { fin: FinancialDashboard }) {
         }
       />
     </section>
-  );
-}
-
-/** Margen por canal: (precio − costo) ÷ precio de cada lista contra su margen objetivo. */
-export function MarginByChannel({ fin }: { fin: FinancialDashboard }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Margen por canal</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table aria-label="Margen por canal">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Lista</TableHead>
-                <TableHead className="text-right">Margen promedio</TableHead>
-                <TableHead className="text-right">Objetivo</TableHead>
-                <TableHead className="hidden text-right xl:table-cell">Bajo objetivo</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {fin.marginByChannel.map((m) => (
-                <TableRow key={m.listId}>
-                  <TableCell>
-                    <div className="font-medium">{m.listName}</div>
-                    <div className="text-muted-foreground text-xs">{CHANNEL[m.channel] ?? m.channel}</div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {m.avgMarginPct != null ? (
-                      <span
-                        className={cn(
-                          "tabular-nums",
-                          m.avgMarginPct < m.targetMarginPct && "text-amber-700 dark:text-amber-400",
-                        )}
-                      >
-                        <Num value={m.avgMarginPct} decimals={1} suffix="%" />
-                      </span>
-                    ) : (
-                      <StatusBadge tone="warn">Sin costo</StatusBadge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Num value={m.targetMarginPct} decimals={0} suffix="%" />
-                  </TableCell>
-                  <TableCell className="hidden text-right xl:table-cell">
-                    {m.belowCost > 0 ? (
-                      <StatusBadge tone="bad">{m.belowCost} bajo costo</StatusBadge>
-                    ) : (
-                      m.belowTarget
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function TopCustomers({ fin }: { fin: FinancialDashboard }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Mejores clientes de {monthLabel(fin.month)}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {fin.topCustomers.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Todavía no hay facturas en el mes.</p>
-        ) : (
-          <ol aria-label="Mejores clientes" className="grid grid-cols-[minmax(0,1fr)] gap-2">
-            {fin.topCustomers.map((c, i) => (
-              <li key={c.customerId} className="flex items-center justify-between gap-3 text-sm">
-                <span className="min-w-0 truncate">
-                  <span className="text-muted-foreground mr-2 tabular-nums">{i + 1}.</span>
-                  <Link href={`/cobranzas/clientes/${c.customerId}` as Route} className="hover:underline">
-                    {c.name}
-                  </Link>
-                </span>
-                <Money value={c.net} decimals={0} />
-              </li>
-            ))}
-          </ol>
-        )}
-      </CardContent>
-    </Card>
   );
 }

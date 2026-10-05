@@ -2,32 +2,64 @@ import {
   DAILY_CAPACITY_KG,
   addDays,
   capacityUsagePct,
-  deliveryIsComplete,
   isoWeekday,
+  monthsBack,
   onTimeInFullRate,
   productionYield,
   roundMoney,
   roundQty,
+  formatNumber,
   roundTo,
   workdaysBetween,
   type IsoDate,
 } from "@chipa/domain";
-import { and, desc, eq, gte, inArray, lt, ne, notInArray, schema, sql, type Executor } from "@chipa/db";
-import { TZ, todayAR } from "@/lib/dates";
-import {
-  getChecksDueSoon,
-  getReceivablesSummary,
-  getSalesByChannel,
-  monthBounds,
-} from "@/features/billing/service";
+import { and, desc, eq, gte, inArray, lt, ne, schema, sql, type Executor } from "@chipa/db";
+import { todayAR } from "@/lib/dates";
+import { getChecksDueSoon, getReceivablesSummary, monthBounds } from "@/features/billing/service";
 import { getProductCosts, type ProductCosts } from "@/features/costing/service";
-import { getDeliveryCostSummary } from "@/features/dispatch/service";
-import { getMonthlyResult, type MonthlyResultDetail } from "@/features/finance/service";
+import { costByZone, type ZoneCostRow } from "@/features/dispatch/service";
+import {
+  getMonthlyResult,
+  getPartnerWithdrawals,
+  type MonthlyResultDetail,
+} from "@/features/finance/service";
 import { getMaintenanceAlerts } from "@/features/maintenance/service";
 import { countOverdueOrders, getOverdueCustomers } from "@/features/orders/service";
 import { getPriceMatrix } from "@/features/pricing/service";
 import { getQualityAlerts } from "@/features/quality/service";
 import { getIngredientCoverage } from "@/features/stock/service";
+import {
+  FINISHED_EXPIRY_DAYS,
+  PRICE_INCREASE_PCT,
+  RAW_EXPIRY_DAYS,
+  getExpiryAlerts,
+  getLateSupplierOrders,
+  getNextDayOrders,
+  getPriceIncreases,
+  type AlertThresholds,
+  type ExpiryAlerts,
+  type LateSupplierOrders,
+  type NextDayOrders,
+  type PriceIncreaseAlert,
+} from "./attention";
+import {
+  DAILY_CHART_DAYS,
+  OTIF_CHART_WEEKS,
+  YIELD_CHART_DAYS,
+  bagCostOf,
+  coverageChart,
+  getCostPerBagByMonth,
+  getOtifByWeek,
+  getOtifRows,
+  getStoreDailyUnits,
+  getTemperaturesDaily,
+  getYieldByRun,
+  type CostPerBagPoint,
+  type OperationalCharts,
+} from "./series";
+
+export type { AlertThresholds, ExpiryAlerts, LateSupplierOrders, NextDayOrders, PriceIncreaseAlert };
+export type { CostPerBagPoint, OperationalCharts };
 
 /** Ventana (días) del rendimiento promedio del tablero. */
 export const YIELD_WINDOW_DAYS = 30;
@@ -90,6 +122,40 @@ export interface OperationalDashboard {
     customersToCall: { customerId: string; name: string; daysLate: number; daysSinceLastOrder: number }[];
   };
   lotsOnHold: number;
+  /** Lotes con saldo por vencer (producto terminado ≤ 30 días, materia prima ≤ 7 días). */
+  expiry: ExpiryAlerts;
+  lateSupplierOrders: LateSupplierOrders;
+  nextDayOrders: NextDayOrders;
+  /** Series de los gráficos operativos: sin montos. */
+  charts: OperationalCharts;
+}
+
+/** Gráficos con plata: sólo existen para quien tiene `finance:read`. */
+export interface FinancialCharts {
+  /** Los últimos 6 meses, el último es el mes elegido. */
+  months: string[];
+  salesByMonth: { month: string; total: number; byChannel: Record<string, number> }[];
+  resultByMonth: {
+    month: string;
+    result: number;
+    resultPct: number | null;
+    sales: number;
+    hasData: boolean;
+  }[];
+  /** Retiros mensuales de los socios (referencia del gráfico de resultado). */
+  withdrawals: number;
+  costPerBagByMonth: CostPerBagPoint[];
+  deliveryByMonth: { month: string; costPerKg: number | null; kg: number; cost: number; routes: number }[];
+  deliveryByZone: ZoneCostRow[];
+  /** Deuda de clientes por antigüedad a hoy. */
+  receivablesAging: {
+    current: number;
+    d1_30: number;
+    d31_60: number;
+    d61_90: number;
+    d90_plus: number;
+    total: number;
+  };
 }
 
 export interface FinancialDashboard {
@@ -118,6 +184,7 @@ export interface FinancialDashboard {
   receivables: { total: number; overdue: number };
   checksDueSoon: { count: number; amount: number };
   deliveryCostPerKg: number | null;
+  charts: FinancialCharts;
 }
 
 export interface Dashboard {
@@ -126,6 +193,8 @@ export interface Dashboard {
   operational: OperationalDashboard;
   /** null = el usuario no tiene `finance:read`: no se calcula ni se envía nada financiero. */
   financial: FinancialDashboard | null;
+  /** Aumentos de precio de compra (porcentajes): para quien ve finanzas o compras. null = sin permiso. */
+  priceIncreases: PriceIncreaseAlert[] | null;
   alerts: DashboardAlert[];
 }
 
@@ -137,15 +206,32 @@ async function readSettings(db: Executor) {
   const rows = await db
     .select()
     .from(schema.appSettings)
-    .where(inArray(schema.appSettings.key, ["production.daily_capacity_kg", "production.workdays"]));
+    .where(
+      inArray(schema.appSettings.key, [
+        "production.daily_capacity_kg",
+        "production.workdays",
+        "alerts.finished_expiry_days",
+        "alerts.raw_expiry_days",
+        "alerts.price_increase_pct",
+      ]),
+    );
   const m = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   const capacity = Number(m["production.daily_capacity_kg"]);
   const workdays = Array.isArray(m["production.workdays"])
     ? (m["production.workdays"] as unknown[]).map(Number).filter((n) => n >= 1 && n <= 7)
     : [];
+  const positive = (key: string, fallback: number) => {
+    const n = Number(m[key]);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  };
   return {
     capacityKg: capacity > 0 ? capacity : DAILY_CAPACITY_KG,
     workdays: workdays.length > 0 ? workdays : [1, 2, 3, 4, 5],
+    thresholds: {
+      finishedExpiryDays: positive("alerts.finished_expiry_days", FINISHED_EXPIRY_DAYS),
+      rawExpiryDays: positive("alerts.raw_expiry_days", RAW_EXPIRY_DAYS),
+      priceIncreasePct: positive("alerts.price_increase_pct", PRICE_INCREASE_PCT),
+    } satisfies AlertThresholds,
   };
 }
 
@@ -169,51 +255,15 @@ async function weighedKgByDay(db: Executor, from: IsoDate, to: IsoDate) {
   return new Map(rows.map((r) => [r.date, roundQty(r.kg)]));
 }
 
-/** Rendimiento (Regla 3) de las producciones de los últimos 30 días: kg pesados ÷ kg de ingredientes reales. */
-async function averageYield(db: Executor, today: IsoDate) {
+/** Rendimiento (Regla 3) promedio de las producciones de los últimos 30 días: kg pesados ÷ kg de ingredientes reales. */
+function averageYield(points: { date: IsoDate; weighedKg: number; ingredientsKg: number }[], today: IsoDate) {
   const from = addDays(today, -YIELD_WINDOW_DAYS);
-  const runs = db
-    .select({ id: schema.productionRuns.id })
-    .from(schema.productionRuns)
-    .where(
-      and(
-        gte(schema.productionRuns.date, from),
-        lt(schema.productionRuns.date, addDays(today, 1)),
-        ne(schema.productionRuns.status, "cancelled"),
-      ),
-    );
-  const [weighed, consumed] = await Promise.all([
-    db
-      .select({
-        runId: schema.productionWeighings.runId,
-        kg: sql<number>`sum(${schema.productionWeighings.kg})::float8`,
-      })
-      .from(schema.productionWeighings)
-      .where(inArray(schema.productionWeighings.runId, runs))
-      .groupBy(schema.productionWeighings.runId),
-    db
-      .select({
-        runId: schema.productionConsumptions.runId,
-        kg: sql<number>`sum(${schema.productionConsumptions.qtyActual})::float8`,
-      })
-      .from(schema.productionConsumptions)
-      .where(inArray(schema.productionConsumptions.runId, runs))
-      .groupBy(schema.productionConsumptions.runId),
-  ]);
-  const ingredients = new Map(consumed.map((c) => [c.runId, c.kg]));
-  let weighedKg = 0;
-  let ingredientsKg = 0;
-  let n = 0;
-  for (const w of weighed) {
-    const used = ingredients.get(w.runId);
-    if (!used || used <= 0 || w.kg <= 0) continue; // sin consumos reales no se puede medir
-    weighedKg += w.kg;
-    ingredientsKg += used;
-    n++;
-  }
+  const inWindow = points.filter((p) => p.date >= from);
+  const weighedKg = inWindow.reduce((a, p) => a + p.weighedKg, 0);
+  const ingredientsKg = inWindow.reduce((a, p) => a + p.ingredientsKg, 0);
   return {
-    ratio: n > 0 ? productionYield(weighedKg, ingredientsKg) : null,
-    runs: n,
+    ratio: inWindow.length > 0 ? productionYield(weighedKg, ingredientsKg) : null,
+    runs: inWindow.length,
     weighedKg: roundQty(weighedKg),
     windowDays: YIELD_WINDOW_DAYS,
   };
@@ -226,57 +276,8 @@ async function averageYield(db: Executor, today: IsoDate) {
  */
 export async function getOtif(db: Executor, month: string) {
   const { from, to } = monthBounds(month);
-  const o = schema.orders;
-  const deliveredDay = sql<string>`to_char((${o.deliveredAt} at time zone ${TZ})::date, 'YYYY-MM-DD')`;
-  const delivered = await db
-    .select({ id: o.id, promisedDate: o.promisedDate, deliveredDate: deliveredDay })
-    .from(o)
-    .where(
-      and(
-        inArray(o.status, ["delivered", "invoiced", "paid"]),
-        sql`(${o.deliveredAt} at time zone ${TZ})::date >= ${from}::date`,
-        sql`(${o.deliveredAt} at time zone ${TZ})::date < ${to}::date`,
-      ),
-    );
-  if (delivered.length === 0) return { pct: null, delivered: 0, ok: 0, month };
-  const ids = delivered.map((d) => d.id);
-  const [items, dispatched] = await Promise.all([
-    db
-      .select({
-        orderId: schema.orderItems.orderId,
-        productId: schema.orderItems.productId,
-        qty: schema.orderItems.qtyUnits,
-      })
-      .from(schema.orderItems)
-      .where(inArray(schema.orderItems.orderId, ids)),
-    db
-      .select({
-        orderId: schema.dispatches.orderId,
-        productId: schema.dispatchItems.productId,
-        qty: sql<number>`sum(${schema.dispatchItems.qtyUnits})::int`,
-      })
-      .from(schema.dispatchItems)
-      .innerJoin(schema.dispatches, eq(schema.dispatches.id, schema.dispatchItems.dispatchId))
-      .where(
-        and(
-          inArray(schema.dispatches.orderId, ids),
-          notInArray(schema.dispatches.status, ["cancelled", "rejected"]),
-        ),
-      )
-      .groupBy(schema.dispatches.orderId, schema.dispatchItems.productId),
-  ]);
-  const dispatchedKey = new Map(dispatched.map((d) => [`${d.orderId}|${d.productId}`, d.qty]));
-  const hasDispatch = new Set(dispatched.map((d) => d.orderId));
-  const rows = delivered.map((d) => {
-    const lines = items
-      .filter((i) => i.orderId === d.id)
-      .map((i) => ({ ordered: i.qty, dispatched: dispatchedKey.get(`${d.id}|${i.productId}`) ?? 0 }));
-    return {
-      promisedDate: d.promisedDate,
-      deliveredDate: d.deliveredDate,
-      complete: !hasDispatch.has(d.id) || deliveryIsComplete(lines),
-    };
-  });
+  const rows = await getOtifRows(db, from, to);
+  if (rows.length === 0) return { pct: null, delivered: 0, ok: 0, month };
   const pct = onTimeInFullRate(rows);
   const ok = rows.filter((r) => r.deliveredDate <= r.promisedDate && r.complete).length;
   return { pct, delivered: rows.length, ok, month };
@@ -295,18 +296,42 @@ export async function getOperationalDashboard(
   const month = opts.month ?? today.slice(0, 7);
   const chartFrom = addDays(today, -(PRODUCTION_CHART_DAYS - 1));
   const weekFrom = mondayOf(today);
-  const [settings, byDay, yieldAvg, otif, coverage, quality, maintenance, overdueOrders, toCall] =
-    await Promise.all([
-      readSettings(db),
-      weighedKgByDay(db, weekFrom < chartFrom ? weekFrom : chartFrom, today),
-      averageYield(db, today),
-      getOtif(db, month),
-      getIngredientCoverage(db, { today }),
-      getQualityAlerts(db, today),
-      getMaintenanceAlerts(db, today),
-      countOverdueOrders(db, today),
-      getOverdueCustomers(db, today),
-    ]);
+  const settings = await readSettings(db);
+  const [
+    byDay,
+    yieldRuns,
+    otif,
+    otifByWeek,
+    coverage,
+    quality,
+    maintenance,
+    overdueOrders,
+    toCall,
+    storeDaily,
+    temperaturesDaily,
+    expiry,
+    lateSupplierOrders,
+    nextDayOrders,
+  ] = await Promise.all([
+    weighedKgByDay(db, weekFrom < chartFrom ? weekFrom : chartFrom, today),
+    getYieldByRun(db, addDays(today, -(YIELD_CHART_DAYS - 1)), today),
+    getOtif(db, month),
+    getOtifByWeek(db, today, OTIF_CHART_WEEKS),
+    getIngredientCoverage(db, { today }),
+    getQualityAlerts(db, today),
+    getMaintenanceAlerts(db, today),
+    countOverdueOrders(db, today),
+    getOverdueCustomers(db, today),
+    getStoreDailyUnits(db, today, DAILY_CHART_DAYS),
+    getTemperaturesDaily(db, today, DAILY_CHART_DAYS),
+    getExpiryAlerts(db, today, {
+      finishedDays: settings.thresholds.finishedExpiryDays,
+      rawDays: settings.thresholds.rawExpiryDays,
+    }),
+    getLateSupplierOrders(db, today),
+    getNextDayOrders(db, today, settings.workdays),
+  ]);
+  const yieldAvg = averageYield(yieldRuns, today);
 
   // Semana en curso (lunes a hoy): kg ÷ (150 × días hábiles transcurridos). Si hoy es fin de semana cuenta la semana completa.
   const weekTo = today;
@@ -362,6 +387,16 @@ export async function getOperationalDashboard(
       })),
     },
     lotsOnHold: quality.lotsOnHold,
+    expiry,
+    lateSupplierOrders,
+    nextDayOrders,
+    charts: {
+      yieldByRun: yieldRuns,
+      coverage: coverageChart(coverage),
+      otifByWeek,
+      storeDaily,
+      temperaturesDaily,
+    },
   };
 }
 
@@ -385,10 +420,10 @@ export async function getTopCustomers(db: Executor, month: string, limit = 5) {
   return rows.map((r) => ({ ...r, net: roundMoney(r.net) }));
 }
 
-function bagCost(costs: ProductCosts) {
-  const p = costs.products.find((x) => x.netWeightKg === 0.5 && x.unitCost != null);
-  return p?.unitCost != null ? { productName: p.name, cost: p.unitCost } : null;
-}
+/** Meses que muestran los gráficos de evolución. */
+export const HISTORY_MONTHS = 6;
+/** Clientes del gráfico "quiénes compran más". */
+export const TOP_CUSTOMERS = 10;
 
 export async function getFinancialDashboard(
   db: Executor,
@@ -396,16 +431,25 @@ export async function getFinancialDashboard(
 ): Promise<FinancialDashboard> {
   const today = opts.today ?? todayAR();
   const month = opts.month ?? today.slice(0, 7);
+  const months = monthsBack(month, HISTORY_MONTHS);
   const costs = opts.costs ?? (await getProductCosts(db, today));
-  const [result, matrix, sales, topCustomers, receivables, checks, delivery] = await Promise.all([
-    getMonthlyResult(db, month, { today, costs }),
-    getPriceMatrix(db, today, costs),
-    getSalesByChannel(db, month),
-    getTopCustomers(db, month),
-    getReceivablesSummary(db, today),
-    getChecksDueSoon(db, today, 7),
-    getDeliveryCostSummary(db, month),
-  ]);
+  // Un resultado por cada uno de los 6 meses (mismas cuentas que /costos/resultado): de ahí salen también
+  // las ventas por canal de cada mes, el reparto y el resultado del mes elegido.
+  const history = getPartnerWithdrawals(db).then(async (withdrawals) => ({
+    withdrawals,
+    results: await Promise.all(months.map((m) => getMonthlyResult(db, m, { today, costs, withdrawals }))),
+  }));
+  const [{ withdrawals, results }, matrix, topCustomers, receivables, checks, zones, bagSeries] =
+    await Promise.all([
+      history,
+      getPriceMatrix(db, today, costs),
+      getTopCustomers(db, month, TOP_CUSTOMERS),
+      getReceivablesSummary(db, today),
+      getChecksDueSoon(db, today, 7),
+      costByZone(db, month),
+      getCostPerBagByMonth(db, months, today),
+    ]);
+  const result = results.at(-1)!;
 
   const marginByChannel = matrix.lists.map((l) => {
     const margins = l.rows.map((r) => r.marginPct).filter((m): m is number => m != null);
@@ -437,21 +481,50 @@ export async function getFinancialDashboard(
       notices: result.notices,
     },
     costPerKg: costs.costPerKg,
-    costPerBag: bagCost(costs),
+    costPerBag: (() => {
+      const b = bagCostOf(costs);
+      return b ? { productName: b.productName, cost: b.cost } : null;
+    })(),
     missingPrices: [...new Set(costs.products.flatMap((p) => p.missingPrices))],
     marginByChannel,
     belowCost,
-    salesByChannel: Object.entries(sales.byChannel)
-      .map(([channel, v]) => ({ channel, net: v.net, documents: v.documents }))
+    salesByChannel: result.salesByChannel
+      .map((c) => ({ channel: c.channel, net: c.net, documents: c.documents }))
       .sort((a, b) => b.net - a.net),
-    salesNet: sales.net,
+    salesNet: result.sales,
     topCustomers,
     receivables: { total: receivables.total, overdue: receivables.overdue },
     checksDueSoon: {
       count: checks.length,
       amount: roundMoney(checks.reduce((a, c) => a + c.amount, 0)),
     },
-    deliveryCostPerKg: delivery.costPerKg,
+    deliveryCostPerKg: result.delivery.costPerKg,
+    charts: {
+      months,
+      salesByMonth: results.map((r) => ({
+        month: r.month,
+        total: r.sales,
+        byChannel: Object.fromEntries(r.salesByChannel.map((c) => [c.channel, c.net])),
+      })),
+      resultByMonth: results.map((r) => ({
+        month: r.month,
+        result: r.result,
+        resultPct: r.resultPct,
+        sales: r.sales,
+        hasData: r.hasData,
+      })),
+      withdrawals: withdrawals.amount,
+      costPerBagByMonth: bagSeries,
+      deliveryByMonth: results.map((r) => ({
+        month: r.month,
+        costPerKg: r.delivery.costPerKg,
+        kg: r.delivery.kg,
+        cost: r.delivery.cost,
+        routes: r.delivery.routes,
+      })),
+      deliveryByZone: zones.zones,
+      receivablesAging: receivables.buckets,
+    },
   };
 }
 
@@ -459,7 +532,25 @@ export async function getFinancialDashboard(
 // Alertas accionables
 // ------------------------------------------------------------------------------------------------
 
-export function buildAlerts(op: OperationalDashboard, fin: FinancialDashboard | null): DashboardAlert[] {
+/** "lunes" para la fecha de negocio (sin corrimientos de huso). */
+function weekdayName(date: IsoDate) {
+  return new Intl.DateTimeFormat("es-AR", { weekday: "long", timeZone: "UTC" }).format(
+    new Date(`${date}T12:00:00Z`),
+  );
+}
+
+const lotLine = (i: { name: string; lot: string; daysLeft: number }) =>
+  `${i.name}${i.lot ? ` (lote ${i.lot})` : ""}: ${i.daysLeft < 0 ? "vencido" : `${i.daysLeft} día(s)`}`;
+
+/**
+ * Alertas accionables. `extra.priceIncreases` (null/ausente = sin permiso de compras o finanzas) y `extra.store`
+ * (alertas del local, ver `getStoreAlerts`) las arma `getDashboard` según quién mira.
+ */
+export function buildAlerts(
+  op: OperationalDashboard,
+  fin: FinancialDashboard | null,
+  extra: { priceIncreases?: PriceIncreaseAlert[] | null; store?: DashboardAlert[] } = {},
+): DashboardAlert[] {
   const alerts: DashboardAlert[] = [];
   const add = (a: Omit<DashboardAlert, "financial"> & { financial?: boolean }) =>
     a.count > 0 && alerts.push({ financial: false, ...a });
@@ -530,6 +621,60 @@ export function buildAlerts(op: OperationalDashboard, fin: FinancialDashboard | 
     href: "/mantenimiento?vista=correctivos&estado=open",
   });
 
+  add({
+    id: "tomorrow-orders",
+    severity: "warn",
+    label: op.nextDayOrders.isTomorrow
+      ? "Pedidos de mañana sin preparar"
+      : `Pedidos del ${weekdayName(op.nextDayOrders.date)} sin preparar`,
+    count: op.nextDayOrders.notReady + op.nextDayOrders.readyWithoutRoute,
+    detail: [
+      op.nextDayOrders.notReady > 0 ? `${op.nextDayOrders.notReady} sin terminar` : null,
+      op.nextDayOrders.readyWithoutRoute > 0
+        ? `${op.nextDayOrders.readyWithoutRoute} listo(s) sin ruta`
+        : null,
+      ...op.nextDayOrders.items.map((i) => i.customer),
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    // Si lo que falta es armar la ruta se resuelve en despacho; si faltan pedidos por terminar, en pedidos.
+    href: op.nextDayOrders.notReady > 0 ? "/pedidos" : "/despacho/nueva",
+  });
+  add({
+    id: "late-suppliers",
+    severity: "warn",
+    label: "Entregas de proveedores atrasadas",
+    count: op.lateSupplierOrders.count,
+    detail: op.lateSupplierOrders.items.map((i) => `${i.supplier} (${i.daysLate} día(s))`).join(", "),
+    href: "/compras/ordenes",
+  });
+  add({
+    id: "finished-expiry",
+    severity: op.expiry.finished.expired > 0 ? "bad" : "warn",
+    label: "Lotes de producto terminado por vencer",
+    count: op.expiry.finished.count,
+    detail: `Vencen en ${op.expiry.finished.thresholdDays} días o menos: ${op.expiry.finished.items.map(lotLine).join(", ")}`,
+    href: "/stock/producto-terminado",
+  });
+  add({
+    id: "raw-expiry",
+    severity: op.expiry.raw.expired > 0 ? "bad" : "warn",
+    label: "Lotes de materia prima por vencer",
+    count: op.expiry.raw.count,
+    detail: `Vencen en ${op.expiry.raw.thresholdDays} días o menos: ${op.expiry.raw.items.map(lotLine).join(", ")}`,
+    href: "/stock",
+  });
+  const increases = extra.priceIncreases ?? [];
+  add({
+    id: "price-increases",
+    severity: "warn",
+    label: "Aumentos de precio de compra",
+    count: increases.length,
+    detail: increases.map((i) => `${i.name} +${formatNumber(i.pct, 1)} %`).join(", "),
+    href: increases.length === 1 ? `/compras/precios/${increases[0]!.ingredientId}` : "/compras/precios",
+  });
+  for (const a of extra.store ?? []) add(a);
+
   if (fin) {
     add({
       id: "checks",
@@ -573,18 +718,44 @@ export function buildAlerts(op: OperationalDashboard, fin: FinancialDashboard | 
 }
 
 /**
+ * Punto de enganche de las alertas del local (stock mínimo, reposiciones pendientes). Hoy no devuelve nada:
+ * cuando `features/store` exporte `getStoreStockAlerts` y `getPendingReplenishments`, se llaman acá y se
+ * convierten en `DashboardAlert` (ids `store-stock` y `store-replenishment`, href al local).
+ */
+async function getStoreAlerts(db: Executor, today: IsoDate): Promise<DashboardAlert[]> {
+  void db;
+  void today;
+  return [];
+}
+
+/**
  * Tablero (RF-41). Las consultas corren en paralelo. `includeFinance=false` (quien tiene `dashboard:read`
- * pero no `finance:read`) no ejecuta ni devuelve nada financiero: ni resultado, ni márgenes, ni deuda, ni precios.
+ * pero no `finance:read`) no ejecuta ni devuelve nada financiero: ni resultado, ni márgenes, ni deuda, ni precios,
+ * ni los gráficos con montos. `includePrices` (finanzas o compras) suma el aviso de aumentos de precio de compra,
+ * que sólo lleva porcentajes; por defecto sigue a `includeFinance`.
  */
 export async function getDashboard(
   db: Executor,
-  opts: { today?: IsoDate; month?: string; includeFinance: boolean },
+  opts: { today?: IsoDate; month?: string; includeFinance: boolean; includePrices?: boolean },
 ): Promise<Dashboard> {
   const today = opts.today ?? todayAR();
   const month = opts.month ?? today.slice(0, 7);
-  const [operational, financial] = await Promise.all([
+  const includePrices = opts.includePrices ?? opts.includeFinance;
+  const settings = await readSettings(db);
+  const [operational, financial, priceIncreases, store] = await Promise.all([
     getOperationalDashboard(db, { today, month }),
     opts.includeFinance ? getFinancialDashboard(db, { today, month }) : Promise.resolve(null),
+    includePrices
+      ? getPriceIncreases(db, today, settings.thresholds.priceIncreasePct)
+      : Promise.resolve(null),
+    getStoreAlerts(db, today),
   ]);
-  return { today, month, operational, financial, alerts: buildAlerts(operational, financial) };
+  return {
+    today,
+    month,
+    operational,
+    financial,
+    priceIncreases,
+    alerts: buildAlerts(operational, financial, { priceIncreases, store }),
+  };
 }
