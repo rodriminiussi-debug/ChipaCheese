@@ -110,8 +110,8 @@ export function IngredientBreakdown({ overview }: { overview: CostOverview }) {
           Desglose por insumo
         </h2>
         {overview.dairyPctOfIngredients != null ? (
-          <div className="flex flex-wrap gap-2 text-sm">
-            <StatusBadge tone="info">
+          <div className="flex max-w-full min-w-0 flex-wrap gap-2 text-sm">
+            <StatusBadge tone="info" className="h-auto max-w-full py-0.5 text-left whitespace-normal">
               Lácteos (quesos, manteca y leche):{" "}
               <Num value={overview.dairyPctOfIngredients} decimals={1} suffix="%" /> de los ingredientes
             </StatusBadge>
