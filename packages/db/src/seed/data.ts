@@ -109,6 +109,14 @@ export const SETTINGS: Record<string, { value: unknown; description: string }> =
     value: 50,
     description: "Aviso si un pedido ocupa más de este % de la capacidad semanal de producción (RF-05)",
   },
+  "store.target_days": {
+    value: 3,
+    description: "Días de venta que debe cubrir una reposición del local (alertas de stock del local)",
+  },
+  "store.replenish_lead_days": {
+    value: 1,
+    description: "Días que tarda la planta en reponer el local (alertas de stock del local)",
+  },
   "delivery.driver_hourly_cost": { value: 5000, description: "Costo hora chofer (SUPUESTO)" },
   "company.name": { value: "Pacon SRL — Chipa Cheese", description: "Razón social" },
 };

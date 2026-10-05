@@ -43,6 +43,7 @@ export interface Buffers {
   checks: Ins<typeof s.checks>[];
   storeSales: Ins<typeof s.storeSales>[];
   storeSaleItems: Ins<typeof s.storeSaleItems>[];
+  storeSalePayments: Ins<typeof s.storeSalePayments>[];
   cashClosings: Ins<typeof s.cashClosings>[];
   stockMovements: Ins<typeof s.stockMovements>[];
   cleaningRecords: Ins<typeof s.cleaningRecords>[];
@@ -81,6 +82,7 @@ export const emptyBuffers = (): Buffers => ({
   checks: [],
   storeSales: [],
   storeSaleItems: [],
+  storeSalePayments: [],
   cashClosings: [],
   stockMovements: [],
   cleaningRecords: [],

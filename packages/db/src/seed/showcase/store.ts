@@ -90,9 +90,10 @@ export function scheduledTransfer(ctx: Ctx, day: IsoDate) {
 }
 
 const methodMix = [
-  ["cash", 0.5],
-  ["transfer", 0.3],
-  ["card", 0.2],
+  ["cash", 0.45],
+  ["transfer", 0.2],
+  ["card", 0.25],
+  ["qr", 0.1],
 ] as const;
 
 export function storeDay(ctx: Ctx, day: IsoDate) {
@@ -153,6 +154,7 @@ export function storeDay(ctx: Ctx, day: IsoDate) {
       sellerId: seller,
       ...stamp(soldAt),
     });
+    ctx.buf.storeSalePayments.push({ saleId, method, amount: total, ...stamp(soldAt) });
     for (const i of items) {
       const alloc = allocateFinished(ctx, i.product, i.qty, ["local"])!;
       for (const a of alloc) {
@@ -184,7 +186,8 @@ export function storeDay(ctx: Ctx, day: IsoDate) {
   // Cierre de caja (el de hoy todavía no se hizo; en dos días del trimestre se olvidaron de cerrarla).
   if (today || ["2026-07-18", "2026-08-29", "2026-09-19"].includes(day)) return;
   const expectedCash = roundMoney(sold.filter((s) => s.method === "cash").reduce((a, s) => a + s.total, 0));
-  const electronic = roundMoney(sold.filter((s) => s.method !== "cash").reduce((a, s) => a + s.total, 0));
+  const byMethod = (m: string) =>
+    roundMoney(sold.filter((s) => s.method === m).reduce((a, s) => a + s.total, 0));
   const r = rng.next();
   const diff =
     r < 0.84 ? 0 : r < 0.95 ? rng.pick([-1200, -800, -300, 200, 500, 900]) : rng.pick([-4800, -2600, 3100]);
@@ -193,7 +196,9 @@ export function storeDay(ctx: Ctx, day: IsoDate) {
     locationId: ctx.loc.local!,
     expectedCash,
     countedCash: roundMoney(expectedCash + diff),
-    expectedTransfer: electronic,
+    expectedTransfer: byMethod("transfer"),
+    expectedCard: byMethod("card"),
+    expectedQr: byMethod("qr"),
     closedById: seller,
     notes:
       diff === 0

@@ -326,6 +326,7 @@ async function flush(ctx: Ctx) {
 
   await insertAll(tx, s.storeSales, b.storeSales);
   await insertAll(tx, s.storeSaleItems, b.storeSaleItems);
+  await insertAll(tx, s.storeSalePayments, b.storeSalePayments);
   await insertAll(tx, s.cashClosings, b.cashClosings);
 
   await insertAll(tx, s.stockMovements, b.stockMovements);

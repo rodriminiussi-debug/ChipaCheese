@@ -50,6 +50,13 @@
       "when": 1791157965938,
       "tag": "0006_product_kinds_store_ops",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791210053110,
+      "tag": "0007_lo_store_payments",
+      "breakpoints": true
     }
   ]
 }

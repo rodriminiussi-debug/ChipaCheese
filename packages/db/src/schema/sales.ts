@@ -172,6 +172,24 @@ export const storeSales = pgTable(
   (t) => [index("store_sales_sold_at_idx").on(t.soldAt)],
 );
 
+/**
+ * Cómo se pagó una venta del local: una fila por medio (pago dividido = dos filas). La suma de los
+ * montos es el total de la venta; `store_sales.method` queda con el medio principal (el de mayor monto).
+ */
+export const storeSalePayments = pgTable(
+  "store_sale_payments",
+  {
+    id: id(),
+    saleId: uuid()
+      .notNull()
+      .references(() => storeSales.id, { onDelete: "cascade" }),
+    method: paymentMethodEnum().notNull(),
+    amount: money().notNull(),
+    ...timestamps(),
+  },
+  (t) => [index("store_sale_payments_sale_idx").on(t.saleId)],
+);
+
 export const storeSaleItems = pgTable("store_sale_items", {
   id: id(),
   saleId: uuid()
@@ -198,6 +216,9 @@ export const cashClosings = pgTable(
     expectedCash: money().notNull(),
     countedCash: money().notNull(),
     expectedTransfer: money().notNull().default(0),
+    /** Tarjeta y QR del día: informativos (se concilian contra el resumen del procesador). */
+    expectedCard: money().notNull().default(0),
+    expectedQr: money().notNull().default(0),
     closedById: uuid().references(() => users.id),
     notes: text(),
     ...timestamps(),
@@ -237,7 +258,13 @@ export const checksRelations = relations(checks, ({ one }) => ({
 export const storeSalesRelations = relations(storeSales, ({ one, many }) => ({
   location: one(locations, { fields: [storeSales.locationId], references: [locations.id] }),
   seller: one(users, { fields: [storeSales.sellerId], references: [users.id] }),
+  customer: one(customers, { fields: [storeSales.customerId], references: [customers.id] }),
+  voidedBy: one(users, { fields: [storeSales.voidedById], references: [users.id] }),
   items: many(storeSaleItems),
+  payments: many(storeSalePayments),
+}));
+export const storeSalePaymentsRelations = relations(storeSalePayments, ({ one }) => ({
+  sale: one(storeSales, { fields: [storeSalePayments.saleId], references: [storeSales.id] }),
 }));
 export const storeSaleItemsRelations = relations(storeSaleItems, ({ one }) => ({
   sale: one(storeSales, { fields: [storeSaleItems.saleId], references: [storeSales.id] }),
@@ -286,6 +313,8 @@ export const storeReplenishmentItems = pgTable("store_replenishment_items", {
 export const storeReplenishmentsRelations = relations(storeReplenishments, ({ many, one }) => ({
   items: many(storeReplenishmentItems),
   requestedBy: one(users, { fields: [storeReplenishments.requestedById], references: [users.id] }),
+  sentBy: one(users, { fields: [storeReplenishments.sentById], references: [users.id] }),
+  receivedBy: one(users, { fields: [storeReplenishments.receivedById], references: [users.id] }),
 }));
 export const storeReplenishmentItemsRelations = relations(storeReplenishmentItems, ({ one }) => ({
   replenishment: one(storeReplenishments, {
