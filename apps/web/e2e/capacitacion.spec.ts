@@ -36,7 +36,7 @@ test.describe("Capacitación", () => {
 
     await page.getByRole("link", { name: /trazabilidad de un lote/ }).click();
     const trace = page.getByTestId("trace");
-    await expect(trace.getByText("Lote 261001-1")).toBeVisible();
+    await expect(trace.getByText("Lote 261001-1").first()).toBeVisible();
     await trace.getByRole("button", { name: "Repetir" }).click();
     await expect(trace.getByRole("button", { name: "Repetir" })).toBeEnabled({ timeout: 6000 });
   });
@@ -88,7 +88,8 @@ test.describe("Capacitación", () => {
     test("la jefa de producción ve el avance; la contadora no", async ({ page, sql }) => {
       const [{ id }] = await sql`select id from users where username = 'jt'`;
       await sql`insert into training_progress (user_id, module_key, score, total, completed_at)
-        values (${id}, ${`operario/${quizModule.id}`}, ${quizModule.check.length}, ${quizModule.check.length}, now())`;
+        values (${id}, ${`operario/${quizModule.id}`}, ${quizModule.check.length}, ${quizModule.check.length}, now())
+        on conflict (user_id, module_key) do nothing`;
       await page.goto("/capacitacion/equipo");
       const row = page.getByRole("row", { name: /J\.T\./ });
       await expect(row).toContainText("1 de");

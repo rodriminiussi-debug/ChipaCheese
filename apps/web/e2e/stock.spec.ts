@@ -20,8 +20,8 @@ test.describe("Stock (producción)", () => {
     await sql`
       insert into stock_movements (type, item_kind, ingredient_id, location_id, qty, occurred_at)
       values
-        ('receipt', 'ingredient', ${ing!.id}, (select id from locations where code = 'DEP-SECO'), 320, now() - interval '6 days'),
-        ('production_consumption', 'ingredient', ${ing!.id}, (select id from locations where code = 'DEP-SECO'), -300, now() - interval '3 days')`;
+        ('receipt', 'ingredient', ${ing!.id}, (select id from locations where code = 'DEP-SECO'), 320, ${`${demoDay(-6)}T12:00:00-03:00`}::timestamptz),
+        ('production_consumption', 'ingredient', ${ing!.id}, (select id from locations where code = 'DEP-SECO'), -300, ${`${demoDay(-3)}T12:00:00-03:00`}::timestamptz)`;
 
     await page.goto("/stock");
     const row = page.getByRole("row", { name: /Insumo E2E crítico/ });

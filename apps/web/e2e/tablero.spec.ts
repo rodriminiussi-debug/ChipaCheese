@@ -147,6 +147,10 @@ test.describe("Tablero de Dirección (RF-41)", () => {
     );
     await alerts.getByRole("link", { name: /Lotes de producto terminado por vencer/ }).click();
     await expect(page).toHaveURL(/\/stock\/producto-terminado/, { timeout: 30_000 });
+
+    // Limpieza: los tests siguientes del archivo (costos) no deben ver el aumento de precio ni la OC.
+    await sql`delete from ingredient_prices where date = '2026-10-01' and unit_price_net = 1500`;
+    await sql`delete from purchase_orders where number = 'OC-E2E'`;
   });
 
   test("cambia el mes de los indicadores", async ({ page }) => {
