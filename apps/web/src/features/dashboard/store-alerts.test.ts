@@ -15,7 +15,7 @@ describe("alertas del local en el tablero", () => {
       const tap = await tx.query.products.findFirst({ where: eq(schema.products.code, "CH-TAP-500") });
       await createReplenishment(tx, userId, {
         neededBy: TODAY,
-        items: [{ productId: tap!.id, qtyRequested: 40 }],
+        items: [{ productId: tap!.id, qty: 40 }],
       });
       const after = await getDashboard(tx, { today: TODAY, month: "2026-09", includeFinance: false });
       const rep = after.alerts.find((a) => a.id === "store-replenishment");
