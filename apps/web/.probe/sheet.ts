@@ -1,0 +1,17 @@
+import { chromium } from "@playwright/test";
+import { readdirSync, writeFileSync, readFileSync } from "node:fs";
+const idx = JSON.parse(readFileSync("/Users/rodrigominiussi/ChipaCheese/apps/web/public/capacitacion/capturas/index.json", "utf8")) as Record<string, any>;
+const byFile: Record<string, any> = Object.fromEntries(Object.values(idx).map((v: any) => [v.file.split("/").pop(), v]));
+const [role, from = "1", to = "6", cols = "3"] = process.argv.slice(2);
+const dir = `/Users/rodrigominiussi/ChipaCheese/apps/web/public/capacitacion/capturas/${role}`;
+const files = readdirSync(dir).filter((f) => f.endsWith(".jpg")).sort().slice(Number(from) - 1, Number(to));
+const w = Math.floor(1900 / Number(cols)) - 12;
+const html = `<body style="margin:0;background:#888;display:flex;flex-wrap:wrap;gap:8px;padding:4px">${files.map((f) => `<figure style="margin:0;width:${w}px"><div style="position:relative"><img src="file://${dir}/${f}" style="width:100%;display:block">${byFile[f]?.highlight ? `<div style="position:absolute;border:3px solid #e0115f;left:${byFile[f].highlight.x*100}%;top:${byFile[f].highlight.y*100}%;width:${byFile[f].highlight.w*100}%;height:${byFile[f].highlight.h*100}%"></div>` : ""}</div><figcaption style="font:12px monospace;color:#fff">${f}</figcaption></figure>`).join("")}</body>`;
+writeFileSync("/tmp/sheet.html", html);
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1920, height: 1000 } });
+await p.goto("file:///tmp/sheet.html");
+await p.waitForTimeout(500);
+await p.screenshot({ path: `/tmp/sheet-${role}-${from}.png`, fullPage: true });
+await b.close();
+console.log(`/tmp/sheet-${role}-${from}.png`, files.length);

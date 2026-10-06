@@ -304,10 +304,10 @@ test.describe("Permisos de stock", () => {
 
   test.describe("local", () => {
     test.use({ storageState: asRole("store") });
-    test("no accede al stock general de planta (ve el stock del local en su pantalla)", async ({ page }) => {
-      for (const path of ["/stock", "/stock/producto-terminado", "/stock/inventario", "/stock/simulador"]) {
-        await page.goto(path);
-        await expect(page).toHaveURL(/sin-permiso/);
+    test("no ve el stock general: el local resuelve su stock en /local", async ({ page }) => {
+      for (const url of ["/stock", "/stock/producto-terminado", "/stock/inventario", "/stock/reposicion"]) {
+        await page.goto(url);
+        await expect(page, url).toHaveURL(/sin-permiso/);
       }
     });
   });

@@ -823,6 +823,8 @@ export async function getSalesByChannel(db: Executor, month: string) {
     .from(schema.storeSales)
     .where(
       and(
+        // Las ventas anuladas no cuentan.
+        isNull(schema.storeSales.voidedAt),
         sql`(${schema.storeSales.soldAt} at time zone 'America/Argentina/Buenos_Aires')::date >= ${from}::date`,
         sql`(${schema.storeSales.soldAt} at time zone 'America/Argentina/Buenos_Aires')::date < ${to}::date`,
       ),

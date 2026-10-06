@@ -11,15 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/hooks/use-action";
 import { closeCashAction } from "../actions";
 import { cashClosingInput, type CashClosingData, type CashClosingInput } from "../schemas";
+import type { MethodTotals } from "../service";
 
-/** RF-33: cierre de caja del día (efectivo esperado, contado, diferencia y transferencias). */
-export function CashClosingForm({
-  expectedCash,
-  expectedTransfer,
-}: {
-  expectedCash: number;
-  expectedTransfer: number;
-}) {
+/**
+ * RF-33: cierre de caja del día. Efectivo: esperado vs contado (diferencia). Transferencia, tarjeta y QR:
+ * totales informativos para conciliar contra el banco y el procesador de pagos.
+ */
+export function CashClosingForm({ expected }: { expected: MethodTotals }) {
+  const expectedCash = expected.cash;
   const router = useRouter();
   const form = useForm<CashClosingInput, unknown, CashClosingData>({
     resolver: zodResolver(cashClosingInput),
@@ -46,7 +45,15 @@ export function CashClosingForm({
         </dd>
         <dt className="text-muted-foreground">Transferencias del día</dt>
         <dd className="text-right tabular-nums" data-testid="expected-transfer">
-          {formatARS(expectedTransfer)}
+          {formatARS(expected.transfer)}
+        </dd>
+        <dt className="text-muted-foreground">Tarjeta del día</dt>
+        <dd className="text-right tabular-nums" data-testid="expected-card">
+          {formatARS(expected.card)}
+        </dd>
+        <dt className="text-muted-foreground">QR / billetera del día</dt>
+        <dd className="text-right tabular-nums" data-testid="expected-qr">
+          {formatARS(expected.qr)}
         </dd>
       </dl>
       <FieldGroup className="grid gap-4">

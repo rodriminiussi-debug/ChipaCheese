@@ -1,0 +1,1276 @@
+{
+  "contadora/cobranzas-solo-lectura": {
+    "file": "capturas/contadora/05-cobranzas-solo-lectura.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "contadora/compras-del-mes": {
+    "file": "capturas/contadora/01-compras-del-mes.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.8738,
+      "y": 0.2087,
+      "w": 0.1074,
+      "h": 0.035
+    }
+  },
+  "contadora/compras-facturas": {
+    "file": "capturas/contadora/03-compras-facturas.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "contadora/compras-octubre-con-factura-nueva": {
+    "file": "capturas/contadora/02-compras-octubre-con-factura-nueva.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "contadora/cuenta-corriente-solo-lectura": {
+    "file": "capturas/contadora/06-cuenta-corriente-solo-lectura.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "contadora/cuentas-con-proveedores": {
+    "file": "capturas/contadora/04-cuentas-con-proveedores.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "contadora/importar-mis-comprobantes-sin-permiso": {
+    "file": "capturas/contadora/07-importar-mis-comprobantes-sin-permiso.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/admin-nuevo-usuario": {
+    "file": "capturas/direccion/26-admin-nuevo-usuario.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/admin-parametros": {
+    "file": "capturas/direccion/25-admin-parametros.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/admin-usuarios": {
+    "file": "capturas/direccion/24-admin-usuarios.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/auditoria": {
+    "file": "capturas/direccion/29-auditoria.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/cheques-cartera": {
+    "file": "capturas/direccion/15-cheques-cartera.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2195,
+      "y": 0.3,
+      "w": 0.7609,
+      "h": 0.6681
+    }
+  },
+  "direccion/cobranzas-saldos": {
+    "file": "capturas/direccion/12-cobranzas-saldos.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/costo-por-producto": {
+    "file": "capturas/direccion/06-costo-por-producto.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/cuenta-corriente-registrar-cobro": {
+    "file": "capturas/direccion/14-cuenta-corriente-registrar-cobro.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.3,
+      "y": 0.2878,
+      "w": 0.4,
+      "h": 0.4244
+    }
+  },
+  "direccion/cuenta-corriente-vencida": {
+    "file": "capturas/direccion/13-cuenta-corriente-vencida.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.4117,
+      "y": 0.2075,
+      "w": 0.1836,
+      "h": 0.13
+    }
+  },
+  "direccion/factura-confirmada": {
+    "file": "capturas/direccion/20-factura-confirmada.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/factura-leida": {
+    "file": "capturas/direccion/18-factura-leida.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/factura-nueva": {
+    "file": "capturas/direccion/16-factura-nueva.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.4859,
+      "y": 0.2087,
+      "w": 0.2578,
+      "h": 0.1
+    }
+  },
+  "direccion/factura-revision-lineas": {
+    "file": "capturas/direccion/19-factura-revision-lineas.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.7628,
+      "y": 0.7525,
+      "w": 0.2083,
+      "h": 0.04
+    }
+  },
+  "direccion/factura-vista-previa": {
+    "file": "capturas/direccion/17-factura-vista-previa.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2289,
+      "y": 0.805,
+      "w": 0.5047,
+      "h": 0.045
+    }
+  },
+  "direccion/gastos-agregar": {
+    "file": "capturas/direccion/28-gastos-agregar.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.35,
+      "y": 0.2137,
+      "w": 0.3,
+      "h": 0.5725
+    }
+  },
+  "direccion/gastos-fijos": {
+    "file": "capturas/direccion/27-gastos-fijos.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/importar-comprobantes-importados": {
+    "file": "capturas/direccion/23-importar-comprobantes-importados.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/importar-comprobantes-vacio": {
+    "file": "capturas/direccion/21-importar-comprobantes-vacio.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/importar-comprobantes-vista-previa": {
+    "file": "capturas/direccion/22-importar-comprobantes-vista-previa.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.4466,
+      "w": 0.7625,
+      "h": 0.025
+    }
+  },
+  "direccion/precios-editar-precio": {
+    "file": "capturas/direccion/11-precios-editar-precio.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.3625,
+      "y": 0.5509,
+      "w": 0.275,
+      "h": 0.08
+    }
+  },
+  "direccion/precios-lista-local": {
+    "file": "capturas/direccion/09-precios-lista-local.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/precios-revendedores": {
+    "file": "capturas/direccion/10-precios-revendedores.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2195,
+      "y": 0.7041,
+      "w": 0.7609,
+      "h": 0.0663
+    }
+  },
+  "direccion/resultado-como-se-llega": {
+    "file": "capturas/direccion/05-resultado-como-se-llega.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/resultado-cubre-retiros": {
+    "file": "capturas/direccion/04-resultado-cubre-retiros.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.6047,
+      "y": 0.2825,
+      "w": 0.3766,
+      "h": 0.03
+    }
+  },
+  "direccion/simulador-antes": {
+    "file": "capturas/direccion/07-simulador-antes.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2313,
+      "y": 0.105,
+      "w": 0.0771,
+      "h": 0.035
+    }
+  },
+  "direccion/simulador-quesos-menos-5": {
+    "file": "capturas/direccion/08-simulador-quesos-menos-5.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/tablero-para-atender": {
+    "file": "capturas/direccion/02-tablero-para-atender.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/tablero-plata": {
+    "file": "capturas/direccion/03-tablero-plata.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "direccion/tablero-resultado": {
+    "file": "capturas/direccion/01-tablero-resultado.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.6047,
+      "y": 0.18,
+      "w": 0.3766,
+      "h": 0.03
+    }
+  },
+  "general/login": {
+    "file": "capturas/general/01-login.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.3625,
+      "y": 0.5825,
+      "w": 0.275,
+      "h": 0.04
+    }
+  },
+  "general/login-con-pin-planta": {
+    "file": "capturas/general/03-login-con-pin-planta.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "general/login-contrasena-incorrecta": {
+    "file": "capturas/general/02-login-contrasena-incorrecta.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.3711,
+      "y": 0.56,
+      "w": 0.2578,
+      "h": 0.025
+    }
+  },
+  "general/menu-contadora": {
+    "file": "capturas/general/10-menu-contadora.jpg",
+    "width": 255,
+    "height": 1000
+  },
+  "general/menu-direccion": {
+    "file": "capturas/general/04-menu-direccion.jpg",
+    "width": 255,
+    "height": 1000
+  },
+  "general/menu-local": {
+    "file": "capturas/general/08-menu-local.jpg",
+    "width": 255,
+    "height": 1000
+  },
+  "general/menu-logistica": {
+    "file": "capturas/general/06-menu-logistica.jpg",
+    "width": 255,
+    "height": 1000
+  },
+  "general/menu-operario": {
+    "file": "capturas/general/07-menu-operario.jpg",
+    "width": 255,
+    "height": 1000
+  },
+  "general/menu-produccion": {
+    "file": "capturas/general/05-menu-produccion.jpg",
+    "width": 255,
+    "height": 1000
+  },
+  "general/menu-tecnico": {
+    "file": "capturas/general/09-menu-tecnico.jpg",
+    "width": 255,
+    "height": 1000
+  },
+  "general/sin-permiso": {
+    "file": "capturas/general/11-sin-permiso.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.3931,
+      "y": 0.535,
+      "w": 0.2137,
+      "h": 0.03
+    }
+  },
+  "local/caja-cerrada": {
+    "file": "capturas/local/09-caja-cerrada.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "local/cierre-de-caja-diferencia": {
+    "file": "capturas/local/08-cierre-de-caja-diferencia.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.2734,
+      "y": 0.637,
+      "w": 0.4375,
+      "h": 0.026
+    }
+  },
+  "local/cierre-de-caja-esperado": {
+    "file": "capturas/local/07-cierre-de-caja-esperado.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.4961,
+      "y": 0.418,
+      "w": 0.2021,
+      "h": 0.026
+    }
+  },
+  "local/stock-del-local": {
+    "file": "capturas/local/06-stock-del-local.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "local/vender-productos": {
+    "file": "capturas/local/01-vender-productos.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "local/venta-con-3-unidades": {
+    "file": "capturas/local/02-venta-con-3-unidades.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.8358,
+      "y": 0.6953,
+      "w": 0.1241,
+      "h": 0.0469
+    }
+  },
+  "local/venta-con-transferencia": {
+    "file": "capturas/local/04-venta-con-transferencia.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.7949,
+      "y": 0.5951,
+      "w": 0.165,
+      "h": 0.0625
+    }
+  },
+  "local/venta-registrada-efectivo": {
+    "file": "capturas/local/03-venta-registrada-efectivo.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "local/ventas-del-dia": {
+    "file": "capturas/local/05-ventas-del-dia.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "logistica/cerrar-ruta": {
+    "file": "capturas/logistica/18-cerrar-ruta.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.0821,
+      "y": 0.5403,
+      "w": 0.8359,
+      "h": 0.0569
+    }
+  },
+  "logistica/cobro-con-cheque": {
+    "file": "capturas/logistica/15-cobro-con-cheque.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.0821,
+      "y": 0.2327,
+      "w": 0.8359,
+      "h": 0.4387
+    }
+  },
+  "logistica/cobro-registrado": {
+    "file": "capturas/logistica/16-cobro-registrado.jpg",
+    "width": 390,
+    "height": 844
+  },
+  "logistica/cobros-de-la-ruta": {
+    "file": "capturas/logistica/14-cobros-de-la-ruta.jpg",
+    "width": 390,
+    "height": 844
+  },
+  "logistica/costo-de-reparto": {
+    "file": "capturas/logistica/20-costo-de-reparto.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.5154,
+      "y": 0.6327,
+      "w": 0.4436,
+      "h": 0.1469
+    }
+  },
+  "logistica/costo-por-zona": {
+    "file": "capturas/logistica/21-costo-por-zona.jpg",
+    "width": 390,
+    "height": 844
+  },
+  "logistica/entrega-con-firma": {
+    "file": "capturas/logistica/12-entrega-con-firma.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.0821,
+      "y": 0.6502,
+      "w": 0.8359,
+      "h": 0.1463
+    }
+  },
+  "logistica/entrega-registrada": {
+    "file": "capturas/logistica/13-entrega-registrada.jpg",
+    "width": 390,
+    "height": 844
+  },
+  "logistica/iniciar-ruta-km-inicial": {
+    "file": "capturas/logistica/07-iniciar-ruta-km-inicial.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.0821,
+      "y": 0.5877,
+      "w": 0.8359,
+      "h": 0.0521
+    }
+  },
+  "logistica/nueva-ruta-propuesta": {
+    "file": "capturas/logistica/02-nueva-ruta-propuesta.jpg",
+    "width": 390,
+    "height": 844
+  },
+  "logistica/paradas-de-la-ruta": {
+    "file": "capturas/logistica/09-paradas-de-la-ruta.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.041,
+      "y": 0,
+      "w": 0.9179,
+      "h": 0.3436
+    }
+  },
+  "logistica/propuesta-por-zona": {
+    "file": "capturas/logistica/03-propuesta-por-zona.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.041,
+      "y": 0.0983,
+      "w": 0.9179,
+      "h": 0.3081
+    }
+  },
+  "logistica/remito-generado-con-lotes": {
+    "file": "capturas/logistica/10-remito-generado-con-lotes.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.0821,
+      "y": 0.2109,
+      "w": 0.8359,
+      "h": 0.1185
+    }
+  },
+  "logistica/remito-imprimible": {
+    "file": "capturas/logistica/11-remito-imprimible.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.041,
+      "y": 0,
+      "w": 0.9179,
+      "h": 1
+    }
+  },
+  "logistica/ruta-cerrada": {
+    "file": "capturas/logistica/19-ruta-cerrada.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.0821,
+      "y": 0,
+      "w": 0.8359,
+      "h": 0.2559
+    }
+  },
+  "logistica/ruta-con-retiro-en-proveedor": {
+    "file": "capturas/logistica/04-ruta-con-retiro-en-proveedor.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.041,
+      "y": 0.8957,
+      "w": 0.5991,
+      "h": 0.0237
+    }
+  },
+  "logistica/ruta-creada": {
+    "file": "capturas/logistica/05-ruta-creada.jpg",
+    "width": 390,
+    "height": 844
+  },
+  "logistica/ruta-del-dia-planificada": {
+    "file": "capturas/logistica/06-ruta-del-dia-planificada.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.0821,
+      "y": 0.4502,
+      "w": 0.8359,
+      "h": 0.0284
+    }
+  },
+  "logistica/ruta-iniciada": {
+    "file": "capturas/logistica/08-ruta-iniciada.jpg",
+    "width": 390,
+    "height": 844
+  },
+  "logistica/rutas-del-dia": {
+    "file": "capturas/logistica/01-rutas-del-dia.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.0821,
+      "y": 0.7749,
+      "w": 0.272,
+      "h": 0.0379
+    }
+  },
+  "logistica/todas-las-paradas-entregadas": {
+    "file": "capturas/logistica/17-todas-las-paradas-entregadas.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.041,
+      "y": 0.2938,
+      "w": 0.9179,
+      "h": 0.0237
+    }
+  },
+  "operario/consumo-fuera-de-rango": {
+    "file": "capturas/operario/07-consumo-fuera-de-rango.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.2352,
+      "y": 0.1523,
+      "w": 0.3398,
+      "h": 0.026
+    }
+  },
+  "operario/consumos-confirmados": {
+    "file": "capturas/operario/08-consumos-confirmados.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "operario/consumos-precargados": {
+    "file": "capturas/operario/06-consumos-precargados.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.4583,
+      "w": 0.9688,
+      "h": 0.0833
+    }
+  },
+  "operario/elegir-produccion": {
+    "file": "capturas/operario/05-elegir-produccion.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.2656,
+      "w": 0.9688,
+      "h": 0.112
+    }
+  },
+  "operario/envasado-30-bolsas": {
+    "file": "capturas/operario/12-envasado-30-bolsas.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.5833,
+      "w": 0.9688,
+      "h": 0.1042
+    }
+  },
+  "operario/envasado-elegir-producto": {
+    "file": "capturas/operario/11-envasado-elegir-producto.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.5039,
+      "y": 0.3594,
+      "w": 0.4805,
+      "h": 0.0833
+    }
+  },
+  "operario/envasado-registrado": {
+    "file": "capturas/operario/13-envasado-registrado.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0322,
+      "y": 0.7826,
+      "w": 0.1936,
+      "h": 0.0729
+    }
+  },
+  "operario/etiquetas-con-qr": {
+    "file": "capturas/operario/14-etiquetas-con-qr.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.2734,
+      "y": 0.3646,
+      "w": 0.3691,
+      "h": 0.2953
+    }
+  },
+  "operario/ingreso-pin": {
+    "file": "capturas/operario/02-ingreso-pin.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.5507,
+      "y": 0.724,
+      "w": 0.0779,
+      "h": 0.1042
+    }
+  },
+  "operario/ingreso-quien-sos": {
+    "file": "capturas/operario/01-ingreso-quien-sos.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "operario/inicio-planta": {
+    "file": "capturas/operario/03-inicio-planta.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.5078,
+      "y": 0.1042,
+      "w": 0.4766,
+      "h": 0.1875
+    }
+  },
+  "operario/limpieza-a-profundizar": {
+    "file": "capturas/operario/17-limpieza-a-profundizar.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.3529,
+      "w": 0.9688,
+      "h": 0.3516
+    }
+  },
+  "operario/limpieza-correcto": {
+    "file": "capturas/operario/16-limpieza-correcto.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.4688,
+      "w": 0.9688,
+      "h": 0.2109
+    }
+  },
+  "operario/limpieza-lista": {
+    "file": "capturas/operario/15-limpieza-lista.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "operario/pesadas-cargadas-en-pantalla": {
+    "file": "capturas/operario/09-pesadas-cargadas-en-pantalla.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.7813,
+      "w": 0.9688,
+      "h": 0.0833
+    }
+  },
+  "operario/pesadas-guardadas": {
+    "file": "capturas/operario/10-pesadas-guardadas.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.5469,
+      "w": 0.9688,
+      "h": 0.0365
+    }
+  },
+  "operario/sin-pendientes": {
+    "file": "capturas/operario/27-sin-pendientes.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "operario/sin-senal-guardado-en-cola": {
+    "file": "capturas/operario/24-sin-senal-guardado-en-cola.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.1719,
+      "w": 0.9688,
+      "h": 0.0365
+    }
+  },
+  "operario/sin-senal-indicador": {
+    "file": "capturas/operario/25-sin-senal-indicador.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.6595,
+      "y": 0.0234,
+      "w": 0.2028,
+      "h": 0.0365
+    }
+  },
+  "operario/sincronizado-al-volver-la-senal": {
+    "file": "capturas/operario/26-sincronizado-al-volver-la-senal.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "operario/tareas-de-hoy": {
+    "file": "capturas/operario/04-tareas-de-hoy.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "operario/temperatura-accion-correctiva": {
+    "file": "capturas/operario/20-temperatura-accion-correctiva.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.875,
+      "w": 0.5625,
+      "h": 0.1042
+    }
+  },
+  "operario/temperatura-dentro-de-rango": {
+    "file": "capturas/operario/22-temperatura-dentro-de-rango.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "operario/temperatura-fuera-de-rango": {
+    "file": "capturas/operario/19-temperatura-fuera-de-rango.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.2839,
+      "w": 0.5625,
+      "h": 0.5703
+    }
+  },
+  "operario/temperatura-guardada": {
+    "file": "capturas/operario/23-temperatura-guardada.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.1719,
+      "w": 0.9688,
+      "h": 0.0365
+    }
+  },
+  "operario/temperatura-guardada-con-alerta": {
+    "file": "capturas/operario/21-temperatura-guardada-con-alerta.jpg",
+    "width": 1024,
+    "height": 768,
+    "highlight": {
+      "x": 0.0156,
+      "y": 0.1719,
+      "w": 0.9688,
+      "h": 0.1224
+    }
+  },
+  "operario/temperaturas-equipos": {
+    "file": "capturas/operario/18-temperaturas-equipos.jpg",
+    "width": 1024,
+    "height": 768
+  },
+  "produccion/consumos-fuera-de-rango": {
+    "file": "capturas/produccion/10-consumos-fuera-de-rango.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.8207,
+      "y": 0.3725,
+      "w": 0.0919,
+      "h": 0.025
+    }
+  },
+  "produccion/detalle-produccion": {
+    "file": "capturas/produccion/09-detalle-produccion.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.6047,
+      "y": 0.2625,
+      "w": 0.1773,
+      "h": 0.025
+    }
+  },
+  "produccion/envasado-y-lote": {
+    "file": "capturas/produccion/12-envasado-y-lote.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/fecha-posible-425-kg": {
+    "file": "capturas/produccion/25-fecha-posible-425-kg.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.3228,
+      "y": 0.3391,
+      "w": 0.0857,
+      "h": 0.0225
+    }
+  },
+  "produccion/hoja-de-envasado": {
+    "file": "capturas/produccion/24-hoja-de-envasado.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/inventario-fisico": {
+    "file": "capturas/produccion/22-inventario-fisico.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/lote-detalle": {
+    "file": "capturas/produccion/13-lote-detalle.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/lote-etiqueta-qr": {
+    "file": "capturas/produccion/14-lote-etiqueta-qr.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.27,
+      "w": 0.2953,
+      "h": 0.2835
+    }
+  },
+  "produccion/matriz-polivalencia": {
+    "file": "capturas/produccion/19-matriz-polivalencia.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2461,
+      "y": 0.1412,
+      "w": 0.7266,
+      "h": 0.025
+    }
+  },
+  "produccion/nueva-produccion-llena": {
+    "file": "capturas/produccion/06-nueva-produccion-llena.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.7956,
+      "w": 0.1053,
+      "h": 0.04
+    }
+  },
+  "produccion/nueva-produccion-vacia": {
+    "file": "capturas/produccion/05-nueva-produccion-vacia.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/orden-de-compra-creada": {
+    "file": "capturas/produccion/33-orden-de-compra-creada.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.7184,
+      "y": 0.14,
+      "w": 0.1442,
+      "h": 0.04
+    }
+  },
+  "produccion/orden-de-compra-nueva": {
+    "file": "capturas/produccion/32-orden-de-compra-nueva.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.8025,
+      "w": 0.0776,
+      "h": 0.04
+    }
+  },
+  "produccion/pedido-celular-cargado": {
+    "file": "capturas/produccion/29-pedido-celular-cargado.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.041,
+      "y": 0.981,
+      "w": 0.2695,
+      "h": 0.019
+    }
+  },
+  "produccion/pedido-celular-confirmado": {
+    "file": "capturas/produccion/31-pedido-celular-confirmado.jpg",
+    "width": 390,
+    "height": 844,
+    "highlight": {
+      "x": 0.0821,
+      "y": 0.8572,
+      "w": 0.8359,
+      "h": 0.1043
+    }
+  },
+  "produccion/pedido-celular-guardado": {
+    "file": "capturas/produccion/30-pedido-celular-guardado.jpg",
+    "width": 390,
+    "height": 844
+  },
+  "produccion/pedido-celular-vacio": {
+    "file": "capturas/produccion/28-pedido-celular-vacio.jpg",
+    "width": 390,
+    "height": 844
+  },
+  "produccion/pedido-confirmado": {
+    "file": "capturas/produccion/27-pedido-confirmado.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/pedido-recibido-detalle": {
+    "file": "capturas/produccion/26-pedido-recibido-detalle.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.13,
+      "w": 0.1341,
+      "h": 0.055
+    }
+  },
+  "produccion/pedidos-listado": {
+    "file": "capturas/produccion/23-pedidos-listado.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/pesadas-y-rendimiento": {
+    "file": "capturas/produccion/11-pesadas-y-rendimiento.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.6172,
+      "y": 0.0969,
+      "w": 0.1523,
+      "h": 0.025
+    }
+  },
+  "produccion/pizarron-ausencia": {
+    "file": "capturas/produccion/18-pizarron-ausencia.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2461,
+      "y": 0.5713,
+      "w": 0.7266,
+      "h": 0.025
+    }
+  },
+  "produccion/pizarron-del-dia": {
+    "file": "capturas/produccion/17-pizarron-del-dia.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/plan-del-dia": {
+    "file": "capturas/produccion/01-plan-del-dia.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2313,
+      "y": 0.5437,
+      "w": 0.1456,
+      "h": 0.025
+    }
+  },
+  "produccion/plan-guardado": {
+    "file": "capturas/produccion/03-plan-guardado.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/plan-semana": {
+    "file": "capturas/produccion/04-plan-semana.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/plan-usar-sugerido": {
+    "file": "capturas/produccion/02-plan-usar-sugerido.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.8617,
+      "y": 0.36,
+      "w": 0.1,
+      "h": 0.04
+    }
+  },
+  "produccion/produccion-creada": {
+    "file": "capturas/produccion/07-produccion-creada.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2313,
+      "y": 0.3325,
+      "w": 0.1111,
+      "h": 0.04
+    }
+  },
+  "produccion/produccion-en-elaboracion": {
+    "file": "capturas/produccion/08-produccion-en-elaboracion.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/recepcion-temperatura-alta": {
+    "file": "capturas/produccion/34-recepcion-temperatura-alta.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2289,
+      "y": 0.8653,
+      "w": 0.6797,
+      "h": 0.025
+    }
+  },
+  "produccion/receta-ficha-imprimible": {
+    "file": "capturas/produccion/16-receta-ficha-imprimible.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.876,
+      "y": 0.06,
+      "w": 0.1052,
+      "h": 0.04
+    }
+  },
+  "produccion/receta-maestra": {
+    "file": "capturas/produccion/15-receta-maestra.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.7599,
+      "y": 0.035,
+      "w": 0.1185,
+      "h": 0.04
+    }
+  },
+  "produccion/simulador-425-kg": {
+    "file": "capturas/produccion/21-simulador-425-kg.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "produccion/stock-materia-prima": {
+    "file": "capturas/produccion/20-stock-materia-prima.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.6052,
+      "y": 0.3837,
+      "w": 0.0694,
+      "h": 0.05
+    }
+  },
+  "tecnico/biscomatic-historial": {
+    "file": "capturas/tecnico/16-biscomatic-historial.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.335,
+      "w": 0.7813,
+      "h": 0.1275
+    }
+  },
+  "tecnico/exportar-planillas": {
+    "file": "capturas/tecnico/12-exportar-planillas.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.4771,
+      "y": 0.3116,
+      "w": 0.2458,
+      "h": 0.18
+    }
+  },
+  "tecnico/exportar-ultimas-exportaciones": {
+    "file": "capturas/tecnico/13-exportar-ultimas-exportaciones.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "tecnico/mantenimiento-equipos": {
+    "file": "capturas/tecnico/15-mantenimiento-equipos.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2258,
+      "y": 0.7562,
+      "w": 0.1144,
+      "h": 0.0225
+    }
+  },
+  "tecnico/mantenimiento-preventivos": {
+    "file": "capturas/tecnico/14-mantenimiento-preventivos.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "tecnico/planilla-limpieza-septiembre": {
+    "file": "capturas/tecnico/02-planilla-limpieza-septiembre.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.4888,
+      "w": 0.7813,
+      "h": 0.4462
+    }
+  },
+  "tecnico/planilla-temperaturas-octubre": {
+    "file": "capturas/tecnico/03-planilla-temperaturas-octubre.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.0688,
+      "y": 0.06,
+      "w": 0.9313,
+      "h": 0.32
+    }
+  },
+  "tecnico/reclamos-y-retenciones": {
+    "file": "capturas/tecnico/04-reclamos-y-retenciones.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "tecnico/registros-bpm-resumen": {
+    "file": "capturas/tecnico/01-registros-bpm-resumen.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "tecnico/trazabilidad-buscar": {
+    "file": "capturas/tecnico/05-trazabilidad-buscar.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.2325,
+      "w": 0.3733,
+      "h": 0.04
+    }
+  },
+  "tecnico/trazabilidad-consumos-materia-prima": {
+    "file": "capturas/tecnico/07-trazabilidad-consumos-materia-prima.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0,
+      "w": 0.7625,
+      "h": 0.6044
+    }
+  },
+  "tecnico/trazabilidad-hacia-adelante": {
+    "file": "capturas/tecnico/08-trazabilidad-hacia-adelante.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.2681,
+      "w": 0.375,
+      "h": 0.4631
+    }
+  },
+  "tecnico/trazabilidad-lote-hacia-atras": {
+    "file": "capturas/tecnico/06-trazabilidad-lote-hacia-atras.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0.5575,
+      "w": 0.7625,
+      "h": 0.255
+    }
+  },
+  "tecnico/trazabilidad-lote-materia-prima": {
+    "file": "capturas/tecnico/10-trazabilidad-lote-materia-prima.jpg",
+    "width": 1280,
+    "height": 800,
+    "highlight": {
+      "x": 0.2188,
+      "y": 0,
+      "w": 0.7625,
+      "h": 1
+    }
+  },
+  "tecnico/trazabilidad-mp-lotes-terminados-y-clientes": {
+    "file": "capturas/tecnico/11-trazabilidad-mp-lotes-terminados-y-clientes.jpg",
+    "width": 1280,
+    "height": 800
+  },
+  "tecnico/trazabilidad-stock-y-clientes": {
+    "file": "capturas/tecnico/09-trazabilidad-stock-y-clientes.jpg",
+    "width": 1280,
+    "height": 800
+  }
+}

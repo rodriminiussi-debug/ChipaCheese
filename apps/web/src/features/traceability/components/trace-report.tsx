@@ -234,6 +234,7 @@ export function FinishedLotReport({ trace: t, canHold }: { trace: FinishedLotTra
               {t.storeSales.map((s) => (
                 <li key={s.saleId + s.product}>
                   {formatDateTimeAR(s.soldAt)} · {s.product} · {s.units} u.
+                  {s.voided ? " (anulada: volvió al stock)" : ""}
                 </li>
               ))}
             </ul>

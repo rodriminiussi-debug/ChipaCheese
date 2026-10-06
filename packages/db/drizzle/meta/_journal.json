@@ -57,6 +57,13 @@
       "when": 1791210231764,
       "tag": "0007_pl_offline_status_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791229665620,
+      "tag": "0008_lo_store_payments",
+      "breakpoints": true
     }
   ]
 }

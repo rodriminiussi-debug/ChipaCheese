@@ -53,7 +53,7 @@ export interface FinishedLotTrace {
     product: string;
     units: number;
   }[];
-  storeSales: { saleId: string; soldAt: Date; product: string; units: number }[];
+  storeSales: { saleId: string; soldAt: Date; product: string; units: number; voided: boolean }[];
   complaints: { id: string; date: IsoDate; customer: string | null; reason: string; status: string }[];
   totals: { packedUnits: number; stockUnits: number; dispatchedUnits: number; soldInStoreUnits: number };
 }
@@ -189,6 +189,7 @@ export async function traceFinishedLot(db: Executor, code: string): Promise<Fini
         soldAt: schema.storeSales.soldAt,
         product: schema.products.name,
         units: schema.storeSaleItems.qtyUnits,
+        voided: sql<boolean>`${schema.storeSales.voidedAt} is not null`,
       })
       .from(schema.storeSaleItems)
       .innerJoin(schema.storeSales, eq(schema.storeSales.id, schema.storeSaleItems.saleId))
@@ -260,7 +261,7 @@ export async function traceFinishedLot(db: Executor, code: string): Promise<Fini
       packedUnits: sum(packings.map((p) => p.units)),
       stockUnits: sum(stock.map((s) => s.qty)),
       dispatchedUnits: sum(dispatches.map((d) => d.units)),
-      soldInStoreUnits: sum(storeSales.map((s) => s.units)),
+      soldInStoreUnits: sum(storeSales.filter((s) => !s.voided).map((s) => s.units)),
     },
   };
 }

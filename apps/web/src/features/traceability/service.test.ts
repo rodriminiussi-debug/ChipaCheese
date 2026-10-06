@@ -5,6 +5,10 @@ import { inRollback } from "../../../tests/helpers";
 import { searchTrace, traceFinishedLot, traceRawLots } from "./service";
 import { traceSheet } from "./export";
 import { sheetToXlsx } from "@/features/quality/export";
+import { storeSaleInput } from "@/features/store/schemas";
+import { createStoreSale, voidStoreSale } from "@/features/store/service";
+import { transferProduct } from "@/features/stock/service";
+import { locationByCode } from "@/features/stock/ledger";
 
 /** Crea un remito del lote al cliente (el demo no trae despachos). */
 async function dispatchLot(tx: Tx, lotCode: string, customerLegalName: string, units: number) {
@@ -27,6 +31,40 @@ async function dispatchLot(tx: Tx, lotCode: string, customerLegalName: string, u
     .values({ dispatchId: d!.id, productId: packing.productId, finishedLotId: lot.id, qtyUnits: units });
   return { lot, customer, dispatch: d! };
 }
+
+describe("ventas del local en la trazabilidad del lote", () => {
+  it("las ventas anuladas se indican y no suman a las unidades vendidas en el local", async () => {
+    await inRollback("rtecnico", async (tx, userId) => {
+      const tap = (await tx.query.products.findFirst({ where: eq(schema.products.code, "CH-TAP-500") }))!;
+      const [f3, local] = await Promise.all([locationByCode(tx, "F3"), locationByCode(tx, "LOCAL")]);
+      await transferProduct(tx, userId, {
+        productId: tap.id,
+        fromLocationId: f3.id,
+        toLocationId: local.id,
+        units: 10,
+        finishedLotId: null,
+        note: null,
+      });
+      const today = "2026-10-02";
+      const input = (qtyUnits: number) =>
+        storeSaleInput.parse({ items: [{ productId: tap.id, qtyUnits }], payments: [{ method: "cash" }] });
+      await createStoreSale(tx, userId, input(3), today);
+      const bad = await createStoreSale(tx, userId, input(4), today);
+      await voidStoreSale(
+        tx,
+        userId,
+        { saleId: bad.sale.id, reason: "Error de carga" },
+        { anyDay: false, today },
+      );
+      const t = await traceFinishedLot(tx, "260901-1");
+      expect(t!.storeSales.map((s) => [s.units, s.voided])).toEqual([
+        [3, false],
+        [4, true],
+      ]);
+      expect(t!.totals.soldInStoreUnits).toBe(3);
+    });
+  });
+});
 
 describe("trazabilidad del lote terminado 260901-1 (RF-35)", () => {
   it("hacia atrás: producción, responsables, receta y consumos por insumo", async () => {
