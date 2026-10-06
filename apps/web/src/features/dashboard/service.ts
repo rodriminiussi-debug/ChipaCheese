@@ -1,3 +1,5 @@
+import { getPendingReplenishments } from "@/features/store/replenishment";
+import { getStoreStockAlerts } from "@/features/store/alerts";
 import {
   DAILY_CAPACITY_KG,
   addDays,
@@ -717,15 +719,42 @@ export function buildAlerts(
   return alerts.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "bad" ? -1 : 1));
 }
 
-/**
- * Punto de enganche de las alertas del local (stock mínimo, reposiciones pendientes). Hoy no devuelve nada:
- * cuando `features/store` exporte `getStoreStockAlerts` y `getPendingReplenishments`, se llaman acá y se
- * convierten en `DashboardAlert` (ids `store-stock` y `store-replenishment`, href al local).
- */
+/** Alertas del local: productos por agotarse según la demanda y reposiciones que la planta debe enviar. */
 async function getStoreAlerts(db: Executor, today: IsoDate): Promise<DashboardAlert[]> {
-  void db;
-  void today;
-  return [];
+  const [stock, pending] = await Promise.all([
+    getStoreStockAlerts(db, today),
+    getPendingReplenishments(db, today),
+  ]);
+  const alerts: DashboardAlert[] = [];
+  const toReorder = stock.rows.filter((r) => r.status === "out" || r.status === "reorder");
+  if (toReorder.length) {
+    const out = toReorder.filter((r) => r.status === "out").length;
+    alerts.push({
+      id: "store-stock",
+      severity: out > 0 ? "bad" : "warn",
+      label: "Stock del local por agotarse",
+      count: toReorder.length,
+      detail: `${toReorder
+        .slice(0, 3)
+        .map((r) => r.name)
+        .join(", ")}${toReorder.length > 3 ? "…" : ""}${out ? ` · ${out} agotado(s)` : ""}`,
+      href: "/local",
+      financial: false,
+    });
+  }
+  if (pending.length) {
+    const late = pending.filter((p) => p.overdue).length;
+    alerts.push({
+      id: "store-replenishment",
+      severity: late > 0 ? "bad" : "warn",
+      label: "Reposiciones del local por enviar",
+      count: pending.length,
+      detail: `${pending.reduce((a, p) => a + p.totalUnits, 0)} unidades pedidas${late ? ` · ${late} vencida(s)` : ""}`,
+      href: "/stock/reposicion",
+      financial: false,
+    });
+  }
+  return alerts;
 }
 
 /**
